@@ -15,23 +15,19 @@ Email: yp1170@nyu.edu
 """
 
 import numpy as np
-import pandas as pd
 from datetime import date, timedelta
-from typing import List, Dict, Optional
 from dataclasses import dataclass
 from scipy.stats import norm
-from scipy.integrate import quad
 import warnings
 
 from .data_provider import OptionChain, OptionQuote
 try:
     from options_desk.pricer._jax_mgf_pricer import heston_price_slice_fast as heston_price_slice
-    from options_desk.pricer.heston_mgf_pricer import heston_price_vanilla
 except ImportError:
-    from options_desk.pricer.heston_mgf_pricer import heston_price_vanilla, heston_price_slice
+    from options_desk.pricer.heston_mgf_pricer import heston_price_slice
 
 
-def get_default_moneyness_by_maturity() -> Dict[int, List[float]]:
+def get_default_moneyness_by_maturity() -> dict[int, list[float]]:
     """
     Default adaptive moneyness grid: tighter for short maturities, wider for long.
 
@@ -108,11 +104,11 @@ class SyntheticEquityOptionChainGenerator:
         risk_free_rate: float = 0.03,
         dividend_yield: float = 0.01,
         # Equity-specific: standard expiries (10-120 days)
-        maturities_days: List[int] = [10, 20, 30, 60, 90, 120],
+        maturities_days: list[int] | None = None,
         # Equity-specific: adaptive strike spacing by maturity
         # Can be a single list (same for all maturities) or dict mapping maturity to moneyness
-        moneyness_range: List[float] = None,
-        moneyness_by_maturity: Dict[int, List[float]] = None,
+        moneyness_range: list[float] = None,
+        moneyness_by_maturity: dict[int, list[float]] = None,
         # Tighter spreads than crypto
         atm_spread_pct: float = 0.002,
         otm_spread_pct: float = 0.01,
@@ -123,7 +119,7 @@ class SyntheticEquityOptionChainGenerator:
         noise_level: float = 0.002,
         price_floor: float = 0.0001,  # Very low floor to not interfere with smile
         enforce_intrinsic: bool = True,
-        random_seed: Optional[int] = None,
+        random_seed: int | None = None,
         days_per_year: float = 365.0,
     ):
         """
@@ -135,7 +131,11 @@ class SyntheticEquityOptionChainGenerator:
             maturities_days: Option maturities in days
             moneyness_range: Single list of strike/spot ratios (same for all maturities)
             moneyness_by_maturity: Dict mapping maturity (days) to moneyness list (adaptive)
-            *_spread_pct: Spread model parameters
+            atm_spread_pct: Bid-ask spread at the money (fraction of mid)
+            otm_spread_pct: Bid-ask spread far out of the money
+            min_spread_pct: Lower bound on relative spread
+            max_spread_pct: Upper bound on relative spread
+            absolute_min_spread: Absolute floor on spread
             add_noise: Add small symmetric noise to mid prices
             noise_level: Noise std as fraction of price
             price_floor: Absolute minimum price
@@ -146,6 +146,9 @@ class SyntheticEquityOptionChainGenerator:
         """
         self.risk_free_rate = risk_free_rate
         self.dividend_yield = dividend_yield
+        if maturities_days is None:
+            # Equity-standard expiry ladder (10-120 days)
+            maturities_days = [10, 20, 30, 60, 90, 120]
         self.maturities_days = sorted(maturities_days)
 
         # Setup moneyness grid (adaptive by maturity or uniform)
@@ -314,235 +317,6 @@ class SyntheticEquityOptionChainGenerator:
             dividend_yield=self.dividend_yield,
             options=options,
         )
-
-    def _heston_price_cf(
-        self,
-        S: float,
-        K: float,
-        T: float,
-        r: float,
-        q: float,
-        vol_profile: HestonVolatilityProfile,
-        is_call: bool,
-    ) -> float:
-        """
-        Heston (1993) call option pricing via CF inversion.
-
-        Reference: Heston, S. (1993). A Closed-Form Solution for Options with
-        Stochastic Volatility. Review of Financial Studies, 6(2), 327-343.
-
-        Uses Albrecher et al. (2007) formulation for numerical stability.
-        """
-        if T <= 0:
-            intrinsic = max(S * np.exp(-q * T) - K * np.exp(-r * T), 0) if is_call else max(K * np.exp(-r * T) - S * np.exp(-q * T), 0)
-            return max(intrinsic, self.price_floor)
-
-        kappa = vol_profile.kappa
-        theta = vol_profile.theta
-        sigma = vol_profile.xi  # vol-of-vol
-        rho = vol_profile.rho
-        v0 = vol_profile.v0
-
-        # Log-moneyness
-        x = np.log(S / K)
-
-        def char_func(phi, j):
-            """
-            Heston characteristic function for probability P_j.
-
-            Uses Albrecher et al. (2007) formulation with branch cut handling.
-            j=1: For delta (S*P1 term)
-            j=2: For risk-neutral probability (K*P2 term)
-            """
-            if phi == 0:
-                return 1.0  # CF at zero is always 1
-
-            if j == 1:
-                u = 0.5
-                b = kappa - rho * sigma
-            else:  # j == 2
-                u = -0.5
-                b = kappa
-
-            # Characteristic function exponents with careful branch cut handling
-            # d = sqrt((rho*sigma*i*phi - b)^2 - sigma^2*(2*u*i*phi - phi^2))
-            discriminant = (rho * sigma * 1j * phi - b)**2 - sigma**2 * (2*u*1j*phi - phi**2)
-            d = np.sqrt(discriminant)
-
-            # Ensure Re(d) >= 0 for numerical stability (Albrecher branch selection)
-            if np.real(d) < 0:
-                d = -d
-
-            # g = (b - rho*sigma*i*phi - d) / (b - rho*sigma*i*phi + d)
-            g = (b - rho * sigma * 1j * phi - d) / (b - rho * sigma * 1j * phi + d)
-
-            # Avoid log(0) issues
-            exp_dT = np.exp(-d * T)
-
-            # Numerator and denominator for log term
-            log_num = 1 - g * exp_dT
-            log_den = 1 - g
-
-            # Handle potential division by zero or log of negative
-            if abs(log_den) < 1e-15:
-                log_term = -d * T
-            elif abs(log_num) < 1e-15:
-                log_term = np.log(1e-15 / log_den)
-            else:
-                log_term = np.log(log_num / log_den)
-
-            # C = (r-q)*i*phi*T + (kappa*theta/sigma^2)*((b - rho*sigma*i*phi - d)*T - 2*log(...))
-            C = (r - q) * 1j * phi * T + (kappa * theta / sigma**2) * (
-                (b - rho * sigma * 1j * phi - d) * T - 2 * log_term
-            )
-
-            # D = (b - rho*sigma*i*phi - d) / sigma^2 * (1 - exp(-dT)) / (1 - g*exp(-dT))
-            D_num = (b - rho * sigma * 1j * phi - d) * (1 - exp_dT)
-            D_den = sigma**2 * (1 - g * exp_dT)
-
-            if abs(D_den) < 1e-15:
-                D = 0.0
-            else:
-                D = D_num / D_den
-
-            # CF = exp(C + D*v0 + i*phi*x)
-            return np.exp(C + D * v0 + 1j * phi * x)
-
-        def integrand(phi, j):
-            """Integrand for P_j probability."""
-            if phi == 0:
-                return 0
-            cf = char_func(phi, j)
-            return np.real(cf / (1j * phi))
-
-        # For very short maturities (< 5 days) + far OTM, CF integration becomes unstable
-        # Use Black-Scholes approximation with current variance as fallback
-        log_moneyness = abs(np.log(S / K))
-        if T < 0.014 and log_moneyness > 0.10:  # < 5 days and > 10% OTM
-            # Use BS with current vol as approximation for far OTM very short-dated options
-            bs_price, _ = self._black_scholes_price_and_vega(
-                S, K, T, r, q, np.sqrt(v0), is_call
-            )
-            return max(bs_price, self.price_floor)
-
-        try:
-            # Adaptive integration parameters based on maturity and moneyness
-            # Very short maturities need tighter control
-            if T < 0.02:  # < 7 days
-                # Use tighter limits for very short maturities
-                int_limit = 80
-                subdivisions = 400
-                abs_tol = 1e-10
-                rel_tol = 1e-8
-            elif T < 0.05:  # < 18 days
-                int_limit = 100
-                subdivisions = 300
-                abs_tol = 1e-12
-                rel_tol = 1e-10
-            else:
-                int_limit = 100
-                subdivisions = 200
-                abs_tol = 1e-12
-                rel_tol = 1e-10
-
-            # Compute P1 and P2 via integration with error checking
-            I1, err1 = quad(lambda phi: integrand(phi, 1), 0, int_limit,
-                           limit=subdivisions, epsabs=abs_tol, epsrel=rel_tol)
-            I2, err2 = quad(lambda phi: integrand(phi, 2), 0, int_limit,
-                           limit=subdivisions, epsabs=abs_tol, epsrel=rel_tol)
-
-            P1 = 0.5 + I1 / np.pi
-            P2 = 0.5 + I2 / np.pi
-
-            # Sanity check probabilities with tolerance
-            if P1 < -0.05 or P1 > 1.05 or P2 < -0.05 or P2 > 1.05:
-                # Probabilities significantly out of range - use BS approximation
-                bs_price, _ = self._black_scholes_price_and_vega(
-                    S, K, T, r, q, np.sqrt(v0), is_call
-                )
-                return max(bs_price, self.price_floor)
-
-            # Clip probabilities to valid range (small violations are numerical noise)
-            P1 = np.clip(P1, 0.0, 1.0)
-            P2 = np.clip(P2, 0.0, 1.0)
-
-            # Heston call price
-            call_price = S * np.exp(-q * T) * P1 - K * np.exp(-r * T) * P2
-
-            if is_call:
-                price = call_price
-            else:
-                # Put via put-call parity
-                price = call_price - S * np.exp(-q * T) + K * np.exp(-r * T)
-
-            # Enforce intrinsic value
-            if self.enforce_intrinsic:
-                intrinsic = max(S * np.exp(-q * T) - K * np.exp(-r * T), 0) if is_call else max(K * np.exp(-r * T) - S * np.exp(-q * T), 0)
-                price = max(price, intrinsic)
-
-            # Apply price floor
-            price = max(price, self.price_floor)
-
-            return price
-
-        except Exception as e:
-            warnings.warn(f"Heston CF integration failed: {e}. Returning intrinsic.")
-            intrinsic = max(S * np.exp(-q * T) - K * np.exp(-r * T), 0) if is_call else max(K * np.exp(-r * T) - S * np.exp(-q * T), 0)
-            return max(intrinsic, self.price_floor)
-
-    def _heston_cf(
-        self,
-        u: complex,
-        T: float,
-        kappa: float,
-        theta: float,
-        xi: float,
-        rho: float,
-        v0: float,
-        r: float,
-        q: float,
-    ) -> complex:
-        """
-        Heston characteristic function.
-
-        Uses the formulation from Albrecher et al. (2007) with proper
-        branch cut handling for numerical stability.
-        """
-        mu = r - q
-
-        # Compute d with proper branch cut (Albrecher formulation)
-        # d = sqrt((rho*xi*i*u - kappa)^2 + xi^2*(i*u + u^2))
-        #   = sqrt(-xi^2*u^2 + i*u*(2*kappa*rho*xi) + (kappa^2 - xi^2))
-        discriminant = (rho * xi * 1j * u - kappa)**2 + xi**2 * (1j * u + u**2)
-
-        # Use sqrt with principal branch
-        d = np.sqrt(discriminant)
-
-        # Ensure Re(d) > 0 for stability (branch selection)
-        if np.real(d) < 0:
-            d = -d
-
-        # Compute g (use Albrecher's stable formulation)
-        # g = (kappa - rho*xi*i*u - d) / (kappa - rho*xi*i*u + d)
-        g = (kappa - rho * xi * 1j * u - d) / (kappa - rho * xi * 1j * u + d)
-
-        # Characteristic exponent C
-        # C = mu*i*u*T + (kappa*theta/xi^2) * ((kappa - rho*xi*i*u - d)*T - 2*log((1 - g*exp(-dT))/(1 - g)))
-        exp_dT = np.exp(-d * T)
-        log_term = np.log((1 - g * exp_dT) / (1 - g))
-
-        C = mu * 1j * u * T + (kappa * theta / xi**2) * (
-            (kappa - rho * xi * 1j * u - d) * T - 2 * log_term
-        )
-
-        # Characteristic exponent D
-        # D = ((kappa - rho*xi*i*u - d) / xi^2) * (1 - exp(-dT)) / (1 - g*exp(-dT))
-        D = ((kappa - rho * xi * 1j * u - d) / xi**2) * (
-            (1 - exp_dT) / (1 - g * exp_dT)
-        )
-
-        # Characteristic function: phi(u) = exp(C + D*v0)
-        return np.exp(C + D * v0)
 
     def _black_scholes_price_and_vega(
         self,
