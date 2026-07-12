@@ -11,7 +11,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from options_desk.processes._jax_backend import configure_jax_runtime
+from mjollnir.jax import configure_runtime as configure_jax_runtime
 
 
 configure_jax_runtime()

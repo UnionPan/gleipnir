@@ -620,7 +620,7 @@ class BuehlerTrainer(BaseTrainer):
         self._market_sampler = market_sampler
         self._single_path_sampler = single_path_sampler
 
-        from options_desk.processes._jax_backend import configure_jax_runtime
+        from mjollnir.jax import configure_runtime as configure_jax_runtime
 
         configure_jax_runtime()
         import jax

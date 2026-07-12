@@ -23,8 +23,8 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from options_desk.processes._jax_backend import configure_jax_runtime
-from options_desk.processes._jax_qe import qe_heston_step
+from mjollnir.jax import configure_runtime as configure_jax_runtime
+from mjollnir.jax import qe_heston_step
 
 from ..utils.contracts import MarketTrajectory
 from .env import (

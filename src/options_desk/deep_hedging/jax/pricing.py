@@ -21,15 +21,17 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from options_desk.pricer._jax_fourier_pricer import (
+# Public mjollnir.jax API (kernel extracted from options_desk; old private
+# names kept as local aliases to minimize the diff).
+from mjollnir.jax import (
     HestonCFParams,
-    _chi_k,
-    _cos_truncation_range,
-    _jax_cos_price_multi,
-    _psi_k,
+    chi_k as _chi_k,
+    cos_truncation_range as _cos_truncation_range,
+    cos_price_multi as _jax_cos_price_multi,
+    psi_k as _psi_k,
     jax_heston_cf,
+    configure_runtime as configure_jax_runtime,
 )
-from options_desk.processes._jax_backend import configure_jax_runtime
 
 from .env import DeepHedgingEnvConfig, FloatingOptionGrid
 
