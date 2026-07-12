@@ -149,17 +149,30 @@ Package name `mjollnir`, `requires-python >= 3.10` (jax 0.9 baseline), setuptool
 -> 4. `calibration/risk_neutral` -> 5. `calibration/physical` -> 6. `calibration/{data,cli}`
 -> 7. `simulations` -> 8. `jax` public facade -> 9. parity test -> 10. monorepo shims + consumer rewrite.
 
-## 7. Definition of done (v0.1)
-- [ ] New `mjollnir` repo; `pip install -e .` works in a clean env.
-- [ ] Five subpackages + `synthetic` extracted; imports rewritten to `mjollnir.*`.
-- [ ] `pyproject.toml` scoped to the measured dep set; JAX `[cuda]`/`[metal]` extras preserved; no torch/web deps.
-- [ ] Public `mjollnir.jax` exposing Heston step + differentiable pricer + runtime config.
-- [ ] `simulations -> calibration.data` knot dissolved via `mjollnir.synthetic`.
-- [ ] Golden-key parity test green (D5).
-- [ ] Monorepo `deep_hedging` consumes `mjollnir` (or via shim); `test_pomarl_*` suite passes.
-- [ ] README documents both consumption modes.
+## 7. Definition of done (v0.1) — COMPLETED 2026-07-12
+- [x] New `mjollnir` repo at `/home/union/quant/mjollnir`; `pip install -e .` works (editable wheel builds, deps resolve).
+- [x] Five subpackages + `synthetic` extracted; imports rewritten to `mjollnir.*` (0 residual `options_desk` refs).
+- [x] `pyproject.toml` scoped to the measured dep set; `[cuda]`/`[metal]` extras preserved; no torch/web deps.
+- [x] Public `mjollnir.jax`: `qe_heston_step`, differentiable `fourier_price`/`fourier_price_batch`
+      (COS truncation stop-gradient'ed; exact parity with legacy wrapper; grads match the RL composition),
+      `configure_runtime`, promoted COS building blocks.
+- [x] `simulations -> calibration.data` knot dissolved via `mjollnir.synthetic`.
+- [x] Golden-key parity suite green (11 tests) + RL env smoke tests (8) = 19/19.
+- [x] Monorepo `deep_hedging` consumes `mjollnir` public API; kernel modules are sys.modules-alias shims;
+      `test_pomarl_*` 22/22, `test_sim.py` 3/3, `test_rl_envs.py` 8/8.
+- [x] README documents both consumption modes.
 
-## 8. Open items
-- Final package name (user's pick).
-- Confirm `py_vollib` truly unused during extraction (drop if so).
-- Whether `synthetic_crypto` + crypto fetchers are in scope for v0.1 or deferred.
+## 8. Open items — resolved
+- Package name: `mjollnir` (user's pick).
+- `py_vollib`: confirmed unused; dropped from deps.
+- Crypto: included as-is inside `calibration` (`synthetic_crypto` depends upward on
+  `risk_neutral`, so it is NOT part of the low-level `synthetic` layer; fetchers stay in
+  `calibration.data`). Splitting fetch deps into a `[data]` extra deferred to v0.2.
+
+## 9. Post-extraction fixes (2026-07-12)
+Installing the previously-missing `gymnasium` dependency let `test_rl_envs.py` collect
+for the first time, unmasking two latent bugs (fixed in both repos, mjollnir `1e7c0a2`):
+- rough-Bergomi core assumed flat `(2,)` X0; gym envs pass `(n_paths, 2)` — now both work.
+- zarr 3 removed `Group.create_dataset`; `heston_cache` uses `create_array` w/ fallback.
+`test_batched_merton::test_merton_recovery` also fails pre-existing (statistical QMLE
+recovery, calibration internals untouched by extraction) — under investigation.
