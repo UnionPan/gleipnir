@@ -174,5 +174,8 @@ Installing the previously-missing `gymnasium` dependency let `test_rl_envs.py` c
 for the first time, unmasking two latent bugs (fixed in both repos, mjollnir `1e7c0a2`):
 - rough-Bergomi core assumed flat `(2,)` X0; gym envs pass `(n_paths, 2)` — now both work.
 - zarr 3 removed `Group.create_dataset`; `heston_cache` uses `create_array` w/ fallback.
-`test_batched_merton::test_merton_recovery` also fails pre-existing (statistical QMLE
-recovery, calibration internals untouched by extraction) — under investigation.
+`test_batched_merton::test_merton_recovery` (pre-existing failure) is also fixed: the
+batched JAX fit's constant-lr Adam stalled ~0.7 nats short of the scipy optimum on one
+asset (cosine-decay schedule closes it), and the scipy reference NLL — a Python double
+loop — is vectorized (~3600x; the test drops from 1h12m to 15s). All three full-suite
+failures resolved.
