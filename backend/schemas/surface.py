@@ -1,6 +1,5 @@
 """Volatility surface request/response schemas."""
 from pydantic import BaseModel, Field
-from typing import List, Optional
 
 
 class VolSurfacePoint(BaseModel):
@@ -9,14 +8,14 @@ class VolSurfacePoint(BaseModel):
     strike: float
     expiry: float = Field(..., description="Time to expiration in years")
     implied_vol: float
-    moneyness: Optional[float] = Field(None, description="Strike/Spot ratio")
+    moneyness: float | None = Field(None, description="Strike/Spot ratio")
 
 
 class VolSurfaceRequest(BaseModel):
     """Request to build volatility surface."""
 
     symbol: str = Field(..., description="Underlying ticker symbol")
-    spot_price: Optional[float] = Field(None, description="Current spot price. If None, fetches live.")
+    spot_price: float | None = Field(None, description="Current spot price. If None, fetches live.")
     min_expiry_days: int = Field(default=7, description="Minimum days to expiration")
     max_expiry_days: int = Field(default=365, description="Maximum days to expiration")
     interpolate: bool = Field(default=False, description="Whether to interpolate the surface")
@@ -28,7 +27,7 @@ class VolSurfaceResponse(BaseModel):
 
     symbol: str
     spot_price: float
-    surface_points: List[VolSurfacePoint]
+    surface_points: list[VolSurfacePoint]
     num_expirations: int
     num_strikes: int
 
@@ -47,5 +46,5 @@ class VolSmileResponse(BaseModel):
     expiration_date: str
     time_to_expiry: float
     spot_price: float
-    strikes: List[float]
-    implied_vols: List[float]
+    strikes: list[float]
+    implied_vols: list[float]

@@ -1,11 +1,9 @@
 """Pricing and Greeks calculation service."""
-import numpy as np
-from scipy.stats import norm
 
 # Use new pricer module
-from options_desk.pricer import BlackScholesPricer
-from options_desk.derivatives import EuropeanCall, EuropeanPut
-from options_desk.processes import GBM
+from mjollnir.pricer import BlackScholesPricer
+from mjollnir.derivatives import EuropeanCall, EuropeanPut
+from mjollnir.processes import GBM
 
 from backend.schemas.pricing import (
     PricingRequest,

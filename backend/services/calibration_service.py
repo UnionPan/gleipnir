@@ -1,22 +1,15 @@
 """
 Calibration service for P-measure and Q-measure models
 """
-import sys
-from pathlib import Path
-
-# Add src to path
-src_path = str(Path(__file__).parent.parent.parent / "src")
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
-
 import yfinance as yf
 import numpy as np
 import pandas as pd
 from datetime import datetime, date
-from typing import List, Dict, Tuple, Optional
+from backend.services.market_data import FETCH_ERRORS, MarketDataError, fetch_dividend_yield
+from backend.services.model_vols import finite_or_none, heston_ivs
 
 # Import P-measure calibrators
-from options_desk.calibration.physical import (
+from mjollnir.calibration.physical import (
     GBMCalibrator,
     OUCalibrator,
     RegimeSwitchingCalibrator,
@@ -26,12 +19,12 @@ from options_desk.calibration.physical import (
     HestonParticleFilter,
     RoughBergomiParticleFilter,
 )
-from options_desk.processes import Heston, RoughBergomi, SimulationConfig
-from options_desk.processes.gbm import GBM
-from options_desk.processes.ornstein_uhlenbeck import OrnsteinUhlenbeck
+from mjollnir.processes import Heston, RoughBergomi, SimulationConfig
+from mjollnir.processes.gbm import GBM
+from mjollnir.processes.ornstein_uhlenbeck import OrnsteinUhlenbeck
 
 # Import Q-measure calibrators and data providers
-from options_desk.calibration.risk_neutral import (
+from mjollnir.calibration.risk_neutral import (
     HestonCalibrator,
     CalibrationResult as HestonCalibrationResult,
     SABRCalibrator,
@@ -39,11 +32,13 @@ from options_desk.calibration.risk_neutral import (
     DupireCalibrator,
     DupireResult,
 )
-from options_desk.calibration.data import (
+from mjollnir.calibration.marketdata import (
     YFinanceFetcher,
     OptionChain,
-    MarketData,
 )
+
+
+MIN_REGIME_DAYS = 20  # below this, per-regime drift and vol are mostly noise
 
 
 class CalibrationService:
@@ -52,14 +47,14 @@ class CalibrationService:
     @staticmethod
     def simulate_model(
         model: str,
-        parameters: Dict[str, float],
+        parameters: dict[str, float],
         s0: float,
         n_steps: int,
         n_paths: int,
         dt: float,
         max_paths_return: int = 20,
-        random_seed: Optional[int] = None,
-    ) -> Dict:
+        random_seed: int | None = None,
+    ) -> dict:
         """Simulate counterfactual spot paths using calibrated parameters."""
         if s0 <= 0:
             raise ValueError("s0 must be positive")
@@ -69,8 +64,8 @@ class CalibrationService:
         model = model.lower()
         time_grid = np.linspace(0.0, n_steps * dt, n_steps + 1)
 
-        if random_seed is not None:
-            np.random.seed(random_seed)
+        # Per-call generator: the global NumPy RNG is shared by concurrent requests.
+        rng = np.random.default_rng(random_seed)
 
         if model == "gbm":
             mu = parameters.get("mu", 0.0)
@@ -130,9 +125,9 @@ class CalibrationService:
             log_s = np.zeros((n_steps + 1, n_paths))
             log_s[0] = np.log(s0)
             for t in range(n_steps):
-                z = np.random.normal(0.0, 1.0, size=n_paths)
-                n_jump = np.random.poisson(lambda_ * dt, size=n_paths)
-                jump = n_jump * mu_j + np.sqrt(n_jump) * sigma_j * np.random.normal(0.0, 1.0, size=n_paths)
+                z = rng.standard_normal(n_paths)
+                n_jump = rng.poisson(lambda_ * dt, size=n_paths)
+                jump = n_jump * mu_j + np.sqrt(n_jump) * sigma_j * rng.standard_normal(n_paths)
                 log_s[t + 1] = log_s[t] + drift + sigma * np.sqrt(dt) * z + jump
             spot_paths = np.exp(log_s)
 
@@ -147,7 +142,7 @@ class CalibrationService:
             sigma2 = np.full(n_paths, var0)
 
             for t in range(n_steps):
-                z = np.random.normal(0.0, 1.0, size=n_paths)
+                z = rng.standard_normal(n_paths)
                 returns[t] = mu + np.sqrt(sigma2) * z
                 sigma2 = omega + alpha * (returns[t] - mu) ** 2 + beta * sigma2
                 sigma2 = np.maximum(sigma2, 1e-12)
@@ -158,29 +153,24 @@ class CalibrationService:
             spot_paths = np.exp(log_s)
 
         elif model == "regime_switching_gbm":
-            mu0 = parameters["mu_regime0"]
-            mu1 = parameters["mu_regime1"]
-            sigma0 = parameters["sigma_regime0"]
-            sigma1 = parameters["sigma_regime1"]
-            p00 = parameters.get("p_00", 0.95)
-            p01 = parameters.get("p_01", 1.0 - p00)
-            p10 = parameters.get("p_10", 0.1)
-            p11 = parameters.get("p_11", 1.0 - p10)
+            n_regimes = sum(1 for key in parameters if key.startswith("mu_regime"))
+            mu = np.array([parameters[f"mu_regime{k}"] for k in range(n_regimes)])
+            sigma = np.array([parameters[f"sigma_regime{k}"] for k in range(n_regimes)])
+            transition = np.array([[parameters[f"p_{i}{j}"] for j in range(n_regimes)]
+                                   for i in range(n_regimes)])
+            if not np.allclose(transition.sum(axis=1), 1.0, atol=1e-6):
+                raise ValueError("regime transition probabilities must sum to 1 in every row")
+            cumulative = np.cumsum(transition, axis=1)
 
             log_s = np.zeros((n_steps + 1, n_paths))
             log_s[0] = np.log(s0)
             regime = np.zeros(n_paths, dtype=int)
-
             for t in range(n_steps):
-                probs = np.where(regime == 0, p01, p10)
-                switch = np.random.rand(n_paths) < probs
-                regime = np.where(switch, 1 - regime, regime)
-
-                mu = np.where(regime == 0, mu0, mu1)
-                sigma = np.where(regime == 0, sigma0, sigma1)
-                z = np.random.normal(0.0, 1.0, size=n_paths)
-                log_s[t + 1] = log_s[t] + (mu - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * z
-
+                u = rng.random(n_paths)[:, None]
+                regime = np.minimum((u > cumulative[regime]).sum(axis=1), n_regimes - 1)
+                z = rng.standard_normal(n_paths)
+                m, sd = mu[regime], sigma[regime]
+                log_s[t + 1] = log_s[t] + (m - 0.5 * sd**2) * dt + sd * np.sqrt(dt) * z
             spot_paths = np.exp(log_s)
 
         else:
@@ -213,7 +203,7 @@ class CalibrationService:
         }
 
     @staticmethod
-    def fetch_ohlcv_data(tickers: List[str], start_date: str, end_date: str) -> List[Dict]:
+    def fetch_ohlcv_data(tickers: list[str], start_date: str, end_date: str) -> list[dict]:
         """
         Fetch OHLCV data from yfinance
 
@@ -252,8 +242,8 @@ class CalibrationService:
 
                 results.append(ohlcv)
 
-            except Exception as e:
-                raise ValueError(f"Failed to fetch data for {ticker}: {str(e)}")
+            except FETCH_ERRORS as e:
+                raise MarketDataError(f"Failed to fetch data for {ticker}: {e!s}") from e
 
         return results
 
@@ -261,11 +251,11 @@ class CalibrationService:
     def calibrate_model(
         ticker: str,
         prices: np.ndarray,
-        dates: List[str],
+        dates: list[str],
         model: str,
         method: str,
         include_drift: bool
-    ) -> Tuple[Dict[str, float], Dict]:
+    ) -> tuple[dict[str, float], dict]:
         """
         Calibrate a P-measure model to price data
 
@@ -280,16 +270,13 @@ class CalibrationService:
         Returns:
             Tuple of (parameters, diagnostics)
         """
-        # Calculate returns
-        returns = np.diff(np.log(prices))
-
         # Time step (assuming daily data)
         dt = 1/252
 
         # Calibrate based on model type
         if model == 'gbm':
             # GBM: Direct MLE (closed-form)
-            return CalibrationService._calibrate_gbm(returns, dt, include_drift)
+            return CalibrationService._calibrate_gbm(prices, dt, include_drift)
 
         elif model == 'ou':
             # OU: Direct MLE (closed-form)
@@ -300,7 +287,7 @@ class CalibrationService:
             if method == 'particle_filter':
                 return CalibrationService._calibrate_heston_particle_filter(prices, dt, include_drift)
             else:
-                raise ValueError(f"Heston P-measure only supports 'particle_filter' method")
+                raise ValueError("Heston P-measure only supports 'particle_filter' method")
 
         elif model == 'rough_bergomi':
             # Rough Bergomi: Moment matching or particle filter
@@ -309,11 +296,11 @@ class CalibrationService:
             elif method == 'particle_filter':
                 return CalibrationService._calibrate_rough_bergomi_particle_filter(prices, dt, include_drift)
             else:
-                raise ValueError(f"Rough Bergomi supports 'moment_matching' or 'particle_filter' methods")
+                raise ValueError("Rough Bergomi supports 'moment_matching' or 'particle_filter' methods")
 
         elif model == 'regime_switching_gbm':
-            # Regime-switching: EM algorithm
-            return CalibrationService._calibrate_regime_switching(returns, dt, include_drift)
+            # Regime-switching: drawdown/rally threshold labelling, then per-regime GBM
+            return CalibrationService._calibrate_regime_switching(prices, dates, dt, include_drift)
 
         elif model == 'merton_jump':
             # Merton jump-diffusion: MLE
@@ -327,10 +314,9 @@ class CalibrationService:
             raise ValueError(f"Unsupported model: {model}")
 
     @staticmethod
-    def _calibrate_gbm(returns: np.ndarray, dt: float, include_drift: bool) -> Tuple[Dict[str, float], Dict]:
-        """Calibrate GBM model"""
-        calibrator = GBMCalibrator()
-        result = calibrator.calibrate(returns, dt)
+    def _calibrate_gbm(prices: np.ndarray, dt: float, include_drift: bool) -> tuple[dict[str, float], dict]:
+        """Calibrate GBM by maximum likelihood on log returns."""
+        result = GBMCalibrator().fit(np.asarray(prices, dtype=float), dt)
 
         parameters = {
             "sigma": result.sigma,
@@ -349,7 +335,7 @@ class CalibrationService:
         return parameters, diagnostics
 
     @staticmethod
-    def _calibrate_heston_particle_filter(prices: np.ndarray, dt: float, include_drift: bool) -> Tuple[Dict[str, float], Dict]:
+    def _calibrate_heston_particle_filter(prices: np.ndarray, dt: float, include_drift: bool) -> tuple[dict[str, float], dict]:
         """Calibrate Heston model using particle filter"""
         # First get initial guesses from simple volatility estimation
         returns = np.diff(np.log(prices))
@@ -416,7 +402,7 @@ class CalibrationService:
         return parameters, diagnostics
 
     @staticmethod
-    def _calibrate_rough_bergomi_moments(prices: np.ndarray, dt: float, include_drift: bool) -> Tuple[Dict[str, float], Dict]:
+    def _calibrate_rough_bergomi_moments(prices: np.ndarray, dt: float, include_drift: bool) -> tuple[dict[str, float], dict]:
         """Calibrate rough Bergomi using moment matching (variogram)"""
         calibrator = RoughBergomiCalibrator(window=20, max_lag=10)
         result = calibrator.fit(prices, dt)
@@ -444,7 +430,7 @@ class CalibrationService:
         return parameters, diagnostics
 
     @staticmethod
-    def _calibrate_rough_bergomi_particle_filter(prices: np.ndarray, dt: float, include_drift: bool) -> Tuple[Dict[str, float], Dict]:
+    def _calibrate_rough_bergomi_particle_filter(prices: np.ndarray, dt: float, include_drift: bool) -> tuple[dict[str, float], dict]:
         """Calibrate rough Bergomi using particle filter"""
         # First get moment-based initial guesses
         calibrator = RoughBergomiCalibrator(window=20, max_lag=10)
@@ -484,10 +470,9 @@ class CalibrationService:
         return parameters, diagnostics
 
     @staticmethod
-    def _calibrate_ou(prices: np.ndarray, dt: float, include_drift: bool) -> Tuple[Dict[str, float], Dict]:
+    def _calibrate_ou(prices: np.ndarray, dt: float, include_drift: bool) -> tuple[dict[str, float], dict]:
         """Calibrate Ornstein-Uhlenbeck model"""
-        calibrator = OUCalibrator()
-        result = calibrator.calibrate(prices, dt)
+        result = OUCalibrator().fit(np.asarray(prices, dtype=float), dt)
 
         parameters = {
             "kappa": result.kappa,
@@ -505,38 +490,39 @@ class CalibrationService:
         return parameters, diagnostics
 
     @staticmethod
-    def _calibrate_regime_switching(returns: np.ndarray, dt: float, include_drift: bool) -> Tuple[Dict[str, float], Dict]:
-        """Calibrate regime-switching GBM"""
-        try:
-            calibrator = RegimeSwitchingCalibrator(n_regimes=2)
-            result = calibrator.calibrate(returns, dt)
+    def _calibrate_regime_switching(prices: np.ndarray, dates: list[str], dt: float,
+                                    include_drift: bool) -> tuple[dict[str, float], dict]:
+        """Regime-switching GBM: label bear/sideways/bull by 20% drawdowns and rallies,
+        fit GBM within each regime, and estimate the daily transition matrix.
 
-            parameters = {}
-            for i in range(2):
-                parameters[f"mu_regime{i}"] = result.parameters[i]['mu'] if include_drift else 0.0
-                parameters[f"sigma_regime{i}"] = result.parameters[i]['sigma']
-
-            # Transition matrix
-            if hasattr(result, 'transition_matrix'):
-                for i in range(2):
-                    for j in range(2):
-                        parameters[f"p_{i}{j}"] = result.transition_matrix[i, j]
-
-            diagnostics = {
-                "logLikelihood": result.log_likelihood if hasattr(result, 'log_likelihood') else None,
-                "aic": result.aic if hasattr(result, 'aic') else None,
-                "bic": result.bic if hasattr(result, 'bic') else None,
-                "errorMetrics": {},
-            }
-
-            return parameters, diagnostics
-
-        except Exception as e:
-            # Fallback to simple GBM if regime switching fails
-            return CalibrationService._calibrate_gbm(returns, dt, include_drift)
+        Regimes are numbered 0..n-1 in id order (Bear, Sideways, Bull) over the regimes
+        that actually occur, matching the transition matrix's rows.
+        """
+        result = RegimeSwitchingCalibrator(dt=dt).fit_threshold(
+            np.asarray(prices, dtype=float), np.asarray(dates, dtype="datetime64[D]"))
+        regime_ids = sorted(result.regime_params)
+        parameters: dict[str, float] = {}
+        for k, regime_id in enumerate(regime_ids):
+            regime = result.regime_params[regime_id]
+            parameters[f"mu_regime{k}"] = float(regime.mu) if include_drift else 0.0
+            parameters[f"sigma_regime{k}"] = float(regime.sigma)
+            for j in range(len(regime_ids)):
+                parameters[f"p_{k}{j}"] = float(result.transition_matrix[k, j])
+        legend = ", ".join(
+            f"{k} = {result.regime_params[rid].regime_name} ({result.regime_params[rid].n_observations} days"
+            + (", too few for a reliable estimate" if result.regime_params[rid].n_observations < MIN_REGIME_DAYS else "")
+            + ")"
+            for k, rid in enumerate(regime_ids))
+        diagnostics = {
+            "logLikelihood": None, "aic": None, "bic": None, "errorMetrics": {},
+            "note": (f"Regimes {legend}. Days are labelled bear after a 20% drawdown from the "
+                     "60-day high and bull after a 20% rally off the 60-day low; regimes that "
+                     "never occur in the window are omitted."),
+        }
+        return parameters, diagnostics
 
     @staticmethod
-    def _calibrate_merton_jump(prices: np.ndarray, dt: float, include_drift: bool) -> Tuple[Dict[str, float], Dict]:
+    def _calibrate_merton_jump(prices: np.ndarray, dt: float, include_drift: bool) -> tuple[dict[str, float], dict]:
         """Calibrate Merton jump-diffusion model"""
         calibrator = MertonJumpCalibrator(k_max=5)
         result = calibrator.fit(prices, dt)
@@ -560,7 +546,7 @@ class CalibrationService:
         return parameters, diagnostics
 
     @staticmethod
-    def _calibrate_garch(prices: np.ndarray, dt: float, include_drift: bool) -> Tuple[Dict[str, float], Dict]:
+    def _calibrate_garch(prices: np.ndarray, dt: float, include_drift: bool) -> tuple[dict[str, float], dict]:
         """Calibrate GARCH(1,1) model"""
         calibrator = GARCHCalibrator()
         result = calibrator.fit(prices, dt)
@@ -587,10 +573,10 @@ class CalibrationService:
     @staticmethod
     def fetch_option_chain(
         ticker: str,
-        reference_date: Optional[str] = None,
+        reference_date: str | None = None,
         risk_free_rate: float = 0.05,
-        expiry: Optional[str] = None,
-    ) -> Dict:
+        expiry: str | None = None,
+    ) -> dict:
         """
         Fetch option chain from yfinance
 
@@ -603,77 +589,68 @@ class CalibrationService:
         Returns:
             Dictionary with option chain data
         """
+        # Parse reference date
+        if reference_date:
+            ref_date = datetime.strptime(reference_date, '%Y-%m-%d').date()
+        else:
+            ref_date = date.today()
+
+        dividend_yield = fetch_dividend_yield(ticker)
+
+        # Initialize fetcher
+        fetcher = YFinanceFetcher(
+            risk_free_rate=risk_free_rate,
+            dividend_yield=dividend_yield,
+        )
+
+        # Fetch option chain
         try:
-            # Parse reference date
-            if reference_date:
-                ref_date = datetime.strptime(reference_date, '%Y-%m-%d').date()
-            else:
-                ref_date = date.today()
-
-            # Try to fetch dividend yield from yfinance
-            try:
-                stock = yf.Ticker(ticker)
-                info = stock.info
-                div_yield_raw = info.get('dividendYield', 0.0) or 0.0
-                # yfinance returns dividend yield in percentage form (e.g., 1.07 for 1.07%)
-                # Convert to decimal if it's greater than 1
-                dividend_yield = div_yield_raw / 100.0 if div_yield_raw > 1 else div_yield_raw
-            except:
-                dividend_yield = 0.0
-
-            # Initialize fetcher
-            fetcher = YFinanceFetcher(
-                risk_free_rate=risk_free_rate,
-                dividend_yield=dividend_yield,
-            )
-
-            # Fetch option chain
             chain = fetcher.get_option_chain(ticker, reference_date=ref_date, expiry=expiry)
+        except FETCH_ERRORS as e:
+            raise MarketDataError(f"Failed to fetch the option chain for {ticker}: {e!s}") from e
 
-            # Convert to dict format
-            options_list = []
-            for opt in chain.options:
-                options_list.append({
-                    'strike': opt.strike,
-                    'expiry': opt.expiry.strftime('%Y-%m-%d'),
-                    'option_type': opt.option_type,
-                    'bid': opt.bid,
-                    'ask': opt.ask,
-                    'mid': opt.mid,
-                    'last': opt.last,
-                    'volume': opt.volume,
-                    'open_interest': opt.open_interest,
-                    'implied_volatility': opt.implied_volatility,
-                    'moneyness': opt.strike / chain.spot_price,
-                })
+        # Convert to dict format
+        options_list = []
+        for opt in chain.options:
+            options_list.append({
+                'strike': opt.strike,
+                'expiry': opt.expiry.strftime('%Y-%m-%d'),
+                'option_type': opt.option_type,
+                'bid': opt.bid,
+                'ask': opt.ask,
+                'mid': opt.mid,
+                'last': opt.last,
+                'volume': opt.volume,
+                'open_interest': opt.open_interest,
+                'implied_volatility': opt.implied_volatility,
+                'moneyness': opt.strike / chain.spot_price,
+            })
 
-            # Get available expiries
-            expiries = sorted(set(opt.expiry.strftime('%Y-%m-%d') for opt in chain.options))
+        # Get available expiries
+        expiries = sorted(set(opt.expiry.strftime('%Y-%m-%d') for opt in chain.options))
 
-            return {
-                'ticker': ticker,
-                'spot_price': chain.spot_price,
-                'reference_date': chain.reference_date.strftime('%Y-%m-%d'),
-                'risk_free_rate': chain.risk_free_rate,
-                'dividend_yield': chain.dividend_yield,
-                'options': options_list,
-                'expiries': expiries,
-                'n_options': len(options_list),
-            }
+        return {
+            'ticker': ticker,
+            'spot_price': chain.spot_price,
+            'reference_date': chain.reference_date.strftime('%Y-%m-%d'),
+            'risk_free_rate': chain.risk_free_rate,
+            'dividend_yield': chain.dividend_yield,
+            'options': options_list,
+            'expiries': expiries,
+            'n_options': len(options_list),
+        }
 
-        except Exception as e:
-            raise ValueError(f"Failed to fetch option chain for {ticker}: {str(e)}")
 
     @staticmethod
     def calibrate_qmeasure_model(
         ticker: str,
         model: str,
-        reference_date: Optional[str] = None,
+        reference_date: str | None = None,
         risk_free_rate: float = 0.05,
-        filter_params: Optional[Dict] = None,
+        filter_params: dict | None = None,
         calibration_method: str = 'differential_evolution',
         maxiter: int = 1000,
-    ) -> Tuple[Dict[str, float], Dict]:
+    ) -> tuple[dict[str, float], dict]:
         """
         Calibrate a Q-measure model to option prices
 
@@ -689,75 +666,66 @@ class CalibrationService:
         Returns:
             Tuple of (parameters, diagnostics)
         """
+        # Parse reference date
+        if reference_date:
+            ref_date = datetime.strptime(reference_date, '%Y-%m-%d').date()
+        else:
+            ref_date = date.today()
+
+        dividend_yield = fetch_dividend_yield(ticker)
+
+        # Initialize fetcher
+        fetcher = YFinanceFetcher(
+            risk_free_rate=risk_free_rate,
+            dividend_yield=dividend_yield,
+        )
+
+        # Fetch option chain
         try:
-            # Parse reference date
-            if reference_date:
-                ref_date = datetime.strptime(reference_date, '%Y-%m-%d').date()
-            else:
-                ref_date = date.today()
+            chain = fetcher.get_option_chain(ticker, reference_date=ref_date)
+        except FETCH_ERRORS as e:
+            raise MarketDataError(f"Failed to fetch the option chain for {ticker}: {e!s}") from e
 
-            # Try to fetch dividend yield from yfinance
-            try:
-                stock = yf.Ticker(ticker)
-                info = stock.info
-                div_yield_raw = info.get('dividendYield', 0.0) or 0.0
-                # yfinance returns dividend yield in percentage form (e.g., 1.07 for 1.07%)
-                # Convert to decimal if it's greater than 1
-                dividend_yield = div_yield_raw / 100.0 if div_yield_raw > 1 else div_yield_raw
-            except:
-                dividend_yield = 0.0
-
-            # Initialize fetcher
-            fetcher = YFinanceFetcher(
-                risk_free_rate=risk_free_rate,
-                dividend_yield=dividend_yield,
+        # Apply filters if provided
+        if filter_params:
+            chain = chain.filter(
+                min_volume=filter_params.get('min_volume', 0),
+                min_open_interest=filter_params.get('min_open_interest', 0),
+                max_spread_pct=filter_params.get('max_spread_pct', 1.0),
+                moneyness_range=tuple(filter_params.get('moneyness_range', [0.8, 1.2])),
             )
 
-            # Fetch option chain
-            chain = fetcher.get_option_chain(ticker, reference_date=ref_date)
+        if len(chain.options) == 0:
+            raise ValueError(f"No valid options found for {ticker} after filtering")
 
-            # Apply filters if provided
-            if filter_params:
-                chain = chain.filter(
-                    min_volume=filter_params.get('min_volume', 0),
-                    min_open_interest=filter_params.get('min_open_interest', 0),
-                    max_spread_pct=filter_params.get('max_spread_pct', 1.0),
-                    moneyness_range=tuple(filter_params.get('moneyness_range', [0.8, 1.2])),
-                )
+        # Calibrate based on model type
+        if model == 'heston':
+            return CalibrationService._calibrate_heston_qmeasure(
+                chain=chain,
+                method=calibration_method,
+                maxiter=maxiter,
+            )
+        elif model == 'sabr':
+            return CalibrationService._calibrate_sabr_qmeasure(
+                chain=chain,
+                method=calibration_method,
+                dividend_yield=dividend_yield,
+            )
+        elif model == 'dupire':
+            return CalibrationService._calibrate_dupire_qmeasure(
+                chain=chain,
+                dividend_yield=dividend_yield,
+            )
+        else:
+            raise ValueError(f"Unsupported Q-measure model: {model}. Supported: 'heston', 'sabr', 'dupire'")
 
-            if len(chain.options) == 0:
-                raise ValueError(f"No valid options found for {ticker} after filtering")
-
-            # Calibrate based on model type
-            if model == 'heston':
-                return CalibrationService._calibrate_heston_qmeasure(
-                    chain=chain,
-                    method=calibration_method,
-                    maxiter=maxiter,
-                )
-            elif model == 'sabr':
-                return CalibrationService._calibrate_sabr_qmeasure(
-                    chain=chain,
-                    method=calibration_method,
-                    dividend_yield=dividend_yield,
-                )
-            elif model == 'dupire':
-                return CalibrationService._calibrate_dupire_qmeasure(
-                    chain=chain,
-                    dividend_yield=dividend_yield,
-                )
-            else:
-                raise ValueError(f"Unsupported Q-measure model: {model}. Supported: 'heston', 'sabr', 'dupire'")
-
-        except Exception as e:
-            raise ValueError(f"Q-measure calibration failed for {ticker}: {str(e)}")
 
     @staticmethod
     def _calibrate_heston_qmeasure(
         chain: OptionChain,
         method: str = 'differential_evolution',
         maxiter: int = 1000,
-    ) -> Tuple[Dict[str, float], Dict]:
+    ) -> tuple[dict[str, float], dict]:
         """Calibrate Heston model to option chain (Q-measure)"""
 
         # Initialize calibrator
@@ -809,7 +777,7 @@ class CalibrationService:
         chain: OptionChain,
         method: str = 'L-BFGS-B',
         dividend_yield: float = 0.0,
-    ) -> Tuple[Dict[str, float], Dict]:
+    ) -> tuple[dict[str, float], dict]:
         """Calibrate SABR model to option chain (Q-measure)"""
 
         # Initialize calibrator with beta=0.5 (popular choice)
@@ -858,7 +826,7 @@ class CalibrationService:
     def _calibrate_dupire_qmeasure(
         chain: OptionChain,
         dividend_yield: float = 0.0,
-    ) -> Tuple[Dict[str, float], Dict]:
+    ) -> tuple[dict[str, float], dict]:
         """Extract Dupire local volatility surface from option chain (Q-measure)"""
 
         # Initialize calibrator
@@ -892,7 +860,7 @@ class CalibrationService:
             'n_options': int(result.n_options),
             'strike_range': [float(result.min_strike), float(result.max_strike)],
             'maturity_range': [float(result.min_maturity), float(result.max_maturity)],
-            'grid_size': [int(len(result.maturities)), int(len(result.strikes))],
+            'grid_size': [len(result.maturities), len(result.strikes)],
             'computation_time': float(result.computation_time),
             'smoothing_applied': bool(result.smoothing_applied),
             'model_type': 'Dupire Local Volatility',
@@ -912,15 +880,15 @@ class CalibrationService:
     def generate_vol_surface(
         ticker: str,
         model: str,
-        parameters: Dict[str, float],
+        parameters: dict[str, float],
         spot_price: float,
         risk_free_rate: float,
         dividend_yield: float = 0.0,
         n_strikes: int = 30,
         n_maturities: int = 20,
-        strike_range: Tuple[float, float] = (0.7, 1.3),
-        maturity_range: Tuple[float, float] = (0.05, 2.0),
-    ) -> Dict:
+        strike_range: tuple[float, float] = (0.7, 1.3),
+        maturity_range: tuple[float, float] = (0.05, 2.0),
+    ) -> dict:
         """
         Generate volatility surface from calibrated model parameters.
 
@@ -968,141 +936,57 @@ class CalibrationService:
 
     @staticmethod
     def _generate_heston_surface(
-        params: Dict[str, float],
+        params: dict[str, float],
         strikes: np.ndarray,
         maturities: np.ndarray,
         S0: float,
         r: float,
         q: float,
-    ) -> Dict:
-        """Generate implied volatility surface from Heston parameters."""
-        from options_desk.pricer import COSPricer
-        from options_desk.processes import Heston
-        from options_desk.derivatives import EuropeanCall
+    ) -> dict:
+        """Implied-vol surface of a Heston model (backend.services.model_vols).
 
-        # Create Heston process
-        heston = Heston(
-            mu=r,
-            kappa=params['kappa'],
-            theta=params['theta'],
-            sigma_v=params['xi'],
-            rho=params['rho'],
-            v0=params['v0'],
-        )
-
-        # Create pricer
-        pricer = COSPricer(risk_free_rate=r, N=256, L=10.0)
-
-        # Generate surface
-        iv_surface = np.zeros((len(maturities), len(strikes)))
-
-        for i, T in enumerate(maturities):
-            for j, K in enumerate(strikes):
-                # Price call option
-                option = EuropeanCall(strike=K, maturity=T)
-                try:
-                    result = pricer.price(option, heston, X0=np.array([S0, params['v0']]))
-                    call_price = max(result.price, 0.0)
-
-                    # Back out implied volatility using Black-Scholes inversion
-                    iv = CalibrationService._implied_vol_from_price(
-                        call_price, S0, K, T, r, q, is_call=True
-                    )
-                    iv_surface[i, j] = iv
-                except:
-                    iv_surface[i, j] = 0.2  # Fallback
-
+        Points whose price carries no vol information are None, never a placeholder vol.
+        """
+        surface = [
+            finite_or_none(heston_ivs(S0, strikes, float(T), r, q, v0=params['v0'], kappa=params['kappa'],
+                                      theta=params['theta'], sigma_v=params['xi'], rho=params['rho']))
+            for T in maturities
+        ]
         return {
             'strikes': strikes.tolist(),
             'maturities': maturities.tolist(),
-            'vols': iv_surface.tolist(),
+            'vols': surface,
             'surface_type': 'implied_vol',
         }
 
     @staticmethod
     def _generate_sabr_surface(
-        params: Dict[str, float],
+        params: dict[str, float],
         strikes: np.ndarray,
         maturities: np.ndarray,
         S0: float,
         r: float,
         q: float,
-    ) -> Dict:
-        """Generate implied volatility surface from SABR parameters."""
-        from options_desk.calibration.risk_neutral import SABRCalibrator
+    ) -> dict:
+        """Implied-vol surface of a SABR model (Hagan's formula on the forward)."""
+        from mjollnir.calibration.risk_neutral import SABRCalibrator
 
         calibrator = SABRCalibrator()
-
-        # Generate surface
-        iv_surface = np.zeros((len(maturities), len(strikes)))
-
-        for i, T in enumerate(maturities):
-            F = S0 * np.exp((r - q) * T)  # Forward price
-            for j, K in enumerate(strikes):
-                try:
-                    iv = calibrator._sabr_hagan_iv(
-                        F, K, T,
-                        params['alpha'],
-                        params['beta'],
-                        params['rho'],
-                        params['nu'],
-                    )
-                    iv_surface[i, j] = iv
-                except:
-                    iv_surface[i, j] = 0.2  # Fallback
-
+        surface = []
+        for T in maturities:
+            forward = S0 * np.exp((r - q) * T)
+            ivs = np.array([
+                calibrator._sabr_hagan_iv(forward, K, T, params['alpha'], params['beta'],
+                                          params['rho'], params['nu'])
+                for K in strikes
+            ])
+            surface.append(finite_or_none(ivs))
         return {
             'strikes': strikes.tolist(),
             'maturities': maturities.tolist(),
-            'vols': iv_surface.tolist(),
+            'vols': surface,
             'surface_type': 'implied_vol',
         }
-
-    @staticmethod
-    def _implied_vol_from_price(
-        price: float,
-        S: float,
-        K: float,
-        T: float,
-        r: float,
-        q: float,
-        is_call: bool = True,
-    ) -> float:
-        """
-        Calculate implied volatility from option price using Newton-Raphson.
-
-        Simple Black-Scholes IV inversion.
-        """
-        from scipy.stats import norm
-
-        # Initial guess
-        sigma = 0.2
-
-        # Newton-Raphson iterations
-        for _ in range(50):
-            d1 = (np.log(S / K) + (r - q + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
-            d2 = d1 - sigma * np.sqrt(T)
-
-            if is_call:
-                bs_price = S * np.exp(-q * T) * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
-                vega = S * np.exp(-q * T) * norm.pdf(d1) * np.sqrt(T)
-            else:
-                bs_price = K * np.exp(-r * T) * norm.cdf(-d2) - S * np.exp(-q * T) * norm.cdf(-d1)
-                vega = S * np.exp(-q * T) * norm.pdf(d1) * np.sqrt(T)
-
-            if vega < 1e-10:
-                break
-
-            diff = price - bs_price
-            if abs(diff) < 1e-6:
-                break
-
-            sigma = sigma + diff / vega
-
-            # Bounds
-            sigma = max(0.01, min(sigma, 3.0))
-
-        return sigma
 
 
 # Singleton instance

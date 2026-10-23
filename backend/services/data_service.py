@@ -1,7 +1,5 @@
 """Data fetching service using yfinance."""
 import yfinance as yf
-from typing import List, Optional
-from datetime import datetime
 from backend.schemas.data import (
     OptionChainRequest,
     OptionChainResponse,

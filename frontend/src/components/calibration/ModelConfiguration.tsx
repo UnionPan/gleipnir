@@ -15,7 +15,7 @@ const P_MEASURE_MODELS = [
   { value: 'ou', label: 'Ornstein-Uhlenbeck', description: 'κ, θ, σ', method: 'mle' },
   { value: 'heston', label: 'Heston (SV)', description: 'κ, θ, ξ, ρ, v₀', method: 'particle_filter' },
   { value: 'rough_bergomi', label: 'Rough Bergomi', description: 'μ, ξ₀, η, ρ, H', method: 'particle_filter' },
-  { value: 'regime_switching_gbm', label: 'Regime-Switching GBM', description: 'Multi-regime μ, σ', method: 'em' },
+  { value: 'regime_switching_gbm', label: 'Regime-Switching GBM', description: 'Bear, sideways and bull μ, σ', method: 'threshold' },
   { value: 'merton_jump', label: 'Merton Jump-Diffusion', description: 'μ, σ, λ, μ_J, σ_J', method: 'mle' },
   { value: 'garch', label: 'GARCH(1,1)', description: 'μ, ω, α, β', method: 'mle' },
 ];
@@ -36,7 +36,7 @@ const P_MEASURE_METHODS: Record<string, Array<{ value: string; label: string }>>
     { value: 'moment_matching', label: 'Moment Matching (Variogram)' },
     { value: 'particle_filter', label: 'Particle Filter' },
   ],
-  'regime_switching_gbm': [{ value: 'em', label: 'EM Algorithm' }],
+  'regime_switching_gbm': [{ value: 'threshold', label: '20% drawdown / rally regimes' }],
   'merton_jump': [{ value: 'mle', label: 'Maximum Likelihood' }],
   'garch': [{ value: 'mle', label: 'Quasi-MLE (Gaussian)' }],
 };

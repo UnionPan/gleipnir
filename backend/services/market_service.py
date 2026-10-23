@@ -1,7 +1,8 @@
 """Market data service using yfinance."""
+import logging
+
 import yfinance as yf
-from typing import List
-from datetime import datetime, timedelta
+from backend.services.market_data import FETCH_ERRORS
 from backend.schemas.market import (
     QuoteData,
     MarketOverviewResponse,
@@ -12,18 +13,20 @@ from backend.schemas.market import (
     OHLCChartResponse,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class MarketService:
     """Service for fetching market overview data."""
 
     # Symbol mappings
-    INDICES = [
+    INDICES = (
         ("^GSPC", "S&P 500"),
-        ("ES=F", "ESZ5"),
+        ("ES=F", "S&P 500 futures"),
         ("^IXIC", "NASDAQ"),
-    ]
+    )
 
-    MAGNIFICENT7 = [
+    MAGNIFICENT7 = (
         ("AAPL", "Apple"),
         ("MSFT", "Microsoft"),
         ("GOOGL", "Google"),
@@ -31,13 +34,13 @@ class MarketService:
         ("NVDA", "NVIDIA"),
         ("META", "Meta"),
         ("TSLA", "Tesla"),
-    ]
+    )
 
-    COMMODITIES = [
+    COMMODITIES = (
         ("GC=F", "Gold"),
         ("CL=F", "Crude Oil"),
         ("NG=F", "Natural Gas"),
-    ]
+    )
 
     @staticmethod
     def _get_quote_data(symbol: str, name: str) -> QuoteData:
@@ -73,8 +76,9 @@ class MarketService:
                 change_percent=float(change_percent),
                 volume=int(hist["Volume"].iloc[-1]) if "Volume" in hist.columns else None,
             )
-        except Exception as e:
-            print(f"Error fetching {symbol}: {e}")
+        except FETCH_ERRORS as e:
+            # One unavailable symbol degrades to an empty tile, not a failed page.
+            logger.warning("quote for %s unavailable: %s", symbol, e)
             return QuoteData(
                 symbol=symbol,
                 name=name,
@@ -141,8 +145,8 @@ class MarketService:
                             data=data_points,
                         )
                     )
-            except Exception as e:
-                print(f"Error fetching chart for {symbol}: {e}")
+            except FETCH_ERRORS as e:
+                logger.warning("chart for %s unavailable: %s", symbol, e)
                 continue
 
         return IndexChartsResponse(charts=charts)

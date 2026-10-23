@@ -13,7 +13,7 @@ pricing_service = PricingService()
 
 
 @router.post("/price", response_model=PricingResponse, tags=["Pricing"])
-async def calculate_price(request: PricingRequest):
+def calculate_price(request: PricingRequest):
     """
     Calculate option price using Black-Scholes model.
 
@@ -21,12 +21,12 @@ async def calculate_price(request: PricingRequest):
     """
     try:
         return pricing_service.calculate_price(request)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.post("/greeks", response_model=GreeksResponse, tags=["Pricing"])
-async def calculate_greeks(request: GreeksRequest):
+def calculate_greeks(request: GreeksRequest):
     """
     Calculate all Greeks (delta, gamma, vega, theta, rho) for an option.
 
@@ -39,5 +39,5 @@ async def calculate_greeks(request: GreeksRequest):
     """
     try:
         return pricing_service.calculate_greeks(request)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e

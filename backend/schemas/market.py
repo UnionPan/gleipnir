@@ -1,16 +1,15 @@
 """Market data schemas."""
 from pydantic import BaseModel
-from typing import List, Optional
 
 
 class QuoteData(BaseModel):
     """Individual quote data."""
     symbol: str
     name: str
-    last_price: Optional[float] = None
-    change: Optional[float] = None
-    change_percent: Optional[float] = None
-    volume: Optional[int] = None
+    last_price: float | None = None
+    change: float | None = None
+    change_percent: float | None = None
+    volume: int | None = None
 
 
 class HistoricalDataPoint(BaseModel):
@@ -33,22 +32,22 @@ class IndexChartData(BaseModel):
     """Chart data for an index."""
     symbol: str
     name: str
-    data: List[HistoricalDataPoint]
+    data: list[HistoricalDataPoint]
 
 
 class OHLCChartResponse(BaseModel):
     """OHLC chart data response."""
     symbol: str
-    data: List[OHLCDataPoint]
+    data: list[OHLCDataPoint]
 
 
 class MarketOverviewResponse(BaseModel):
     """Market overview with indices, stocks, and commodities."""
-    indices: List[QuoteData]
-    magnificent7: List[QuoteData]
-    commodities: List[QuoteData]
+    indices: list[QuoteData]
+    magnificent7: list[QuoteData]
+    commodities: list[QuoteData]
 
 
 class IndexChartsResponse(BaseModel):
     """Historical chart data for indices."""
-    charts: List[IndexChartData]
+    charts: list[IndexChartData]

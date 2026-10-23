@@ -13,7 +13,7 @@ surface_service = SurfaceService()
 
 
 @router.post("/build", response_model=VolSurfaceResponse, tags=["Volatility Surface"])
-async def build_vol_surface(request: VolSurfaceRequest):
+def build_vol_surface(request: VolSurfaceRequest):
     """
     Build a volatility surface from market data.
 
@@ -23,13 +23,11 @@ async def build_vol_surface(request: VolSurfaceRequest):
     try:
         return surface_service.build_vol_surface(request)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.post("/smile", response_model=VolSmileResponse, tags=["Volatility Surface"])
-async def get_vol_smile(request: VolSmileRequest):
+def get_vol_smile(request: VolSmileRequest):
     """
     Get volatility smile for a specific expiration date.
 
@@ -39,6 +37,4 @@ async def get_vol_smile(request: VolSmileRequest):
     try:
         return surface_service.get_vol_smile(request)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e

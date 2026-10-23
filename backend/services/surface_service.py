@@ -1,10 +1,14 @@
 """Volatility surface building service."""
+import logging
+
 import yfinance as yf
 import pandas as pd
 import numpy as np
-from typing import List
 from datetime import datetime
-from scipy.interpolate import griddata, Rbf
+from scipy.interpolate import griddata
+from scipy.spatial import QhullError
+
+from backend.services.market_data import FETCH_ERRORS
 from backend.schemas.surface import (
     VolSurfaceRequest,
     VolSurfaceResponse,
@@ -23,6 +27,8 @@ def safe_float(value):
     except (ValueError, TypeError):
         return None
 
+
+logger = logging.getLogger(__name__)
 
 class SurfaceService:
     """Service for building volatility surfaces."""
@@ -47,7 +53,7 @@ class SurfaceService:
         if not expirations:
             raise ValueError(f"No options available for {request.symbol}")
 
-        surface_points: List[VolSurfacePoint] = []
+        surface_points: list[VolSurfacePoint] = []
 
         # Filter expirations by date range
         today = datetime.now()
@@ -91,8 +97,9 @@ class SurfaceService:
                                 moneyness=strike / spot_price,
                             )
                         )
-            except Exception as e:
-                # Skip this expiration if there's an error
+            except FETCH_ERRORS as e:
+                # One unavailable expiry leaves a gap in the surface, not a failed request.
+                logger.warning("%s chain for %s unavailable: %s", request.symbol, exp_str, e)
                 continue
 
         if not surface_points:
@@ -118,8 +125,8 @@ class SurfaceService:
 
     @staticmethod
     def _interpolate_surface(
-        raw_points: List[VolSurfacePoint], spot_price: float, grid_size: int = 30
-    ) -> List[VolSurfacePoint]:
+        raw_points: list[VolSurfacePoint], spot_price: float, grid_size: int = 30
+    ) -> list[VolSurfacePoint]:
         """Interpolate volatility surface using RBF interpolation."""
         if len(raw_points) < 4:
             # Not enough points for interpolation
@@ -185,8 +192,8 @@ class SurfaceService:
                 )
                 IV_grid[nan_mask] = IV_nearest[nan_mask]
 
-        except Exception:
-            # Fallback to linear interpolation
+        except (QhullError, ValueError):
+            # Cubic triangulation fails on degenerate point sets; linear still works
             IV_grid = griddata(
                 (moneyness, expiry),
                 iv,
@@ -272,8 +279,8 @@ class SurfaceService:
                     implied_vols.append(iv)
 
         # Sort by strike
-        sorted_data = sorted(zip(strikes, implied_vols))
-        strikes, implied_vols = zip(*sorted_data) if sorted_data else ([], [])
+        sorted_data = sorted(zip(strikes, implied_vols, strict=True))
+        strikes, implied_vols = zip(*sorted_data, strict=True) if sorted_data else ([], [])
 
         return VolSmileResponse(
             symbol=request.symbol,

@@ -1,9 +1,9 @@
 """Common schemas used across endpoints."""
 from pydantic import BaseModel, Field
-from enum import Enum
+from enum import StrEnum
 
 
-class OptionType(str, Enum):
+class OptionType(StrEnum):
     """Option type enumeration."""
 
     CALL = "call"

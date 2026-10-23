@@ -1,6 +1,5 @@
 """Pricing and Greeks request/response schemas."""
 from pydantic import BaseModel, Field
-from typing import Optional
 from backend.schemas.common import OptionType
 
 
@@ -61,4 +60,4 @@ class ImpliedVolResponse(BaseModel):
     """Response with implied volatility."""
 
     implied_vol: float = Field(..., description="Implied volatility")
-    iterations: Optional[int] = Field(None, description="Number of iterations for convergence")
+    iterations: int | None = Field(None, description="Number of iterations for convergence")

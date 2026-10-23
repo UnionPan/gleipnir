@@ -135,7 +135,7 @@ export interface VolSurfaceRequest {
 export interface VolSurfaceResponse {
   strikes: number[];
   maturities: number[];
-  vols: number[][];  // 2D array: maturities x strikes
+  vols: (number | null)[][];  // maturities x strikes; null where the model vol is undefined
   surface_type: 'implied_vol' | 'local_vol';
   ticker: string;
   model: string;

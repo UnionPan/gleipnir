@@ -1,5 +1,5 @@
 """Data fetching endpoints."""
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from backend.schemas.data import (
     OptionChainRequest,
     OptionChainResponse,
@@ -12,7 +12,7 @@ data_service = DataService()
 
 
 @router.post("/option-chain", response_model=OptionChainResponse, tags=["Data"])
-async def get_option_chain(request: OptionChainRequest):
+def get_option_chain(request: OptionChainRequest):
     """
     Fetch option chain data for a given symbol and expiration.
 
@@ -21,15 +21,13 @@ async def get_option_chain(request: OptionChainRequest):
     try:
         return data_service.get_option_chain(request)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.get(
     "/expirations/{symbol}", response_model=AvailableExpirationsResponse, tags=["Data"]
 )
-async def get_expirations(symbol: str):
+def get_expirations(symbol: str):
     """
     Get list of available expiration dates for an underlying symbol.
 
@@ -38,6 +36,4 @@ async def get_expirations(symbol: str):
     try:
         return data_service.get_available_expirations(symbol)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e

@@ -1,6 +1,5 @@
 """Calibration endpoints for P-measure and Q-measure models."""
 from fastapi import APIRouter, HTTPException
-from typing import List
 from datetime import datetime
 
 from backend.services.calibration_service import CalibrationService
@@ -26,8 +25,8 @@ router = APIRouter()
 
 # ========== P-measure (Physical) Calibration Endpoints ==========
 
-@router.post("/fetch-data", response_model=List[OHLCVData])
-async def fetch_ohlcv_data(request: FetchDataRequest):
+@router.post("/fetch-data", response_model=list[OHLCVData])
+def fetch_ohlcv_data(request: FetchDataRequest):
     """Fetch OHLCV data from yfinance for P-measure calibration."""
     try:
         data = CalibrationService.fetch_ohlcv_data(
@@ -36,12 +35,12 @@ async def fetch_ohlcv_data(request: FetchDataRequest):
             end_date=request.end_date,
         )
         return data
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.post("/calibrate", response_model=List[CalibrationResult])
-async def calibrate_pmeasure(request: CalibrationRequest):
+@router.post("/calibrate", response_model=list[CalibrationResult])
+def calibrate_pmeasure(request: CalibrationRequest):
     """Calibrate P-measure models from historical data."""
     try:
         # Fetch OHLCV data first
@@ -81,14 +80,15 @@ async def calibrate_pmeasure(request: CalibrationRequest):
 
         return results
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 # ========== Q-measure (Risk-Neutral) Calibration Endpoints ==========
 
 @router.post("/fetch-option-chain", response_model=OptionChainData)
-async def fetch_option_chain(request: FetchOptionChainRequest):
+def fetch_option_chain(request: FetchOptionChainRequest):
     """Fetch option chain data from yfinance for Q-measure calibration."""
     try:
         chain_data = CalibrationService.fetch_option_chain(
@@ -98,12 +98,12 @@ async def fetch_option_chain(request: FetchOptionChainRequest):
             expiry=request.expiry,
         )
         return chain_data
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.post("/calibrate-qmeasure", response_model=QMeasureCalibrationResult)
-async def calibrate_qmeasure(request: QMeasureCalibrationRequest):
+def calibrate_qmeasure(request: QMeasureCalibrationRequest):
     """Calibrate Q-measure models from option chain data."""
     try:
         # Run Q-measure calibration
@@ -129,12 +129,13 @@ async def calibrate_qmeasure(request: QMeasureCalibrationRequest):
 
         return result
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.post("/simulate", response_model=SimulationResponse)
-async def simulate_counterfactual(request: SimulationRequest):
+def simulate_counterfactual(request: SimulationRequest):
     """Simulate counterfactual paths from calibrated parameters."""
     try:
         result = CalibrationService.simulate_model(
@@ -148,12 +149,12 @@ async def simulate_counterfactual(request: SimulationRequest):
             random_seed=request.random_seed,
         )
         return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.post("/vol-surface", response_model=VolSurfaceResponse)
-async def generate_vol_surface(request: VolSurfaceRequest):
+def generate_vol_surface(request: VolSurfaceRequest):
     """Generate 3D volatility surface from calibrated Q-measure model."""
     try:
         surface_data = CalibrationService.generate_vol_surface(
@@ -177,5 +178,5 @@ async def generate_vol_surface(request: VolSurfaceRequest):
             ticker=request.ticker,
             model=request.model,
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e

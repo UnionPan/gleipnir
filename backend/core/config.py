@@ -1,6 +1,5 @@
 """Backend configuration using environment variables."""
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
 
 
 class Settings(BaseSettings):
@@ -13,7 +12,7 @@ class Settings(BaseSettings):
     DESCRIPTION: str = "Market data, model calibration and the Counterfactual Hedging Lab, built on mjollnir"
 
     # CORS
-    BACKEND_CORS_ORIGINS: List[str] = [
+    BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:3000",  # React dev server
         "http://localhost:8000",  # Backend dev server
         "http://localhost:8080",  # Alternative frontend port
