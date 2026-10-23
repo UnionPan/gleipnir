@@ -1,87 +1,75 @@
-.PHONY: help install dev backend frontend docker-up docker-down test clean docs
+.PHONY: help install dev backend frontend docker-up docker-down test test-backend test-frontend lint format clean docs deploy-backend deploy-frontend
+
+# Extras every local command runs with; keep one value so `uv sync` never prunes the env.
+# CUDA JAX is added automatically on machines with an NVIDIA driver.
+EXTRAS := --extra web --extra rl $(if $(shell command -v nvidia-smi 2>/dev/null),--extra cuda)
+# Co-develop against a local mjollnir checkout when one exists next to this repo.
+MJOLLNIR_DIR ?= ../mjollnir
+MJOLLNIR_OVERLAY := $(if $(wildcard $(MJOLLNIR_DIR)/pyproject.toml),--with-editable $(MJOLLNIR_DIR))
+UV_RUN := uv run $(EXTRAS) $(MJOLLNIR_OVERLAY)
 
 help:
-	@echo "Options Desk - Available Commands"
-	@echo "=================================="
-	@echo "install       - Install all dependencies"
-	@echo "dev           - Start backend and frontend for development"
-	@echo "backend       - Start backend server"
-	@echo "frontend      - Start frontend dev server"
-	@echo "docker-up     - Start all services with Docker Compose"
-	@echo "docker-down   - Stop all Docker services"
-	@echo "test          - Run all tests"
-	@echo "test-backend  - Run backend tests"
-	@echo "test-frontend - Run frontend tests"
-	@echo "lint          - Lint all code"
-	@echo "format        - Format all code"
-	@echo "clean         - Clean build artifacts"
-	@echo "docs          - Open API documentation"
+	@echo "Gleipnir - available commands"
+	@echo "============================="
+	@echo "install        - Install Python (uv) and frontend (npm) dependencies"
+	@echo "dev            - Start API + web dev servers with live reload (Ctrl-C stops both)"
+	@echo "backend        - Start only the API dev server"
+	@echo "frontend       - Start only the web dev server"
+	@echo "docker-up      - Start all services with Docker Compose"
+	@echo "docker-down    - Stop all Docker services"
+	@echo "test           - Run all tests"
+	@echo "test-backend   - Run Python tests"
+	@echo "test-frontend  - Run frontend tests"
+	@echo "lint           - Lint Python code"
+	@echo "format         - Format Python code"
+	@echo "clean          - Clean build artifacts"
+	@echo "docs           - Open API documentation"
+	@echo ""
+	@echo "Local mjollnir checkout: $(if $(MJOLLNIR_OVERLAY),$(MJOLLNIR_DIR) (editable),none found; using the pinned version)"
 
 install:
-	@echo "Installing backend dependencies..."
-	pip install -r requirements.txt
-	pip install -r backend/requirements.txt
-	pip install -e .
-	@echo "Installing frontend dependencies..."
-	cd frontend && npm install
-	@echo "Installation complete!"
+	uv sync $(EXTRAS)
+	cd frontend && npm ci --legacy-peer-deps
+
+dev:
+	$(UV_RUN) python scripts/dev.py
 
 backend:
-	@echo "Starting backend server..."
-	uvicorn backend.main:app --reload --port 8000
+	$(UV_RUN) uvicorn backend.main:app --reload --reload-dir backend --reload-dir src --port 8000
 
 frontend:
-	@echo "Starting frontend dev server..."
 	cd frontend && npm start
 
 docker-up:
-	@echo "Starting all services with Docker Compose..."
-	docker-compose up --build
+	docker compose up --build
 
 docker-down:
-	@echo "Stopping Docker services..."
-	docker-compose down
+	docker compose down
 
 test: test-backend test-frontend
 
 test-backend:
-	@echo "Running backend tests..."
-	pytest tests/ --cov=options_desk --cov-report=term-missing
+	$(UV_RUN) pytest
 
 test-frontend:
-	@echo "Running frontend tests..."
-	cd frontend && npm test -- --watchAll=false
+	cd frontend && CI=true npm test -- --watchAll=false
 
 lint:
-	@echo "Linting backend..."
-	flake8 backend/ src/ --count --max-line-length=100
-	@echo "Linting frontend..."
-	cd frontend && npm run lint || true
+	uv run ruff check backend src scripts tests
 
 format:
-	@echo "Formatting backend code..."
-	black backend/ src/ tests/
-	@echo "Formatting complete!"
+	uv run ruff format backend src scripts tests
 
 clean:
-	@echo "Cleaning build artifacts..."
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete
-	find . -type f -name "*.pyo" -delete
-	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
-	rm -rf build/ dist/ .coverage htmlcov/
+	find . -type d -name "__pycache__" -not -path "./.venv/*" -exec rm -rf {} + 2>/dev/null || true
+	rm -rf build/ dist/ .coverage htmlcov/ .pytest_cache/ src/*.egg-info
 	cd frontend && rm -rf build/ node_modules/.cache/
-	@echo "Clean complete!"
 
 docs:
-	@echo "Opening API documentation..."
-	open http://localhost:8000/api/v1/docs || xdg-open http://localhost:8000/api/v1/docs
+	xdg-open http://localhost:8000/api/v1/docs 2>/dev/null || open http://localhost:8000/api/v1/docs
 
 deploy-backend:
-	@echo "Deploying backend to Cloud Run..."
 	gcloud builds submit --config=deployment/cloudbuild/backend.yaml
 
 deploy-frontend:
-	@echo "Deploying frontend to Cloud Run..."
 	gcloud builds submit --config=deployment/cloudbuild/frontend.yaml
