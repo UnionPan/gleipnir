@@ -1,76 +1,64 @@
-# Options Desk
+# Gleipnir
 
-Options Desk is a full-stack options analytics playground: a FastAPI backend serving pricing/Greeks endpoints, a React dashboard for visualization, and a reusable Python library that powers both.
+A learning lab of proof-of-concept demos for market calibration and control.
+Each demo is a complete loop on real data: calibrate a market model, choose a counterfactual world, run a controller through it, and compare against a classical baseline.
+The pages explain why each result looks the way it does.
 
-## Highlights
-- **Quant core** – Black-Scholes pricing + Greeks, implied volatility, surface builders, and risk utilities packaged under `src/options_desk`.
-- **FastAPI backend** – REST endpoints for pricing, chains, and surface generation with interactive docs at `/api/v1/docs`.
-- **React frontend** – Option chain explorer, pricing widgets, and 3D Plotly volatility surfaces backed by the API.
-- **Container-first** – Dockerfiles for backend and frontend, docker-compose for local dev, Cloud Build + Cloud Run configs for production, and GitHub Actions for CI/CD.
+Live at [app.yunianpan.com](https://app.yunianpan.com).
+The numerics come from [mjollnir](https://github.com/UnionPan/mjollnir), a JAX library for differentiable, reproducible market simulation, calibration and pricing.
+Gleipnir keeps only what is specific to the demos: the web app, the agents and training code, and the shipped calibrations.
 
-## Run Locally
-```bash
-# Clone and enter the repo
-git clone git@github.com:UnionPan/option_pricer_DLC.git
-cd option_pricer_DLC
+## Demos
 
-# Recommended: run everything via Docker
-docker-compose up --build
-```
-Services then listen on:
-- Frontend → `http://localhost`
-- Backend → `http://localhost:8000` (docs at `/api/v1/docs`)
+**Counterfactual Hedging Lab.**
+Sell an option on a real S&P 500 name, priced and hedged under its Heston calibration, then run the same book through the factual world and a stressed one (volatility spike, correlation breakdown, regime shift).
+No hedge, Black-Scholes delta and Heston delta are compared on 4,096 common paths per world, with every result traceable to the parameter set that produced it.
 
-Prefer Make targets?
-```bash
-make install     # pip + npm deps
-make backend     # uvicorn backend.main:app --reload
-make frontend    # React dev server
-make test        # backend + frontend tests
-```
+**Calibration.**
+Fit physical-measure models (GBM, OU, Heston, rough Bergomi, Merton, GARCH, regime-switching GBM) to price history, and risk-neutral models (Heston, SABR, Dupire) to live option chains.
 
-## Python Dependency Profiles
-Choose the JAX backend that matches your machine:
+**Market.**
+Indices, the largest US stocks and commodity futures, from Yahoo Finance.
+
+## Run it locally
+
+Requirements: [uv](https://docs.astral.sh/uv/), Node.js 24, and optionally an NVIDIA GPU.
+mjollnir is installed from the commit pinned in `uv.lock`; a checkout at `../mjollnir` is picked up automatically for co-development.
 
 ```bash
-# Default portable install (CPU-safe)
-pip install -r requirements.txt
-
-# Apple Silicon Metal backend
-pip install -r requirements-mac-metal.txt
-
-# Linux + NVIDIA CUDA backend
-pip install -r requirements-linux-cuda.txt
+make install   # Python env (uv) and frontend dependencies (npm)
+make dev       # API on :8000 and web app on :3000 with live reload; Ctrl-C stops both
 ```
 
-For the `jax-metallib` backend, select the GPU at runtime with:
+`make dev` prints the URLs once both servers answer, including the SSH-tunnel command when you are connected remotely.
+See [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md) for details and troubleshooting.
+
+## Tests and lint
 
 ```bash
-JAX_PLATFORMS=mps python your_script.py
+make test-backend    # pytest (live-market-data tests are opt-in: uv run pytest -m network)
+make test-frontend   # Jest
+make lint            # ruff
+cd frontend && npm run lint
 ```
 
-## Deploy to Cloud Run
-1. Authenticate `gcloud`, set your project/region, and enable Cloud Build + Cloud Run.
-2. Backend: `gcloud builds submit --config=deployment/cloudbuild/backend.yaml --substitutions=COMMIT_SHA=$(git rev-parse HEAD)`
-3. Frontend: update `frontend/.env.production` with the backend URL, then run the matching `gcloud builds submit` using `deployment/cloudbuild/frontend.yaml`.
-4. Optional: map a custom domain with `gcloud run domain-mappings create ...`
+## Layout
 
-GitHub Actions (`.github/workflows/deploy-*.yml`) run the same Cloud Build scripts on pushes to `main` once Workload Identity is configured.
+| Path | Contents |
+|------|----------|
+| `backend/` | FastAPI app: lab, calibration, market-data and pricing endpoints |
+| `backend/data/lab/` | Shipped Heston calibrations for the lab (regenerate with `scripts/export_lab_paramsets.py`) |
+| `frontend/` | React and TypeScript web app |
+| `src/gleipnir/deep_hedging/` | Hedging agents (LSTM, Transformer, POMARL), training loops, JAX rollouts, baselines |
+| `scripts/` | Research experiments, `dev.py` (the `make dev` runner) |
+| `deployment/` | Dockerfiles and Cloud Build configs |
+| `docs/` | Setup, deployment and API notes; design specs |
 
-## Project Layout (short)
-```
-backend/      FastAPI app (routers, schemas, services)
-frontend/     React + TypeScript UI
-src/          Reusable options_desk Python package
-deployment/   Dockerfiles + Cloud Build configs
-docs/         Local setup, API, deployment guides
-.github/      CI workflows
-```
+## Deployment
 
-## Documentation & Links
-- Local setup: `docs/LOCAL_SETUP.md`
-- API reference: `docs/API.md`
-- Deployment guide: `docs/DEPLOYMENT.md`
-- Live API docs (when backend runs): `http://localhost:8000/api/v1/docs`
+Pushes to `main` build the images with Cloud Build and deploy them to Cloud Run.
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-Happy hedging!
+## License
+
+MIT

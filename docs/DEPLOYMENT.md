@@ -1,239 +1,68 @@
-# Deployment Guide
+# Deployment
 
-This guide covers deploying the Options Desk application using Docker and Google Cloud Run.
+Gleipnir runs as two Cloud Run services in `us-east1`, deployed by GitHub Actions on every push to `main`.
 
-## Quick Start with Docker Compose
+| Service | Image | Domain |
+|---------|-------|--------|
+| `options-desk-backend` | `deployment/docker/backend/Dockerfile` | [api.yunianpan.com](https://api.yunianpan.com/health) |
+| `options-desk-frontend` | `deployment/docker/frontend/Dockerfile` | [app.yunianpan.com](https://app.yunianpan.com) |
 
-The easiest way to run the entire stack locally:
+The service names predate the rename to Gleipnir and are kept so the domain mappings stay intact.
 
-```bash
-# Build and start all services
-docker-compose up --build
+## How a deploy happens
 
-# Access the application
-# Frontend: http://localhost:80
-# Backend API: http://localhost:8000
-# API Docs: http://localhost:8000/api/v1/docs
-```
+1. A push to `main` that touches the backend (`backend/`, `src/`, `pyproject.toml`, `uv.lock`, its Dockerfile or Cloud Build config) runs `.github/workflows/deploy-backend.yml`; frontend changes run `deploy-frontend.yml`.
+2. The workflow authenticates with the `GCP_SA_KEY` secret (a service-account key) and submits `deployment/cloudbuild/<service>.yaml` to Cloud Build.
+3. Cloud Build builds and pushes the image tagged with the commit SHA, then deploys it to Cloud Run.
 
-## Local Development
+Both workflows can also be started by hand from the Actions tab (`workflow_dispatch`).
+CI (`backend-ci.yml`, `frontend-ci.yml`) runs lint and tests on pushes and pull requests and fails the build on any error.
 
-### Backend (FastAPI)
+Repository secrets: `GCP_PROJECT_ID` and `GCP_SA_KEY`.
 
-```bash
-# Install dependencies
-pip install -r requirements.txt
-pip install -r backend/requirements.txt
-pip install -e .
+## The backend image
 
-# Run the backend
-uvicorn backend.main:app --reload --port 8000
+Dependencies are installed exactly from `uv.lock`, so mjollnir is the commit pinned there; moving that pin redeploys the backend.
+Only the `web` extra is installed (the API does not use torch).
+At startup the API compiles the Hedging Lab's simulations in a background thread; the first lab requests after a cold start can take several seconds longer.
 
-# Access API docs
-open http://localhost:8000/api/v1/docs
-```
+Cloud Run settings (`deployment/cloudbuild/backend.yaml`): 2 GiB memory, 2 CPUs, 300 s request timeout, port 8080.
 
-### Frontend (React)
+## Configuration
 
-```bash
-# Navigate to frontend
-cd frontend
+Backend settings are environment variables read by `backend/core/config.py`; production values live in `deployment/env/backend.env`.
 
-# Install dependencies
-npm install
+| Variable | Meaning |
+|----------|---------|
+| `BACKEND_CORS_ORIGINS` | JSON list of allowed browser origins, e.g. `["https://app.yunianpan.com"]` |
+| `DEFAULT_RISK_FREE_RATE` | Default rate for endpoints that take one |
+| `LAB_WARM_UP` | Compile the lab's simulations at startup (default `true`) |
+| `MJOLLNIR_JAX_BACKEND` | JAX device: `cpu` (default) or `cuda` |
 
-# Start development server
-npm start
+The frontend reads `REACT_APP_API_URL` at build time from `frontend/.env.production`.
 
-# Access frontend
-open http://localhost:3000
-```
-
-## Google Cloud Platform Deployment
-
-### Prerequisites
-
-1. GCP account with billing enabled
-2. `gcloud` CLI installed and authenticated
-3. Docker installed locally
-
-### Setup
+## Manual deploy
 
 ```bash
-# Set your project ID
-export PROJECT_ID="your-gcp-project-id"
-gcloud config set project $PROJECT_ID
-
-# Enable required APIs
-gcloud services enable cloudbuild.googleapis.com
-gcloud services enable run.googleapis.com
-gcloud services enable containerregistry.googleapis.com
+gcloud config set project "$PROJECT_ID"
+gcloud builds submit --config=deployment/cloudbuild/backend.yaml \
+  --substitutions=COMMIT_SHA="$(git rev-parse HEAD)" .
+gcloud builds submit --config=deployment/cloudbuild/frontend.yaml \
+  --substitutions=COMMIT_SHA="$(git rev-parse HEAD)" .
 ```
 
-### Deploy Backend
+## Running the production images locally
 
 ```bash
-# Submit build and deploy to Cloud Run
-gcloud builds submit \
-  --config=deployment/cloudbuild/backend.yaml \
-  --substitutions=COMMIT_SHA=$(git rev-parse HEAD)
-
-# Get the backend URL
-gcloud run services describe options-desk-backend \
-  --region=us-central1 \
-  --format='value(status.url)'
+docker compose up --build   # web app on http://localhost, API on http://localhost:8000
 ```
 
-### Deploy Frontend
+The web app bundle is built from `frontend/.env.production`, so in this setup it still calls the production API; use `make dev` for a fully local stack.
+
+## Logs
 
 ```bash
-# Update frontend/.env.production with backend URL
-# REACT_APP_API_URL=https://your-backend-url.run.app/api/v1
-
-# Submit build and deploy to Cloud Run
-gcloud builds submit \
-  --config=deployment/cloudbuild/frontend.yaml \
-  --substitutions=COMMIT_SHA=$(git rev-parse HEAD)
-
-# Get the frontend URL
-gcloud run services describe options-desk-frontend \
-  --region=us-central1 \
-  --format='value(status.url)'
+gcloud logging read \
+  'resource.type=cloud_run_revision AND resource.labels.service_name=options-desk-backend' \
+  --limit 50
 ```
-
-## GitHub Actions CI/CD
-
-### Setup GitHub Secrets
-
-Configure these secrets in your GitHub repository:
-
-1. `GCP_PROJECT_ID`: Your GCP project ID
-2. `GCP_WORKLOAD_IDENTITY_PROVIDER`: Workload Identity Provider for GitHub Actions
-3. `GCP_SERVICE_ACCOUNT`: Service account email with Cloud Run permissions
-
-### Workload Identity Setup
-
-```bash
-# Create service account
-gcloud iam service-accounts create github-actions \
-  --display-name="GitHub Actions Service Account"
-
-# Grant permissions
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:github-actions@$PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/run.admin"
-
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:github-actions@$PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/storage.admin"
-
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:github-actions@$PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/cloudbuild.builds.builder"
-
-# Create workload identity pool
-gcloud iam workload-identity-pools create "github-pool" \
-  --location="global" \
-  --display-name="GitHub Actions Pool"
-
-# Create workload identity provider
-gcloud iam workload-identity-pools providers create-oidc "github-provider" \
-  --location="global" \
-  --workload-identity-pool="github-pool" \
-  --display-name="GitHub Provider" \
-  --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository" \
-  --issuer-uri="https://token.actions.githubusercontent.com"
-
-# Link service account
-gcloud iam service-accounts add-iam-policy-binding \
-  "github-actions@$PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/iam.workloadIdentityUser" \
-  --member="principalSet://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/attribute.repository/YOUR_GITHUB_USERNAME/option_pricer_DLC"
-```
-
-### Automated Deployment
-
-Once configured, deployments happen automatically:
-
-- Push to `main` branch → Triggers deployment to Cloud Run
-- Pull requests → Runs CI tests only
-- Manual trigger available via GitHub Actions UI
-
-## Environment Variables
-
-### Backend
-
-- `BACKEND_CORS_ORIGINS`: Allowed CORS origins (comma-separated)
-- `DEFAULT_RISK_FREE_RATE`: Default risk-free rate (default: 0.05)
-- `ENABLE_CACHE`: Enable response caching (default: true)
-- `CACHE_TTL_SECONDS`: Cache TTL in seconds (default: 300)
-
-### Frontend
-
-- `REACT_APP_API_URL`: Backend API URL
-
-## Monitoring and Logs
-
-### View Cloud Run Logs
-
-```bash
-# Backend logs
-gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=options-desk-backend" \
-  --limit 50 \
-  --format json
-
-# Frontend logs
-gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=options-desk-frontend" \
-  --limit 50 \
-  --format json
-```
-
-### View Metrics
-
-```bash
-# Open Cloud Run metrics in browser
-gcloud run services describe options-desk-backend \
-  --region=us-central1 \
-  --format='value(status.url)' | xargs -I {} open "https://console.cloud.google.com/run"
-```
-
-## Cost Optimization
-
-Cloud Run pricing:
-
-- **Backend**: ~$0.00002400 per request (2GB RAM, 2 CPU)
-- **Frontend**: ~$0.00000400 per request (512MB RAM, 1 CPU)
-- **Free tier**: 2 million requests/month
-
-Estimated monthly cost for moderate usage (10K requests/day):
-
-- Backend: ~$7/month
-- Frontend: ~$1/month
-- Total: ~$8/month
-
-## Troubleshooting
-
-### Backend won't start
-
-```bash
-# Check logs
-docker logs options-desk-backend
-
-# Verify environment variables
-docker exec options-desk-backend env
-
-# Test locally
-uvicorn backend.main:app --host 0.0.0.0 --port 8000
-```
-
-### Frontend can't connect to backend
-
-1. Verify `REACT_APP_API_URL` in `.env.development` or `.env.production`
-2. Check CORS settings in backend `config.py`
-3. Verify backend is accessible: `curl http://localhost:8000/health`
-
-### Cloud Run deployment fails
-
-1. Check Cloud Build logs: `gcloud builds list --limit=10`
-2. Verify service account permissions
-3. Check Docker build locally: `docker build -f deployment/docker/backend/Dockerfile .`
