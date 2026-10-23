@@ -1,13 +1,13 @@
 # Multi-stage build for React frontend
-FROM node:18-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
 # Copy package files
 COPY frontend/package*.json ./
 
-# Install dependencies (use npm install instead of ci for more flexibility)
-RUN npm install --legacy-peer-deps
+# Install exactly the locked dependencies (the lockfile is resolved with legacy peer deps)
+RUN npm ci --legacy-peer-deps
 
 # Copy source code
 COPY frontend/ ./

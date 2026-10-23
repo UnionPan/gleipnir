@@ -8,7 +8,7 @@ from datetime import date
 
 class FetchDataRequest(BaseModel):
     """Request to fetch OHLCV data"""
-    tickers: List[str] = Field(..., min_items=1, description="List of ticker symbols")
+    tickers: List[str] = Field(..., min_length=1, description="List of ticker symbols")
     start_date: str = Field(..., description="Start date (YYYY-MM-DD)")
     end_date: str = Field(..., description="End date (YYYY-MM-DD)")
 
@@ -26,7 +26,7 @@ class OHLCVData(BaseModel):
 
 class CalibrationRequest(BaseModel):
     """Request to calibrate a model"""
-    tickers: List[str] = Field(..., min_items=1, description="List of ticker symbols")
+    tickers: List[str] = Field(..., min_length=1, description="List of ticker symbols")
     model: str = Field(
         ...,
         description=(

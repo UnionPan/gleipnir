@@ -25,7 +25,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "lint": "eslint --max-warnings=0 src"
   },
   "eslintConfig": {
     "extends": [
@@ -47,5 +48,10 @@
   },
   "devDependencies": {
     "http-proxy-middleware": "^2.0.9"
+  },
+  "jest": {
+    "transformIgnorePatterns": [
+      "node_modules/(?!axios/)"
+    ]
   }
 }
