@@ -1,14 +1,12 @@
-version: '3.3'
-
 services:
   backend:
     build:
       context: .
       dockerfile: deployment/docker/backend/Dockerfile
     ports:
-      - "8000:8000"
+      - "8000:8080"
     environment:
-      - BACKEND_CORS_ORIGINS=http://localhost:3000,http://localhost:80
+      - 'BACKEND_CORS_ORIGINS=["http://localhost:3000", "http://localhost"]'
       - DEFAULT_RISK_FREE_RATE=0.05
     volumes:
       - ./data:/app/data
@@ -21,7 +19,7 @@ services:
       context: .
       dockerfile: deployment/docker/frontend/Dockerfile
     ports:
-      - "80:80"
+      - "80:8080"
     depends_on:
       - backend
     environment:

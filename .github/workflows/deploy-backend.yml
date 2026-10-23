@@ -8,6 +8,8 @@ on:
       - 'src/**'
       - 'deployment/docker/backend/**'
       - 'deployment/cloudbuild/backend.yaml'
+      - 'pyproject.toml'
+      - 'uv.lock'
 
   workflow_dispatch:
 

@@ -1,5 +1,0 @@
--r requirements-base.txt
-
-# Default JAX install (portable CPU-safe baseline)
-jax>=0.9.0,<0.10
-jaxlib>=0.9.0,<0.10

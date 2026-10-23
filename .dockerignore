@@ -1,0 +1,14 @@
+# Keep build contexts small: images copy only what their Dockerfile names.
+.git
+.venv
+**/__pycache__
+**/*.pyc
+**/node_modules
+frontend/build
+data
+runs
+htmlcov
+notebooks
+.pytest_cache
+.ruff_cache
+*.png
