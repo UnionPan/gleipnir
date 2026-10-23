@@ -3,10 +3,9 @@ import './App.css';
 import HomePage from './pages/HomePage';
 import CalibrationPage from './pages/CalibrationPage';
 import BacktestingPage from './pages/BacktestingPage';
-import DeepRLHedgingPage from './pages/DeepRLHedgingPage';
 import { useTheme } from './contexts/ThemeContext';
 
-type Page = 'market' | 'calibration' | 'backtesting' | 'deep-rl-hedging';
+type Page = 'market' | 'calibration' | 'backtesting';
 
 interface MenuItem {
   id: Page;
@@ -17,7 +16,6 @@ const menuItems: MenuItem[] = [
   { id: 'market', label: 'Market' },
   { id: 'calibration', label: 'Calibration' },
   { id: 'backtesting', label: 'Backtesting' },
-  { id: 'deep-rl-hedging', label: 'Deep RL Hedging' },
 ];
 
 /* Custom SVG logo — AIS monogram with quant character */
@@ -55,8 +53,6 @@ function App() {
         return <CalibrationPage />;
       case 'backtesting':
         return <BacktestingPage />;
-      case 'deep-rl-hedging':
-        return <DeepRLHedgingPage />;
       default:
         return <HomePage />;
     }
