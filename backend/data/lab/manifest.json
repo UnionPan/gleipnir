@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-23T19:19:36+00:00",
+  "window": "2021-07-06..2026-07-06",
+  "estimator": "Quasi-MLE on daily closes (mjollnir heston_qmle)",
+  "assets": [
+    {
+      "ticker": "AAPL",
+      "sector": "Information Technology",
+      "file": "AAPL.json",
+      "hash": "48943bbdaa87bd3e51ced4a9fa75005491d6e4ec53d881b43429ff559df26f2d",
+      "state": {
+        "as_of": "2026-07-06",
+        "vol_today": 0.38076320462503904,
+        "window_days": 21
+      },
+      "diagnostics": {
+        "feller_ratio": 0.5796955718139676,
+        "variance_proxy_r2": 0.9132547002498179,
+        "n_observations": 1253
+      }
+    },
+    {
+      "ticker": "MSFT",
+      "sector": "Information Technology",
+      "file": "MSFT.json",
+      "hash": "fcdacfd0c4c09977ad4ae612e6062496ec73cf72f1de74bfb7e2bf69ae100ea9",
+      "state": {
+        "as_of": "2026-07-06",
+        "vol_today": 0.3892702363731534,
+        "window_days": 21
+      },
+      "diagnostics": {
+        "feller_ratio": 1.2159623068065877,
+        "variance_proxy_r2": 0.874431696393285,
+        "n_observations": 1253
+      }
+    },
+    {
+      "ticker": "NVDA",
+      "sector": "Information Technology",
+      "file": "NVDA.json",
+      "hash": "588c177bcd1312dfceaf15226af7ec349fe40a79afeb11609db74ca9c95abc7b",
+      "state": {
+        "as_of": "2026-07-06",
+        "vol_today": 0.41479702157557924,
+        "window_days": 21
+      },
+      "diagnostics": {
+        "feller_ratio": 1.2720702886252377,
+        "variance_proxy_r2": 0.8616189388648984,
+        "n_observations": 1253
+      }
+    },
+    {
+      "ticker": "TSLA",
+      "sector": "Consumer Discretionary",
+      "file": "TSLA.json",
+      "hash": "e2905e8c9c438ee3511c8424ac5738858fc9f626e20a754ea6dc61ed9c9c7932",
+      "state": {
+        "as_of": "2026-07-06",
+        "vol_today": 0.6099545823821021,
+        "window_days": 21
+      },
+      "diagnostics": {
+        "feller_ratio": 1.6549432530570636,
+        "variance_proxy_r2": 0.8582433720186164,
+        "n_observations": 1253
+      }
+    },
+    {
+      "ticker": "JPM",
+      "sector": "Financials",
+      "file": "JPM.json",
+      "hash": "6a7f97ea13b57508479233ddf52352f9b9548a622902b808c5b9b554789fb9dd",
+      "state": {
+        "as_of": "2026-07-06",
+        "vol_today": 0.243377019331664,
+        "window_days": 21
+      },
+      "diagnostics": {
+        "feller_ratio": 0.92371271674056,
+        "variance_proxy_r2": 0.8802810220978564,
+        "n_observations": 1253
+      }
+    },
+    {
+      "ticker": "XOM",
+      "sector": "Energy",
+      "file": "XOM.json",
+      "hash": "04a72c665150a31e34e5a61f56618c22c62d11c4a44966c5c63cae4e7c2c16dc",
+      "state": {
+        "as_of": "2026-07-06",
+        "vol_today": 0.2414966713674256,
+        "window_days": 21
+      },
+      "diagnostics": {
+        "feller_ratio": 1.4605101530828493,
+        "variance_proxy_r2": 0.9072847354156418,
+        "n_observations": 1253
+      }
+    },
+    {
+      "ticker": "JNJ",
+      "sector": "Health Care",
+      "file": "JNJ.json",
+      "hash": "a200fa94c388c43f0cf0c6f02702cec7b7d59bc2d36df632605e0228ee16fe6f",
+      "state": {
+        "as_of": "2026-07-06",
+        "vol_today": 0.27868826251253864,
+        "window_days": 21
+      },
+      "diagnostics": {
+        "feller_ratio": 1.1480551290519205,
+        "variance_proxy_r2": 0.8474692040179187,
+        "n_observations": 1253
+      }
+    },
+    {
+      "ticker": "KO",
+      "sector": "Consumer Staples",
+      "file": "KO.json",
+      "hash": "5b1ad51640bb70d4eef39973211fe4b3afefb2102ec57b821d4afdac2cd88660",
+      "state": {
+        "as_of": "2026-07-06",
+        "vol_today": 0.265312651069902,
+        "window_days": 21
+      },
+      "diagnostics": {
+        "feller_ratio": 1.2402142212605762,
+        "variance_proxy_r2": 0.8755003280266185,
+        "n_observations": 1253
+      }
+    }
+  ]
+}

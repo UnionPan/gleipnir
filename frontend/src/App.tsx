@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import './App.css';
 import HomePage from './pages/HomePage';
 import CalibrationPage from './pages/CalibrationPage';
-import BacktestingPage from './pages/BacktestingPage';
+import HedgingLabPage from './pages/HedgingLabPage';
 import { useTheme } from './contexts/ThemeContext';
 
-type Page = 'market' | 'calibration' | 'backtesting';
+type Page = 'market' | 'calibration' | 'lab';
 
 interface MenuItem {
   id: Page;
@@ -15,10 +15,10 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { id: 'market', label: 'Market' },
   { id: 'calibration', label: 'Calibration' },
-  { id: 'backtesting', label: 'Backtesting' },
+  { id: 'lab', label: 'Hedging Lab' },
 ];
 
-/* Custom SVG logo — AIS monogram with quant character */
+/* Logo: a delta glyph with a triangular counter */
 const Logo = () => (
   <svg width="22" height="22" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
     {/* Bold A/delta with triangular counter cutout */}
@@ -51,8 +51,8 @@ function App() {
         return <HomePage />;
       case 'calibration':
         return <CalibrationPage />;
-      case 'backtesting':
-        return <BacktestingPage />;
+      case 'lab':
+        return <HedgingLabPage />;
       default:
         return <HomePage />;
     }
@@ -62,10 +62,10 @@ function App() {
     <div className="App">
       {/* Top Navigation */}
       <nav className="top-nav">
-        <div className="nav-left" onClick={() => handlePageChange('market')}>
+        <button type="button" className="nav-left" onClick={() => handlePageChange('market')} aria-label="Gleipnir home">
           <Logo />
-          <span className="nav-brand">AIS<span className="nav-brand-light">opt</span></span>
-        </div>
+          <span className="nav-brand">Gleip<span className="nav-brand-light">nir</span></span>
+        </button>
 
         <div className="nav-center">
           <div className="nav-tabs">
@@ -123,7 +123,7 @@ function App() {
             <div className="mobile-menu-header">
               <div className="mobile-menu-brand">
                 <Logo />
-                <h1 className="sidebar-title" onClick={() => handlePageChange('market')}>AIS opt</h1>
+                <h1 className="sidebar-title" onClick={() => handlePageChange('market')}>Gleipnir</h1>
               </div>
               <button className="close-button" onClick={() => setMobileMenuOpen(false)}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

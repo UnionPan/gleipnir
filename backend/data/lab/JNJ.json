@@ -1,0 +1,21 @@
+{
+  "asset": "JNJ",
+  "content_hash": "a200fa94c388c43f0cf0c6f02702cec7b7d59bc2d36df632605e0228ee16fe6f",
+  "created_at": "2026-10-23T19:19:36+00:00",
+  "measure": "P",
+  "mjollnir_version": "0.3.0",
+  "model": "heston",
+  "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
+  "params": {
+    "kappa": 1.9238139685545177,
+    "mu": 0.13306450942659034,
+    "rho": -0.001115397926166123,
+    "sigma_v": 0.3125552989997054,
+    "theta": 0.029148982952111067,
+    "v0": 0.07766714766225764
+  },
+  "parent_hash": null,
+  "schema_version": 1,
+  "source": "dynamics: mjollnir heston_qmle on yfinance daily closes; v0: trailing 21-day realized variance at 2026-07-06",
+  "window": "2021-07-06..2026-07-06"
+}

@@ -7,6 +7,8 @@ EXTRAS := --extra web --extra rl $(if $(shell command -v nvidia-smi 2>/dev/null)
 MJOLLNIR_DIR ?= ../mjollnir
 MJOLLNIR_OVERLAY := $(if $(wildcard $(MJOLLNIR_DIR)/pyproject.toml),--with-editable $(MJOLLNIR_DIR))
 UV_RUN := uv run $(EXTRAS) $(MJOLLNIR_OVERLAY)
+# Dev servers compute on the GPU when there is one (tests stay on CPU, like CI).
+DEV_JAX := $(if $(shell command -v nvidia-smi 2>/dev/null),MJOLLNIR_JAX_BACKEND=cuda)
 
 help:
 	@echo "Gleipnir - available commands"
@@ -32,7 +34,7 @@ install:
 	cd frontend && npm ci --legacy-peer-deps
 
 dev:
-	$(UV_RUN) python scripts/dev.py
+	$(DEV_JAX) $(UV_RUN) python scripts/dev.py
 
 backend:
 	$(UV_RUN) uvicorn backend.main:app --reload --reload-dir backend --reload-dir src --port 8000

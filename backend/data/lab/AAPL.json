@@ -1,0 +1,21 @@
+{
+  "asset": "AAPL",
+  "content_hash": "48943bbdaa87bd3e51ced4a9fa75005491d6e4ec53d881b43429ff559df26f2d",
+  "created_at": "2026-10-23T19:19:36+00:00",
+  "measure": "P",
+  "mjollnir_version": "0.3.0",
+  "model": "heston",
+  "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
+  "params": {
+    "kappa": 1.124773008585013,
+    "mu": 0.19934618395359077,
+    "rho": -0.006745799668511256,
+    "sigma_v": 0.5437883263914001,
+    "theta": 0.07620173537315447,
+    "v0": 0.14498061799632936
+  },
+  "parent_hash": null,
+  "schema_version": 1,
+  "source": "dynamics: mjollnir heston_qmle on yfinance daily closes; v0: trailing 21-day realized variance at 2026-07-06",
+  "window": "2021-07-06..2026-07-06"
+}

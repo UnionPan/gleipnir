@@ -1,0 +1,21 @@
+{
+  "asset": "NVDA",
+  "content_hash": "588c177bcd1312dfceaf15226af7ec349fe40a79afeb11609db74ca9c95abc7b",
+  "created_at": "2026-10-23T19:19:36+00:00",
+  "measure": "P",
+  "mjollnir_version": "0.3.0",
+  "model": "heston",
+  "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
+  "params": {
+    "kappa": 1.8736911514090329,
+    "mu": 0.584735974981027,
+    "rho": -0.01156232164450485,
+    "sigma_v": 0.8856259339058542,
+    "theta": 0.2662464088472469,
+    "v0": 0.17205656910797154
+  },
+  "parent_hash": null,
+  "schema_version": 1,
+  "source": "dynamics: mjollnir heston_qmle on yfinance daily closes; v0: trailing 21-day realized variance at 2026-07-06",
+  "window": "2021-07-06..2026-07-06"
+}

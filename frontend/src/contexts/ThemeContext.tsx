@@ -19,7 +19,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Listen for system theme changes
     const handler = (e: MediaQueryListEvent) => {
-      setTheme(e.matches ? 'dark' : 'light');
+      setTheme(e.matches ? 'light' : 'dark');
     };
 
     mediaQuery.addEventListener('change', handler);

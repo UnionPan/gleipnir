@@ -1,5 +1,5 @@
 """Backend configuration using environment variables."""
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 
 
@@ -8,9 +8,9 @@ class Settings(BaseSettings):
 
     # API Configuration
     API_V1_PREFIX: str = "/api/v1"
-    PROJECT_NAME: str = "Options Desk API"
+    PROJECT_NAME: str = "Gleipnir API"
     VERSION: str = "0.1.0"
-    DESCRIPTION: str = "REST API for options pricing, Greeks, and volatility surfaces"
+    DESCRIPTION: str = "Market data, model calibration and the Counterfactual Hedging Lab, built on mjollnir"
 
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = [
@@ -23,13 +23,14 @@ class Settings(BaseSettings):
     DEFAULT_RISK_FREE_RATE: float = 0.05
     DEFAULT_DATA_SOURCE: str = "yfinance"
 
+    # Compile the lab's backtests at startup (disable in tests)
+    LAB_WARM_UP: bool = True
+
     # Cache Configuration
     ENABLE_CACHE: bool = True
     CACHE_TTL_SECONDS: int = 300  # 5 minutes
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
 
 settings = Settings()

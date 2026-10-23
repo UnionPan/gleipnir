@@ -43,6 +43,10 @@
   margin-right: 1rem;
   padding: 0 0.5rem;
   user-select: none;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
 }
 
 .nav-left:hover {

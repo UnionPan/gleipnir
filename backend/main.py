@@ -1,11 +1,33 @@
 """FastAPI application entry point."""
+import logging
+import threading
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.core.config import settings
 from backend.api.v1.api import api_router
+from backend.services import lab_service
+
+_app_logger = logging.getLogger("backend")
+_app_logger.setLevel(logging.INFO)
+if not _app_logger.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("%(levelname)s:     %(name)s - %(message)s"))
+    _app_logger.addHandler(_handler)
+    _app_logger.propagate = False
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Compile the lab's backtests in the background; the API serves immediately."""
+    if settings.LAB_WARM_UP:
+        threading.Thread(target=lab_service.warm_up, name="lab-warm-up", daemon=True).start()
+    yield
 
 
 app = FastAPI(
+    lifespan=lifespan,
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     description=settings.DESCRIPTION,
