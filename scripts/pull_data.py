@@ -81,5 +81,5 @@ if __name__ == "__main__":
     print(f"Total options: {len(df)}")
     print(f"Calls: {len(df[df['optionType'] == 'call'])}")
     print(f"Puts: {len(df[df['optionType'] == 'put'])}")
-    print(f"\nFirst few rows:")
+    print("\nFirst few rows:")
     print(df.head(10))

@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from options_desk.deep_hedging.pomarl.ais import AISGRUEncoder
+from gleipnir.deep_hedging.pomarl.ais import AISGRUEncoder
 
 
 def _init_encoder(hidden_size: int, n_layers: int, obs_dim: int, batch: int):

@@ -18,20 +18,20 @@ import jax
 import numpy as np
 import pytest
 
-from options_desk.deep_hedging.jax.env import (
+from gleipnir.deep_hedging.jax.env import (
     GRID_COARSE,
     DeepHedgingEnvConfig,
 )
-from options_desk.deep_hedging.jax.pricing import (
+from gleipnir.deep_hedging.jax.pricing import (
     HestonMarketParams,
     compile_padded_grid,
 )
-from options_desk.deep_hedging.pomarl import (
+from gleipnir.deep_hedging.pomarl import (
     AISPGTrainer,
     AISPGTrainerConfig,
     PomarlAgent,
 )
-from options_desk.deep_hedging.utils.contracts import LiabilitySpec
+from gleipnir.deep_hedging.utils.contracts import LiabilitySpec
 
 
 @pytest.fixture(scope="module")

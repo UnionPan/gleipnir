@@ -36,7 +36,7 @@ import logging
 import math
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import jax
 import numpy as np
@@ -45,30 +45,30 @@ import torch
 # Ensure src/ is importable when invoked as a script
 ROOT = Path(__file__).resolve().parents[1]
 
-from options_desk.deep_hedging.jax.env import (  # noqa: E402
+from gleipnir.deep_hedging.jax.env import (  # noqa: E402
     DeepHedgingEnvConfig,
     FloatingOptionGrid,
     GRID_COARSE,
     build_transaction_cost_vector,
 )
-from options_desk.deep_hedging.jax.pricing import (  # noqa: E402
+from gleipnir.deep_hedging.jax.pricing import (  # noqa: E402
     HestonMarketParams,
     compile_padded_grid,
 )
-from options_desk.deep_hedging.jax.rollout import (  # noqa: E402
+from gleipnir.deep_hedging.jax.rollout import (  # noqa: E402
     simulate_heston_market,
     simulate_heston_market_batch,
 )
-from options_desk.deep_hedging.training.torch_buehler import (  # noqa: E402
+from gleipnir.deep_hedging.training.torch_buehler import (  # noqa: E402
     BuehlerTrainer,
     TrainerConfig,
 )
-from options_desk.deep_hedging.utils.contracts import (  # noqa: E402
+from gleipnir.deep_hedging.utils.contracts import (  # noqa: E402
     LiabilitySpec,
     MarketTrajectory,
     TrajectoryBatch,
 )
-from options_desk.deep_hedging.utils.eval_baseline import (  # noqa: E402
+from gleipnir.deep_hedging.utils.eval_baseline import (  # noqa: E402
     evaluate_analytical_delta_hedger_batch,
 )
 
@@ -216,7 +216,7 @@ def train_one_seed(
     checkpoint_dir: Path | None = None,
     observe_variance: bool = True,
     variance_proxy: str = "oracle",
-) -> Dict[str, float]:
+) -> dict[str, float]:
     config = TrainerConfig(
         position_limit=1.0,
         risk_aversion=env_config.risk_aversion,
@@ -346,11 +346,11 @@ def run_phase(
     checkpoint_dir: Path | None = None,
     observe_variance: bool = True,
     variance_proxy: str = "oracle",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     env_config = make_env_config(grid, horizon)
     market = heston_easy()
     padded_grid = compile_padded_grid(grid, dt=env_config.dt, horizon_steps=horizon)
-    sampler, single = make_market_sampler(
+    sampler, _single = make_market_sampler(
         env_config, market, padded_grid, initial_spot, initial_variance,
     )
 
@@ -360,7 +360,7 @@ def run_phase(
         liability.kind, liability.strike, liability.quantity, liability.maturity,
     )
 
-    lstm_results: List[Dict[str, float]] = []
+    lstm_results: list[dict[str, float]] = []
     for seed in seeds:
         try:
             metrics = train_one_seed(
@@ -422,13 +422,13 @@ def summarize_phase(
     lstm_results: list[dict],
     bs_metrics: dict,
     logger: logging.Logger,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     if not lstm_results:
         logger.warning("[phase=%s] no LSTM seeds completed; skipping summary", phase_name)
         return {"phase": phase_name, "lstm_seeds": [], "verdict": "no_data"}
 
     keys = ("std_hedging_error", "cvar_05_hedging_error", "eval_loss", "mean_cost")
-    summary: Dict[str, Any] = {
+    summary: dict[str, Any] = {
         "phase": phase_name,
         "n_seeds": len(lstm_results),
         "lstm_seeds": [r["seed"] for r in lstm_results],
@@ -550,7 +550,7 @@ def main() -> None:
     eval_seed = 9999
 
     # Run dir
-    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
     if args.tag:
         stamp = f"{stamp}_{args.tag}"
     run_dir = ROOT / "runs" / "validate_lstm_vs_bs" / stamp
@@ -569,7 +569,7 @@ def main() -> None:
         [1] + [0] * (n_inst - 1)
     )
 
-    summaries: List[Dict[str, Any]] = []
+    summaries: list[dict[str, Any]] = []
 
     if args.phases in ("P1", "both"):
         summaries.append(run_phase(

@@ -12,11 +12,11 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 
-from options_desk.deep_hedging.pomarl.ais import (
+from gleipnir.deep_hedging.pomarl.ais import (
     AISRewardModel,
     AISTransitionModel,
 )
-from options_desk.deep_hedging.pomarl.losses import (
+from gleipnir.deep_hedging.pomarl.losses import (
     ais_reward_loss,
     ais_transition_loss,
 )

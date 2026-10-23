@@ -90,7 +90,24 @@ target-version = "py311"
 line-length = 100
 src = ["src", "backend", "scripts", "tests"]
 
+[tool.ruff.lint]
+# Explicit selection (mirrors mjollnir) so CI does not drift with ruff's defaults.
+select = ["E", "F", "W", "B", "UP", "RUF", "BLE"]
+ignore = [
+    "E501",   # long lines: formulas and log lines read better unwrapped
+    "E741",   # ambiguous single-letter names: standard math notation
+    "RUF001", "RUF002", "RUF003",  # Greek letters and math glyphs in strings/docstrings
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]   # re-export surfaces
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
 python_functions = "test_*"
+markers = [
+    "slow: long-running tests",
+    "network: needs live market data over the internet (deselected by default; run with -m network)",
+]
+addopts = "-m 'not network'"

@@ -18,8 +18,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import numpy as np
-from options_desk.simulations import HestonEnv, Liability
-from options_desk.deep_hedging.agents import DeltaHedgingAgent
+from mjollnir.simulations import HestonEnv, Liability
+from gleipnir.deep_hedging.agents import DeltaHedgingAgent
 
 
 def run_demo_with_rendering(n_steps: int = 100, update_interval: int = 1, use_delta_agent: bool = True):

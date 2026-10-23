@@ -26,22 +26,20 @@ from __future__ import annotations
 
 import argparse
 import math
-from pathlib import Path
 
 import numpy as np
 
-import jax  # noqa: E402
+import jax
 
-from options_desk.deep_hedging.jax.env import (  # noqa: E402
+from gleipnir.deep_hedging.jax.env import (
     DeepHedgingEnvConfig, GRID_COARSE, build_transaction_cost_vector,
 )
-from options_desk.deep_hedging.jax.pricing import (  # noqa: E402
+from gleipnir.deep_hedging.jax.pricing import (
     HestonMarketParams, compile_padded_grid,
 )
-from options_desk.deep_hedging.jax.rollout import (  # noqa: E402
+from gleipnir.deep_hedging.jax.rollout import (
     simulate_heston_market_batch,
 )
-from options_desk.deep_hedging.utils.contracts import TrajectoryBatch  # noqa: E402
 
 
 def fmt_alpha(label: str, mean: float, sem: float, width: int = 50) -> str:
@@ -77,7 +75,7 @@ def main() -> None:
     )
 
     print("=" * 78)
-    print(f"Simulator alpha diagnostic")
+    print("Simulator alpha diagnostic")
     print(f"  n_paths={args.n_paths}  eval_seed={args.eval_seed}  horizon={args.horizon}")
     print(f"  Heston(kappa={market.kappa}, theta={market.theta}, sigma_v={market.sigma_v}, rho={market.rho})")
     print(f"  S_0={args.initial_spot}  v_0={args.initial_variance}  r=q=0")
@@ -95,7 +93,6 @@ def main() -> None:
     prices = np.asarray(traj.instrument_prices, dtype=np.float64) # (B, T+1, N)
     masks = np.asarray(traj.action_masks, dtype=bool)             # (T+1, N)
     B = args.n_paths
-    horizon = args.horizon
     n_inst = grid.n_instruments
     tc = build_transaction_cost_vector(env_config).astype(np.float64)
 
@@ -138,13 +135,12 @@ def main() -> None:
     #         - tc[i] * price_T_eff[i]               (exit cost)
     # where T_eff is the last time index where the instrument is tradable.
     print("\n[3] Per-instrument buy-and-hold alpha  (E[P_T^i - P_0^i] minus costs)")
-    print(f"    Underlying entry/exit cost = 1bp;  option entry/exit cost = 100bp")
-    print(f"    Held from t=0 to t=T_eff (last time mask[t,i]=True), then liquidated")
+    print("    Underlying entry/exit cost = 1bp;  option entry/exit cost = 100bp")
+    print("    Held from t=0 to t=T_eff (last time mask[t,i]=True), then liquidated")
     print(f"    {'instrument':>30s}  {'price_0':>9s}  {'mean_pnl':>10s}  {'sem':>8s}  {'z':>6s}")
 
     # Build instrument labels (slot 0 = underlying)
     labels = ["underlying (S)"]
-    flat_idx = 1
     for m in grid.maturities:
         for k in grid.moneyness_by_maturity[m]:
             labels.append(f"call  m={m:>2d} K/S={k:.3f}")
@@ -177,7 +173,7 @@ def main() -> None:
     print("\n[4] Do-nothing baseline  (positions=0 forever)")
     print("    By construction:  mean_pnl = 0,  mean_hedging_error = -mean_payoff,")
     print(f"    std_hedging_error = std_payoff = {payoffs.std(ddof=0):.4f}")
-    print(f"    (no observed value can disagree with this — pure pipeline check.)")
+    print("    (no observed value can disagree with this — pure pipeline check.)")
 
     # ── 5. Headline summary ─────────────────────────────────────────────
     print("\n" + "=" * 78)
@@ -191,10 +187,10 @@ def main() -> None:
     print(f"  instruments with |z|>3 alpha: {n_struct} / {len(instrument_alphas)}")
     if n_struct > 0:
         print(f"  → simulator has {n_struct} structurally-alpha-leaking instruments")
-        print(f"    → consistent with LSTM exploiting them (the +$3.67 leak)")
+        print("    → consistent with LSTM exploiting them (the +$3.67 leak)")
     else:
         print(f"  → no structural per-instrument alpha at the {1/B:.4f} resolution")
-        print(f"    → if LSTM has a leak, it must come from path-conditional trading")
+        print("    → if LSTM has a leak, it must come from path-conditional trading")
     print("=" * 78)
 
 

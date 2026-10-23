@@ -29,18 +29,18 @@ from pathlib import Path
 
 import numpy as np
 
-import jax  # noqa: E402
-import jax.numpy as jnp  # noqa: E402
+import jax
+import jax.numpy as jnp
 
-from options_desk.deep_hedging.jax.env import (  # noqa: E402
+from gleipnir.deep_hedging.jax.env import (
     DeepHedgingEnvConfig, GRID_COARSE,
 )
-from options_desk.deep_hedging.jax.pricing import (  # noqa: E402
+from gleipnir.deep_hedging.jax.pricing import (
     HestonMarketParams, compile_padded_grid,
 )
-from options_desk.deep_hedging.jax.rollout import simulate_heston_market_batch  # noqa: E402
-from options_desk.deep_hedging.pomarl.ais import AISGRUEncoder  # noqa: E402
-from options_desk.deep_hedging.pomarl.utils import build_pomdp_obs  # noqa: E402
+from gleipnir.deep_hedging.jax.rollout import simulate_heston_market_batch
+from gleipnir.deep_hedging.pomarl.ais import AISGRUEncoder
+from gleipnir.deep_hedging.pomarl.utils import build_pomdp_obs
 
 
 def encoder_forward_pass(

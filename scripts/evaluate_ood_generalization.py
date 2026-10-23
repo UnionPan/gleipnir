@@ -29,7 +29,7 @@ import logging
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, List
+from collections.abc import Callable
 
 import jax
 import numpy as np
@@ -37,26 +37,26 @@ import torch
 
 ROOT = Path(__file__).resolve().parents[1]
 
-from options_desk.deep_hedging.agents import build_option_grid_spec  # noqa: E402
-from options_desk.deep_hedging.jax.env import (  # noqa: E402
+from gleipnir.deep_hedging.agents import build_option_grid_spec  # noqa: E402
+from gleipnir.deep_hedging.jax.env import (  # noqa: E402
     DeepHedgingEnvConfig,
     GRID_COARSE,
     build_transaction_cost_vector,
 )
-from options_desk.deep_hedging.jax.pricing import (  # noqa: E402
+from gleipnir.deep_hedging.jax.pricing import (  # noqa: E402
     HestonMarketParams,
     compile_padded_grid,
 )
-from options_desk.deep_hedging.jax.rollout import simulate_heston_market_batch  # noqa: E402
-from options_desk.deep_hedging.training.torch_buehler import (  # noqa: E402
+from gleipnir.deep_hedging.jax.rollout import simulate_heston_market_batch  # noqa: E402
+from gleipnir.deep_hedging.training.torch_buehler import (  # noqa: E402
     BuehlerTrainer,
     TrainerConfig,
 )
-from options_desk.deep_hedging.utils.contracts import (  # noqa: E402
+from gleipnir.deep_hedging.utils.contracts import (  # noqa: E402
     LiabilitySpec,
     TrajectoryBatch,
 )
-from options_desk.deep_hedging.utils.eval_baseline import (  # noqa: E402
+from gleipnir.deep_hedging.utils.eval_baseline import (  # noqa: E402
     evaluate_analytical_hedger_batch,
 )
 
@@ -210,7 +210,7 @@ def main() -> None:
         batch_size = 64
         eval_n_paths = 256
 
-    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
     if args.tag:
         stamp = f"{stamp}_{args.tag}"
     run_dir = ROOT / "runs" / "ood_generalization" / stamp
@@ -322,7 +322,7 @@ def main() -> None:
                         "cost": float(nm["mean_cost"]),
                         "loss": float(nm["eval_loss"]),
                     })
-                except Exception as e:
+                except (RuntimeError, ValueError, FloatingPointError) as e:
                     logger.error("%s eval failed on %s/%s: %s",
                                  kind, regime.name, scheme, e)
 
@@ -350,7 +350,7 @@ def main() -> None:
                         "cost": float(am["mean_cost"]),
                         "loss": float(am["eval_loss"]),
                     })
-                except Exception as e:
+                except (RuntimeError, ValueError, FloatingPointError) as e:
                     logger.error("%s eval failed on %s/%s: %s",
                                  hedge_kind, regime.name, scheme, e)
 

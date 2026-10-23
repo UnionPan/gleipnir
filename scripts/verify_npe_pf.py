@@ -9,7 +9,7 @@ import argparse
 from pathlib import Path
 import pandas as pd
 import numpy as np
-from options_desk.calibration.physical.heston_particle_filter import HestonParticleFilter
+from mjollnir.calibration.physical.heston_particle_filter import HestonParticleFilter
 
 
 def load_price_series(ticker: str, data_dir: Path = Path("data/price_lake/prices")) -> pd.Series:
@@ -121,7 +121,7 @@ def main():
         try:
             prices_series = load_price_series(ticker)
             prices = prices_series.tail(1260).values
-        except Exception as e:
+        except (OSError, KeyError, ValueError) as e:
             print(f"  ERROR loading prices: {e}")
             continue
 
@@ -166,7 +166,7 @@ def main():
                 'qmle_loglik': qmle_loglik,
                 'winner': 'NPE' if npe_loglik > qmle_loglik else 'QMLE',
             })
-        except Exception as e:
+        except (RuntimeError, ValueError, FloatingPointError) as e:
             print(f"  ERROR computing PF: {e}")
             continue
 

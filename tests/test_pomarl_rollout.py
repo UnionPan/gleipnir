@@ -16,17 +16,17 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from options_desk.deep_hedging.pomarl.ais import AISGRUEncoder
-from options_desk.deep_hedging.pomarl.policy import GaussianPolicy
-from options_desk.deep_hedging.pomarl.rollout import (
+from gleipnir.deep_hedging.pomarl.ais import AISGRUEncoder
+from gleipnir.deep_hedging.pomarl.policy import GaussianPolicy
+from gleipnir.deep_hedging.pomarl.rollout import (
     greedy_rollout,
     stochastic_rollout,
 )
-from options_desk.deep_hedging.pomarl.utils import (
+from gleipnir.deep_hedging.pomarl.utils import (
     jax_total_payoff,
     pomdp_obs_dim,
 )
-from options_desk.deep_hedging.utils.contracts import LiabilitySpec
+from gleipnir.deep_hedging.utils.contracts import LiabilitySpec
 
 
 def _build_modules(*, n_instruments, hidden_size, n_layers, policy_hidden,

@@ -22,25 +22,24 @@ from __future__ import annotations
 
 import argparse
 import pickle
-from pathlib import Path
 
 import numpy as np
 
-import jax  # noqa: E402
-import jax.numpy as jnp  # noqa: E402
+import jax
+import jax.numpy as jnp
 
-from options_desk.deep_hedging.jax.env import (  # noqa: E402
+from gleipnir.deep_hedging.jax.env import (
     DeepHedgingEnvConfig, GRID_COARSE,
 )
-from options_desk.deep_hedging.jax.pricing import (  # noqa: E402
+from gleipnir.deep_hedging.jax.pricing import (
     HestonMarketParams, compile_padded_grid,
 )
-from options_desk.deep_hedging.jax.rollout import simulate_heston_market_batch  # noqa: E402
-from options_desk.deep_hedging.pomarl.ais import (  # noqa: E402
+from gleipnir.deep_hedging.jax.rollout import simulate_heston_market_batch
+from gleipnir.deep_hedging.pomarl.ais import (
     AISGRUEncoder, AISRewardModel, AISTransitionModel,
 )
-from options_desk.deep_hedging.pomarl.utils import build_pomdp_obs  # noqa: E402
-from options_desk.deep_hedging.pomarl.policy import GaussianPolicy, sample_action  # noqa: E402
+from gleipnir.deep_hedging.pomarl.utils import build_pomdp_obs
+from gleipnir.deep_hedging.pomarl.policy import GaussianPolicy, sample_action
 
 
 def main() -> None:
@@ -79,11 +78,11 @@ def main() -> None:
         print(f"  sigma     min={sigma.min():.4e}     max={sigma.max():.4e}     mean={sigma.mean():.4e}")
         if sigma.min() < 1e-3:
             print(f"  ⚠️  CRITICAL: sigma → 0 in some dims (min={sigma.min():.2e})")
-            print(f"     → NLL explodes: 0.5·((x_next - μ)/σ)² blows up for any non-zero residual")
+            print("     → NLL explodes: 0.5·((x_next - μ)/σ)² blows up for any non-zero residual")
         elif sigma.max() > 100:
             print(f"  ⚠️  sigma is huge (max={sigma.max():.2f}) → model is essentially saying 'no idea'")
         else:
-            print(f"  ✓ sigma values look healthy")
+            print("  ✓ sigma values look healthy")
     else:
         print("  could not locate log_sigma param")
 
@@ -197,20 +196,20 @@ def main() -> None:
     print(f"  Mean |x_next| (target RMS):                   {target_rms:.4e}")
     print(f"  Predictive R²(x_next) ≈ {1 - (resid_rms/target_rms)**2:.4f}")
 
-    print(f"\n=== Diagnosis ===")
+    print("\n=== Diagnosis ===")
     if log_sigma is not None and sigma.min() < 0.01:
         print(f"  → log_sigma collapsed (σ_min={sigma.min():.2e}) → L_p dominated by")
-        print(f"    (residual/σ)² blow-up. The encoder representation is fine (the probe")
-        print(f"    showed R²=0.95 for v_t), but the NLL parameterization is unstable.")
-        print(f"    Fix: clamp log_sigma to [-3, 3] or remove log_sigma (use unit variance).")
+        print("    (residual/σ)² blow-up. The encoder representation is fine (the probe")
+        print("    showed R²=0.95 for v_t), but the NLL parameterization is unstable.")
+        print("    Fix: clamp log_sigma to [-3, 3] or remove log_sigma (use unit variance).")
     elif float(L_p_squared) > 1e6:
         print(f"  → L_p squared term is huge ({float(L_p_squared):.2e}) but log_sigma OK.")
-        print(f"    Means transition model can't predict x_next from x_hat + action.")
-        print(f"    Could be unstable encoder dynamics or insufficient transition capacity.")
+        print("    Means transition model can't predict x_next from x_hat + action.")
+        print("    Could be unstable encoder dynamics or insufficient transition capacity.")
     else:
         print(f"  → L_r={float(L_r):.2e}, L_p={float(L_p):.2e}: both healthy.")
-        print(f"    The training-time explosion may have been transient (and the final")
-        print(f"    checkpoint stabilized to OK values).")
+        print("    The training-time explosion may have been transient (and the final")
+        print("    checkpoint stabilized to OK values).")
 
 
 if __name__ == "__main__":

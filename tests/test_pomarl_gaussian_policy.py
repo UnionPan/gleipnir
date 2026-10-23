@@ -5,9 +5,8 @@ from __future__ import annotations
 import jax
 import jax.numpy as jnp
 import numpy as np
-import pytest
 
-from options_desk.deep_hedging.pomarl.policy import (
+from gleipnir.deep_hedging.pomarl.policy import (
     GaussianPolicy,
     mean_action,
     sample_action,

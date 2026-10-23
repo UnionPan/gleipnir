@@ -39,7 +39,6 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, List
 
 import jax
 import numpy as np
@@ -48,30 +47,29 @@ ROOT = Path(__file__).resolve().parents[1]
 
 import torch  # noqa: E402
 
-from options_desk.deep_hedging.agents import build_option_grid_spec  # noqa: E402
-from options_desk.deep_hedging.jax.env import (  # noqa: E402
+from gleipnir.deep_hedging.jax.env import (  # noqa: E402
     DeepHedgingEnvConfig,
     GRID_COARSE,
     build_transaction_cost_vector,
 )
-from options_desk.deep_hedging.jax.pricing import (  # noqa: E402
+from gleipnir.deep_hedging.jax.pricing import (  # noqa: E402
     HestonMarketParams,
     compile_padded_grid,
 )
-from options_desk.deep_hedging.jax.rollout import simulate_heston_market_batch  # noqa: E402
-from options_desk.deep_hedging.pomarl import (  # noqa: E402
+from gleipnir.deep_hedging.jax.rollout import simulate_heston_market_batch  # noqa: E402
+from gleipnir.deep_hedging.pomarl import (  # noqa: E402
     AISPGTrainer,
     AISPGTrainerConfig,
 )
-from options_desk.deep_hedging.training.torch_buehler import (  # noqa: E402
+from gleipnir.deep_hedging.training.torch_buehler import (  # noqa: E402
     BuehlerTrainer,
     TrainerConfig,
 )
-from options_desk.deep_hedging.utils.contracts import (  # noqa: E402
+from gleipnir.deep_hedging.utils.contracts import (  # noqa: E402
     LiabilitySpec,
     TrajectoryBatch,
 )
-from options_desk.deep_hedging.utils.eval_baseline import (  # noqa: E402
+from gleipnir.deep_hedging.utils.eval_baseline import (  # noqa: E402
     evaluate_analytical_hedger_batch,
 )
 
@@ -114,9 +112,14 @@ def configure_logging(run_dir: Path) -> logging.Logger:
     fmt = logging.Formatter(
         fmt="%(asctime)s | %(levelname)-7s | %(message)s", datefmt="%H:%M:%S",
     )
-    sh = logging.StreamHandler(sys.stdout); sh.setLevel(logging.INFO); sh.setFormatter(fmt)
-    fh = logging.FileHandler(run_dir / "run.log", mode="w"); fh.setLevel(logging.DEBUG); fh.setFormatter(fmt)
-    logger.addHandler(sh); logger.addHandler(fh)
+    sh = logging.StreamHandler(sys.stdout)
+    sh.setLevel(logging.INFO)
+    sh.setFormatter(fmt)
+    fh = logging.FileHandler(run_dir / "run.log", mode="w")
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(fmt)
+    logger.addHandler(sh)
+    logger.addHandler(fh)
     for noisy in ("jax", "absl", "matplotlib"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
     return logger
@@ -125,7 +128,7 @@ def configure_logging(run_dir: Path) -> logging.Logger:
 def train_lstm(
     env_config, market, padded_grid, liability, S0, v0,
     n_epochs, batch_size, lr, discrete_bucket_size, seed, device, logger,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     cfg = TrainerConfig(
         position_limit=1.0, risk_aversion=env_config.risk_aversion,
         learning_rate=lr, batch_size=batch_size, n_epochs=n_epochs,
@@ -164,7 +167,7 @@ def train_pomarl(
     env_config, market, padded_grid, liability, S0, v0,
     n_epochs, batch_size, lr, discrete_bucket_size, policy_method,
     seed, logger,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     cfg = AISPGTrainerConfig(
         ais_hidden_size=64, ais_n_layers=1, policy_hidden_size=64,
         position_limit=1.5, log_std_min=-5.0, log_std_max=2.0,
@@ -227,7 +230,7 @@ def main() -> None:
         args.batch_size = 128
         args.horizon = 32
 
-    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
     if args.tag:
         stamp = f"{stamp}_{args.tag}"
     run_dir = ROOT / "runs" / "ablation_nondiff" / stamp
@@ -260,7 +263,6 @@ def main() -> None:
     #  trades continuously by definition.)
     sampler_continuous = make_sampler(env_config, market, padded_grid, 100.0, 0.04)
     tc = build_transaction_cost_vector(env_config)
-    grid_spec = build_option_grid_spec(GRID_COARSE)
     bs_metrics = evaluate_analytical_hedger_batch(
         market_sampler=sampler_continuous, horizon=args.horizon,
         n_instruments=GRID_COARSE.n_instruments, transaction_cost_rates=tc,
@@ -271,7 +273,7 @@ def main() -> None:
                 bs_metrics["std_hedging_error"], bs_metrics["eval_loss"])
 
     # ── Run the three configurations ─────────────────────────────────────
-    results: List[Dict[str, float]] = [
+    results: list[dict[str, float]] = [
         {"agent": "BS-delta (continuous)", "std_err": float(bs_metrics["std_hedging_error"]),
          "cvar05": float(bs_metrics["cvar_05_hedging_error"]),
          "mean_pnl": float(bs_metrics["mean_pnl"]),
@@ -287,7 +289,7 @@ def main() -> None:
             args.seed, args.device, logger,
         )
         results.append(lstm_res)
-    except Exception as e:
+    except (RuntimeError, ValueError, FloatingPointError) as e:  # a failed run is recorded; code bugs still raise
         logger.error("LSTM training failed: %s: %s", type(e).__name__, e)
         results.append({"agent": "lstm", "std_err": float("nan"), "error": str(e)})
 
@@ -299,7 +301,7 @@ def main() -> None:
             policy_method="pathwise", seed=args.seed, logger=logger,
         )
         results.append(pomarl_pw)
-    except Exception as e:
+    except (RuntimeError, ValueError, FloatingPointError) as e:  # a failed run is recorded; code bugs still raise
         logger.error("POMARL-pathwise failed: %s: %s", type(e).__name__, e)
         results.append({"agent": "POMARL-pathwise", "std_err": float("nan"), "error": str(e)})
 
@@ -311,7 +313,7 @@ def main() -> None:
             policy_method="reinforce", seed=args.seed, logger=logger,
         )
         results.append(pomarl_rf)
-    except Exception as e:
+    except (RuntimeError, ValueError, FloatingPointError) as e:  # a failed run is recorded; code bugs still raise
         logger.error("POMARL-REINFORCE failed: %s: %s", type(e).__name__, e)
         results.append({"agent": "POMARL-REINFORCE", "std_err": float("nan"), "error": str(e)})
 

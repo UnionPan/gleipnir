@@ -25,36 +25,35 @@ import datetime as dt
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, List
 
 import jax
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 
-from options_desk.deep_hedging.jax.env import (  # noqa: E402
+from gleipnir.deep_hedging.jax.env import (  # noqa: E402
     DeepHedgingEnvConfig,
     GRID_COARSE,
     build_transaction_cost_vector,
 )
-from options_desk.deep_hedging.jax.pricing import (  # noqa: E402
+from gleipnir.deep_hedging.jax.pricing import (  # noqa: E402
     HestonMarketParams,
     compile_padded_grid,
 )
-from options_desk.deep_hedging.jax.rollout import (  # noqa: E402
+from gleipnir.deep_hedging.jax.rollout import (  # noqa: E402
     simulate_heston_market_batch,
 )
-from options_desk.deep_hedging.pomarl import (  # noqa: E402
+from gleipnir.deep_hedging.pomarl import (  # noqa: E402
     AISPGTrainer,
     AISPGTrainerConfig,
     PPOTrainer,
     PPOTrainerConfig,
 )
-from options_desk.deep_hedging.utils.contracts import (  # noqa: E402
+from gleipnir.deep_hedging.utils.contracts import (  # noqa: E402
     LiabilitySpec,
     TrajectoryBatch,
 )
-from options_desk.deep_hedging.utils.eval_baseline import (  # noqa: E402
+from gleipnir.deep_hedging.utils.eval_baseline import (  # noqa: E402
     evaluate_analytical_delta_hedger_batch,
 )
 
@@ -157,7 +156,7 @@ def train_pomarl(
     entropy_coef: float = 0.0,
     encoder_gradient_from_policy: bool = False,
     disable_ais_aux_losses: bool = False,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     # γ default depends on reward shape: mean_pnl ignores γ, hedging_*
     # uses it as the squared-error coefficient (much smaller scale than
     # Buehler's γ·Var since MSE is O(10²) not O(1) early in training).
@@ -272,7 +271,7 @@ def train_ppo(
     n_minibatches: int,
     value_coef: float,
     entropy_coef: float,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     # γ here scales the shaped reward; advantages are normalized so PPO is
     # far less sensitive to it than REINFORCE/pathwise. Default 1.0 for the
     # hedging-aware rewards (mean_pnl ignores it).
@@ -373,7 +372,7 @@ def maybe_eval_lstm(
     seed: int,
     device: str,
     logger: logging.Logger,
-) -> Dict[str, float] | None:
+) -> dict[str, float] | None:
     if not ckpt_path.exists():
         logger.info(
             "[LSTM ckpt missing — skipping LSTM column for this phase] %s",
@@ -381,8 +380,7 @@ def maybe_eval_lstm(
         )
         return None
 
-    import torch  # local import: keep torch off the import path if unused
-    from options_desk.deep_hedging.training.torch_buehler import (
+    from gleipnir.deep_hedging.training.torch_buehler import (
         BuehlerTrainer, TrainerConfig,
     )
 
@@ -422,11 +420,11 @@ _COLS = [
 
 
 def render_table(
-    rows: List[tuple[str, Dict[str, float] | None]],
+    rows: list[tuple[str, dict[str, float] | None]],
     logger: logging.Logger,
 ) -> None:
     header = " {:<24} ".format("agent") + " ".join(
-        "{:>10}".format(name) for name, _, _ in _COLS
+        f"{name:>10}" for name, _, _ in _COLS
     )
     sep = "-" * len(header)
     logger.info(sep)
@@ -441,7 +439,7 @@ def render_table(
                 else "{:>10}".format("—")
                 for _, k, fmt in _COLS
             )
-        logger.info(" {:<24} {}".format(tag, cells))
+        logger.info(f" {tag:<24} {cells}")
     logger.info(sep)
 
 
@@ -546,7 +544,7 @@ def main() -> int:
         args.batch_size = 64
         args.eval_n_paths = 256
 
-    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
     tag = f"seed{args.seed}_ep{args.n_epochs}_b{args.batch_size}"
     if args.smoke:
         tag = "smoke_" + tag
