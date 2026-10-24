@@ -13,6 +13,15 @@ export interface ScenarioInfo {
   severity_default: number;
 }
 
+/** Historical drift: educational only, never simulated. */
+export interface DriftEstimate {
+  estimate: number;
+  std_error: number;
+  ci_low: number;
+  ci_high: number;
+  years: number;
+}
+
 export interface AssetInfo {
   ticker: string;
   sector: string;
@@ -21,6 +30,7 @@ export interface AssetInfo {
   vol_today: number;
   as_of: string;
   diagnostics: Record<string, number>;
+  historical_drift: DriftEstimate;
 }
 
 export interface LabCatalog {

@@ -45,9 +45,25 @@ def test_factual_world_hedging_reduces_risk():
     assert bs_span < 0.5 * no_hedge_span  # each hedger is binned at its own scale
     book = result["book"]
     assert book["premium"] > 0 and 0.05 < book["implied_vol"] < 1.5
-    assert book["rho_source"] == "estimated" and book["parent_hash"] is None
+    assert book["rho_source"] == "estimated" and book["params"]["mu"] == 0.0
     path = result["factual"]["sample_path"]
     assert len(path["spots"]) == 22 and len(path["positions"]["bs_delta"]) == 21
+
+
+def test_books_follow_the_drift_policy():
+    """Up to 3 months the spot drifts at r - q (0 here), never at the historical drift."""
+    asset = next(a for a in client.get("/api/v1/lab/assets").json()["assets"] if a["ticker"] == "NVDA")
+    drift = asset["historical_drift"]
+    assert drift["estimate"] == asset["params"]["mu"] > 0.3  # NVDA's sample mean: large and noisy
+    assert drift["ci_low"] < drift["estimate"] < drift["ci_high"]
+    assert drift["ci_high"] - drift["ci_low"] > 0.4  # five years cannot pin a stock's drift down
+    result = _hedge(asset="NVDA", option={"maturity_days": 63})
+    assert result["book"]["parent_hash"] == asset["params_hash"]
+    assert result["book"]["params"]["mu"] == result["factual"]["params"]["mu"] == 0.0
+    # With zero drift the premium is the world's own fair price: unhedged, the
+    # book breaks even on average, up to Monte Carlo error.
+    no_hedge = result["factual"]["hedgers"]["no_hedge"]
+    assert abs(no_hedge["mean"]) < 4 * no_hedge["std"] / result["n_paths"] ** 0.5
 
 
 def test_counterfactual_world_keeps_the_book():

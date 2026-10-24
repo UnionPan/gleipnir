@@ -4,6 +4,12 @@ The book (premium, hedgers) is fixed by an asset's real-data Heston calibration;
 the world is either that calibration or a mjollnir scenario applied to it. All
 numerics come from mjollnir.hedging; this module selects inputs from the
 shipped ParamSets and reduces results to what the lab page draws.
+
+Drift policy: every lab book expires within 3 months, so the simulated spot
+drifts at r - q with zero excess drift (0 here: the lab's world has no rates or
+dividends). An asset's historical drift is reported with its standard error as
+an educational estimate and never simulated: over five years of daily closes
+its 95% interval is typically wider than 40 points of annual return.
 """
 
 from __future__ import annotations
@@ -26,6 +32,7 @@ from mjollnir.scenarios import correlation_breakdown, regime_shift, vol_spike
 from backend.schemas.lab import (
     AssetInfo,
     Book,
+    DriftEstimate,
     HedgeRequest,
     HedgeResponse,
     HedgerStats,
@@ -46,6 +53,11 @@ RHO_ASSUMPTION = -0.7  # typical equity option-implied spot-vol correlation
 HISTOGRAM_BINS = 48
 HISTOGRAM_PAD = 0.04
 TAIL = 0.05
+CI_Z = 1.959964  # two-sided 95% normal quantile
+DRIFT_POLICY_NOTE = (
+    "drift policy: books up to 3 months simulate zero excess drift; with no rates or "
+    "dividends in the lab the spot drift r - q is 0"
+)
 
 
 @dataclass(frozen=True)
@@ -99,6 +111,19 @@ def _calibration(ticker: str) -> ParamSet:
     return ParamSet.load(DATA_DIR / entries[ticker]["file"])
 
 
+def historical_drift(ps: ParamSet, n_observations: int) -> DriftEstimate:
+    """The calibration's drift with its approximate standard error.
+
+    The mean of daily log returns has variance (average variance) / T; Heston's
+    long-run variance theta stands in for the average over the window.
+    """
+    years = n_observations * DT
+    std_error = float(np.sqrt(ps.params["theta"] / years))
+    estimate = float(ps.params["mu"])
+    return DriftEstimate(estimate=estimate, std_error=std_error, years=years,
+                         ci_low=estimate - CI_Z * std_error, ci_high=estimate + CI_Z * std_error)
+
+
 def catalog() -> LabCatalog:
     manifest = _manifest()
     assets = []
@@ -108,6 +133,7 @@ def catalog() -> LabCatalog:
             ticker=entry["ticker"], sector=entry["sector"], params=dict(ps.params),
             params_hash=ps.content_hash(), vol_today=entry["state"]["vol_today"],
             as_of=entry["state"]["as_of"], diagnostics=entry["diagnostics"],
+            historical_drift=historical_drift(ps, int(entry["diagnostics"]["n_observations"])),
         ))
     return LabCatalog(
         window=manifest["window"], estimator=manifest["estimator"], assets=assets,
@@ -118,12 +144,12 @@ def catalog() -> LabCatalog:
 
 def _book(request: HedgeRequest) -> tuple[ParamSet, EuropeanOption]:
     calibration = _calibration(request.asset)
-    book = calibration
+    changes: dict[str, float] = {"mu": 0.0}
+    notes = [DRIFT_POLICY_NOTE]
     if request.rho is not None:
-        book = calibration.derive(
-            set_={"rho": request.rho},
-            note=f"rho assumed {request.rho:g}: daily closes do not identify the spot-vol correlation",
-        )
+        changes["rho"] = request.rho
+        notes.append(f"rho assumed {request.rho:g}: daily closes do not identify the spot-vol correlation")
+    book = calibration.derive(set_=changes, note="; ".join(notes))
     option = EuropeanOption(
         strike=SPOT0 * request.option.moneyness,
         maturity=request.option.maturity_days * DT,

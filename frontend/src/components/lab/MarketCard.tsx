@@ -22,7 +22,10 @@ const ROWS: Row[] = [
   { key: 'kappa', label: 'Mean-reversion half-life', hint: 'How fast a vol shock fades', format: (p) => halfLife(p.kappa) },
   { key: 'sigma_v', label: 'Vol of variance ξ', hint: 'How violently volatility itself moves', format: (p) => p.sigma_v.toFixed(2) },
   { key: 'rho', label: 'Spot-vol correlation ρ', hint: 'Negative means vol rises when the price falls', format: (p) => p.rho.toFixed(2) },
+  { key: 'mu', label: 'Spot drift', hint: 'r − q: no excess drift for books up to 3 months', format: (p) => pct(p.mu) },
 ];
+
+const signedPct = (x: number) => `${x < 0 ? '−' : ''}${pct(Math.abs(x))}`;
 
 interface Props {
   catalog: LabCatalog;
@@ -74,6 +77,11 @@ const MarketCard: React.FC<Props> = ({ catalog, asset, result }) => {
             <div><dt>Expiry</dt><dd>{result.book.maturity_days} trading days</dd></div>
           </dl>
         )}
+        <p className="lab-note">
+          Historical drift {signedPct(asset.historical_drift.estimate)} a year ± {pct(asset.historical_drift.std_error)}{' '}
+          (95% interval {signedPct(asset.historical_drift.ci_low)} to {signedPct(asset.historical_drift.ci_high)}).
+          Too uncertain to forecast with, so the lab never simulates it.
+        </p>
         <p className="lab-note">
           ρ is not identified by daily closes: the estimator returns about 0 for every stock. Equity option
           markets typically imply about {catalog.rho_assumption.toFixed(1)}, which you can assume instead.

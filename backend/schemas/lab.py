@@ -95,6 +95,16 @@ class ScenarioInfo(BaseModel):
     severity_default: float
 
 
+class DriftEstimate(BaseModel):
+    """Historical drift: educational only, never simulated (see the drift policy)."""
+
+    estimate: float = Field(..., description="Annualized drift of the calibration")
+    std_error: float = Field(..., description="Approximate standard error, annualized")
+    ci_low: float = Field(..., description="Lower end of the 95% confidence interval")
+    ci_high: float = Field(..., description="Upper end of the 95% confidence interval")
+    years: float = Field(..., description="Length of the estimation window")
+
+
 class AssetInfo(BaseModel):
     ticker: str
     sector: str
@@ -103,6 +113,7 @@ class AssetInfo(BaseModel):
     vol_today: float
     as_of: str
     diagnostics: dict[str, float]
+    historical_drift: DriftEstimate
 
 
 class LabCatalog(BaseModel):
