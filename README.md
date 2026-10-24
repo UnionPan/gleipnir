@@ -31,7 +31,7 @@ make dev       # API on :8000 and web app on :3000 with live reload; Ctrl-C stop
 ```
 
 `make dev` prints the URLs once both servers answer, including the SSH-tunnel command when you are connected remotely.
-See [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md) for details and troubleshooting.
+See [docs/LOCAL_SETUP.md](/docs/LOCAL_SETUP.md) for details and troubleshooting.
 
 ## Tests and lint
 
@@ -57,7 +57,7 @@ cd frontend && npm run lint
 ## Deployment
 
 Pushes to `main` build the images with Cloud Build and deploy them to Cloud Run.
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+See [docs/DEPLOYMENT.md](/docs/DEPLOYMENT.md).
 
 ## License
 
