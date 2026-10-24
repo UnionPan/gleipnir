@@ -46,6 +46,8 @@ steps:
       - '--port'
       - '8080'
       - '--env-vars-file=deployment/env/backend.env'
+      # Extra CPU while an instance starts: the lab compiles its simulations at startup.
+      - '--cpu-boost'
 
 images:
   - 'gcr.io/$PROJECT_ID/options-desk-backend:$COMMIT_SHA'

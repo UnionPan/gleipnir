@@ -12,7 +12,7 @@ Gleipnir keeps only what is specific to the demos: the web app, the agents and t
 
 **Counterfactual Hedging Lab.**
 Sell an option on a real S&P 500 name, priced and hedged under its Heston calibration, then run the same book through the factual world and a stressed one (volatility spike, correlation breakdown, regime shift).
-No hedge, Black-Scholes delta and Heston delta are compared on 4,096 common paths per world, with every result traceable to the parameter set that produced it.
+No hedge, Black-Scholes delta and Heston delta are compared on 2,048 common paths per world, with every result traceable to the parameter set that produced it.
 
 **Calibration.**
 Fit physical-measure models (GBM, OU, Heston, rough Bergomi, Merton, GARCH, regime-switching GBM) to price history, and risk-neutral models (Heston, SABR, Dupire) to live option chains.
