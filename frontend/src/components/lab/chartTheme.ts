@@ -7,7 +7,7 @@
  * surface, the "well" background in index.css, in both modes. Plotly cannot
  * read CSS variables, so the surface and ink values mirror index.css.
  */
-import type { Layout } from 'plotly.js';
+import type { Layout, LayoutAxis } from 'plotly.js';
 
 export type ThemeName = 'light' | 'dark';
 export type World = 'factual' | 'counterfactual';
@@ -54,14 +54,16 @@ export function wash(hex: string): string {
 
 export function baseLayout(theme: ThemeName, overrides: Partial<Layout> = {}): Partial<Layout> {
   const c = CHROME[theme];
-  const axis = {
+  const axis = (override: Partial<LayoutAxis> = {}): Partial<LayoutAxis> => ({
     gridcolor: c.grid,
     linecolor: c.baseline,
     zerolinecolor: c.baseline,
     tickfont: { color: c.muted, size: 11 },
-    title: { font: { color: c.inkSecondary, size: 11 } },
     automargin: true,
-  };
+    ...override,
+    // Merged, so a caller's title text keeps the themed font.
+    title: { font: { color: c.inkSecondary, size: 11 }, ...override.title },
+  });
   return {
     paper_bgcolor: c.surface,
     plot_bgcolor: c.surface,
@@ -71,8 +73,8 @@ export function baseLayout(theme: ThemeName, overrides: Partial<Layout> = {}): P
     hovermode: 'x unified',
     hoverlabel: { bgcolor: c.surface, bordercolor: c.baseline, font: { color: c.ink, size: 12 } },
     ...overrides,
-    xaxis: { ...axis, ...(overrides.xaxis ?? {}) },
-    yaxis: { ...axis, ...(overrides.yaxis ?? {}) },
+    xaxis: axis(overrides.xaxis),
+    yaxis: axis(overrides.yaxis),
   };
 }
 
