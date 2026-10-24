@@ -104,6 +104,8 @@ ignore = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The tests import the API app, `backend/` at the repo root, which is not an installed package.
+pythonpath = ["."]
 python_files = "test_*.py"
 python_functions = "test_*"
 markers = [
