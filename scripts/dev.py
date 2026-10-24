@@ -173,7 +173,7 @@ def main() -> int:
     for directory in reload_dirs:
         api_command += ["--reload-dir", str(directory)]
 
-    api_env = dict(os.environ)
+    api_env = {"LAB_WARM_UP": "background", **os.environ}  # reloads serve at once
     web_env = {
         **os.environ,
         "PORT": str(web_port),

@@ -1,4 +1,6 @@
 """Backend configuration using environment variables."""
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,8 +24,12 @@ class Settings(BaseSettings):
     DEFAULT_RISK_FREE_RATE: float = 0.05
     DEFAULT_DATA_SOURCE: str = "yfinance"
 
-    # Compile the lab's backtests at startup (disable in tests)
-    LAB_WARM_UP: bool = True
+    # When the lab compiles its simulations. "startup" finishes before the server
+    # accepts connections: Cloud Run gives an instance full CPU only while it starts
+    # or serves a request, so a background compile there crawls for minutes.
+    # "background" serves at once and compiles in a thread (dev, so reloads stay
+    # instant); "off" compiles on the first request of each kind.
+    LAB_WARM_UP: Literal["startup", "background", "off"] = "startup"
 
     # Cache Configuration
     ENABLE_CACHE: bool = True

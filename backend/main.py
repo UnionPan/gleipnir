@@ -1,4 +1,5 @@
 """FastAPI application entry point."""
+import asyncio
 import logging
 import threading
 from contextlib import asynccontextmanager
@@ -22,8 +23,14 @@ if not _app_logger.handlers:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Compile the lab's backtests in the background; the API serves immediately."""
-    if settings.LAB_WARM_UP:
+    """Compile the lab's simulations as settings.LAB_WARM_UP says.
+
+    Uvicorn opens its port only after this startup returns, so "startup" holds
+    traffic until every program is compiled.
+    """
+    if settings.LAB_WARM_UP == "startup":
+        await asyncio.to_thread(lab_service.warm_up)
+    elif settings.LAB_WARM_UP == "background":
         threading.Thread(target=lab_service.warm_up, name="lab-warm-up", daemon=True).start()
     yield
 
