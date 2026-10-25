@@ -166,6 +166,12 @@
   text-align: right;
 }
 
+.param-std-error {
+  font-weight: 400;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
 .param-description {
   color: var(--text-muted);
   font-size: 0.75rem;

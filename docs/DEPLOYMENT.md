@@ -24,7 +24,7 @@ Repository secrets: `GCP_PROJECT_ID` and `GCP_SA_KEY`.
 
 Dependencies are installed exactly from `uv.lock`, so mjollnir is the commit pinned there; moving that pin redeploys the backend.
 Only the `web` extra is installed (the API does not use torch).
-The API compiles the Hedging Lab's simulations before it opens its port, about 40 s at 2 CPUs.
+The API compiles the Hedging Lab's simulations and the Heston chain fit before it opens its port.
 That work has to happen during startup: Cloud Run gives an instance full CPU only while it starts or serves a request, and a compile left in a background thread took over 7 minutes there.
 Cloud Run routes no traffic to an instance until its port is open, so during a deploy the previous revision keeps serving until the new one has compiled.
 
@@ -39,7 +39,7 @@ Backend settings are environment variables read by `backend/core/config.py`; pro
 |----------|---------|
 | `BACKEND_CORS_ORIGINS` | JSON list of allowed browser origins, e.g. `["https://app.yunianpan.com"]` |
 | `DEFAULT_RISK_FREE_RATE` | Default rate for endpoints that take one |
-| `LAB_WARM_UP` | When the lab compiles its simulations: `startup` (default, before the port opens), `background` (in a thread; `make dev` uses it) or `off` (on first use) |
+| `WARM_UP` | When the compiled programs (lab simulations, Heston chain fit) compile: `startup` (default, before the port opens), `background` (in a thread; `make dev` uses it) or `off` (on first use) |
 | `MJOLLNIR_JAX_BACKEND` | JAX device: `cpu` (default) or `cuda` |
 
 The frontend reads `REACT_APP_API_URL` at build time from `frontend/.env.production`.

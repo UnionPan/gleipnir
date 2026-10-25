@@ -44,8 +44,7 @@ const P_MEASURE_METHODS: Record<string, Array<{ value: string; label: string }>>
 // Q-measure model-specific methods
 const Q_MEASURE_METHODS: Record<string, Array<{ value: string; label: string }>> = {
   'heston': [
-    { value: 'differential_evolution', label: 'Differential Evolution (Global)' },
-    { value: 'L-BFGS-B', label: 'L-BFGS-B (Local, Fast)' },
+    { value: 'levenberg_marquardt', label: 'Levenberg-Marquardt (exact COS gradients)' },
   ],
   'sabr': [
     { value: 'L-BFGS-B', label: 'L-BFGS-B (Fast, Recommended)' },

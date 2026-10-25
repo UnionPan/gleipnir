@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { describeApiError } from './apiError';
 import { API_BASE_URL } from '../config/api.config';
 
 export interface OHLCVData {
@@ -157,8 +158,8 @@ class CalibrationApi {
         end_date: endDate,
       });
       return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.detail || 'Failed to fetch OHLCV data');
+    } catch (error) {
+      throw new Error(describeApiError(error, 'Failed to fetch OHLCV data'));
     }
   }
 
@@ -176,8 +177,8 @@ class CalibrationApi {
         include_drift: request.includeDrift,
       });
       return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.detail || 'Calibration failed');
+    } catch (error) {
+      throw new Error(describeApiError(error, 'Calibration failed'));
     }
   }
 
@@ -198,8 +199,8 @@ class CalibrationApi {
         expiry,
       });
       return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.detail || 'Failed to fetch option chain');
+    } catch (error) {
+      throw new Error(describeApiError(error, 'Failed to fetch option chain'));
     }
   }
 
@@ -218,8 +219,8 @@ class CalibrationApi {
         maxiter: request.maxiter,
       });
       return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.detail || 'Q-measure calibration failed');
+    } catch (error) {
+      throw new Error(describeApiError(error, 'Q-measure calibration failed'));
     }
   }
 
@@ -239,8 +240,8 @@ class CalibrationApi {
         random_seed: request.randomSeed,
       });
       return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.detail || 'Simulation failed');
+    } catch (error) {
+      throw new Error(describeApiError(error, 'Simulation failed'));
     }
   }
 
@@ -262,8 +263,8 @@ class CalibrationApi {
         maturity_range: request.maturityRange,
       });
       return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.detail || 'Volatility surface generation failed');
+    } catch (error) {
+      throw new Error(describeApiError(error, 'Volatility surface generation failed'));
     }
   }
 }

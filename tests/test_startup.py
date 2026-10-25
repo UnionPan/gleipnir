@@ -1,4 +1,4 @@
-"""Lab warm-up timing: production compiles before the server takes traffic."""
+"""Warm-up timing: production compiles before the server takes traffic."""
 
 import threading
 import time
@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from backend.core.config import settings
 from backend.main import app
-from backend.services import lab_service
+from backend.services import warm_up
 
 
 @pytest.fixture
@@ -21,25 +21,25 @@ def warm_up_calls(monkeypatch):
         time.sleep(0.3)
         called.set()
 
-    monkeypatch.setattr(lab_service, "warm_up", compile_slowly)
+    monkeypatch.setattr(warm_up, "warm_up", compile_slowly)
     return called
 
 
 def test_startup_mode_compiles_before_serving(monkeypatch, warm_up_calls):
-    monkeypatch.setattr(settings, "LAB_WARM_UP", "startup")
+    monkeypatch.setattr(settings, "WARM_UP", "startup")
     with TestClient(app):
         # The lifespan has finished, so the compile must already be done.
         assert warm_up_calls.is_set()
 
 
 def test_background_mode_compiles_in_a_thread(monkeypatch, warm_up_calls):
-    monkeypatch.setattr(settings, "LAB_WARM_UP", "background")
+    monkeypatch.setattr(settings, "WARM_UP", "background")
     with TestClient(app):
         assert warm_up_calls.wait(timeout=10)
 
 
 def test_off_mode_skips_the_compile(monkeypatch, warm_up_calls):
-    monkeypatch.setattr(settings, "LAB_WARM_UP", "off")
+    monkeypatch.setattr(settings, "WARM_UP", "off")
     with TestClient(app):
         pass
     assert not warm_up_calls.is_set()

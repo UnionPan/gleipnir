@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, date
 from backend.services.market_data import FETCH_ERRORS, MarketDataError, fetch_dividend_yield
+from backend.services import heston_surface
 from backend.services.model_vols import finite_or_none, heston_ivs
 
 # Import P-measure calibrators
@@ -25,8 +26,6 @@ from mjollnir.processes.ornstein_uhlenbeck import OrnsteinUhlenbeck
 
 # Import Q-measure calibrators and data providers
 from mjollnir.calibration.risk_neutral import (
-    HestonCalibrator,
-    CalibrationResult as HestonCalibrationResult,
     SABRCalibrator,
     SABRCalibrationResult,
     DupireCalibrator,
@@ -700,11 +699,7 @@ class CalibrationService:
 
         # Calibrate based on model type
         if model == 'heston':
-            return CalibrationService._calibrate_heston_qmeasure(
-                chain=chain,
-                method=calibration_method,
-                maxiter=maxiter,
-            )
+            return heston_surface.fit_chain(chain)
         elif model == 'sabr':
             return CalibrationService._calibrate_sabr_qmeasure(
                 chain=chain,
@@ -719,58 +714,6 @@ class CalibrationService:
         else:
             raise ValueError(f"Unsupported Q-measure model: {model}. Supported: 'heston', 'sabr', 'dupire'")
 
-
-    @staticmethod
-    def _calibrate_heston_qmeasure(
-        chain: OptionChain,
-        method: str = 'differential_evolution',
-        maxiter: int = 1000,
-    ) -> tuple[dict[str, float], dict]:
-        """Calibrate Heston model to option chain (Q-measure)"""
-
-        # Initialize calibrator
-        calibrator = HestonCalibrator(
-            pricer=None,  # Uses built-in characteristic function pricing
-            weighting='vega',  # Weight by vega
-            feller_penalty=100.0,
-        )
-
-        # Run calibration
-        result: HestonCalibrationResult = calibrator.calibrate(
-            chain=chain,
-            spot=chain.spot_price,
-            rate=chain.risk_free_rate,
-            method=method,
-            maxiter=maxiter,
-        )
-
-        # Extract parameters (convert numpy types to Python types for JSON serialization)
-        parameters = {
-            'kappa': float(result.kappa),
-            'theta': float(result.theta),
-            'xi': float(result.xi),
-            'rho': float(result.rho),
-            'v0': float(result.v0),
-        }
-
-        # Extract diagnostics (convert numpy types to Python types)
-        diagnostics = {
-            'rmse': float(result.rmse),
-            'rmse_iv': float(result.rmse_iv) if result.rmse_iv is not None else None,
-            'max_error': float(result.max_error),
-            'n_iterations': int(result.n_iterations),
-            'computation_time': float(result.computation_time),
-            'success': bool(result.success),
-            'message': str(result.message),
-            'feller_satisfied': bool(result.feller_satisfied),
-            'feller_condition': f"2*kappa*theta = {2*float(result.kappa)*float(result.theta):.4f}, xi^2 = {float(result.xi)**2:.4f}",
-            'errorMetrics': {
-                'rmse': float(result.rmse),
-                'max_error': float(result.max_error),
-            },
-        }
-
-        return parameters, diagnostics
 
     @staticmethod
     def _calibrate_sabr_qmeasure(

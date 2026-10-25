@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { describeApiError } from '../services/apiError';
 import { surfaceService } from '../services/surfaceService';
 import { VolSurfaceResponse } from '../types/surface';
 import VolSurface3D from '../components/surface/VolSurface3D';
@@ -33,8 +34,8 @@ const VolSurfacePage: React.FC = () => {
         grid_size: 30,
       });
       setSurfaceData(data);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to build volatility surface');
+    } catch (err) {
+      setError(describeApiError(err, 'Failed to build volatility surface'));
     } finally {
       setLoading(false);
     }

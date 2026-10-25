@@ -16,10 +16,10 @@ class VolSurfaceRequest(BaseModel):
 
     symbol: str = Field(..., description="Underlying ticker symbol")
     spot_price: float | None = Field(None, description="Current spot price. If None, fetches live.")
-    min_expiry_days: int = Field(default=7, description="Minimum days to expiration")
-    max_expiry_days: int = Field(default=365, description="Maximum days to expiration")
+    min_expiry_days: int = Field(default=7, ge=0, le=730, description="Minimum days to expiration")
+    max_expiry_days: int = Field(default=365, ge=1, le=1095, description="Maximum days to expiration")
     interpolate: bool = Field(default=False, description="Whether to interpolate the surface")
-    grid_size: int = Field(default=30, description="Grid size for interpolation")
+    grid_size: int = Field(default=30, ge=5, le=60, description="Grid size for interpolation")
 
 
 class VolSurfaceResponse(BaseModel):

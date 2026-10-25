@@ -1,7 +1,9 @@
 """Calibration endpoints for P-measure and Q-measure models."""
-from fastapi import APIRouter, HTTPException
 from datetime import datetime
 
+from fastapi import APIRouter, Depends, HTTPException
+
+from backend.core.compute_guard import heavy_job
 from backend.services.calibration_service import CalibrationService
 from backend.schemas.calibration import (
     # P-measure schemas
@@ -39,7 +41,7 @@ def fetch_ohlcv_data(request: FetchDataRequest):
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.post("/calibrate", response_model=list[CalibrationResult])
+@router.post("/calibrate", response_model=list[CalibrationResult], dependencies=[Depends(heavy_job)])
 def calibrate_pmeasure(request: CalibrationRequest):
     """Calibrate P-measure models from historical data."""
     try:
@@ -102,7 +104,7 @@ def fetch_option_chain(request: FetchOptionChainRequest):
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.post("/calibrate-qmeasure", response_model=QMeasureCalibrationResult)
+@router.post("/calibrate-qmeasure", response_model=QMeasureCalibrationResult, dependencies=[Depends(heavy_job)])
 def calibrate_qmeasure(request: QMeasureCalibrationRequest):
     """Calibrate Q-measure models from option chain data."""
     try:
@@ -134,7 +136,7 @@ def calibrate_qmeasure(request: QMeasureCalibrationRequest):
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.post("/simulate", response_model=SimulationResponse)
+@router.post("/simulate", response_model=SimulationResponse, dependencies=[Depends(heavy_job)])
 def simulate_counterfactual(request: SimulationRequest):
     """Simulate counterfactual paths from calibrated parameters."""
     try:
@@ -153,7 +155,7 @@ def simulate_counterfactual(request: SimulationRequest):
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.post("/vol-surface", response_model=VolSurfaceResponse)
+@router.post("/vol-surface", response_model=VolSurfaceResponse, dependencies=[Depends(heavy_job)])
 def generate_vol_surface(request: VolSurfaceRequest):
     """Generate 3D volatility surface from calibrated Q-measure model."""
     try:

@@ -1,15 +1,43 @@
 """
 Schemas for calibration endpoints
+
+Every size a request controls is capped here (see backend/core/compute_guard.py).
 """
-from pydantic import BaseModel, Field
-from typing import Any
+from datetime import date
+from typing import Annotated, Any
+
+from pydantic import BaseModel, Field, model_validator
+
+MAX_TICKERS = 5
+MAX_HISTORY_DAYS = 3653  # 10 years
+MAX_OPTIMIZER_ITERATIONS = 500
+MAX_SURFACE_STRIKES = 60
+MAX_SURFACE_MATURITIES = 40
+MAX_SURFACE_MATURITY_YEARS = 5.0
+Tickers = Annotated[list[str], Field(min_length=1, max_length=MAX_TICKERS, description="Ticker symbols")]
+
+
+def _check_window(start: str, end: str) -> None:
+    try:
+        first, last = date.fromisoformat(start), date.fromisoformat(end)
+    except ValueError as exc:
+        raise ValueError(f"dates must be YYYY-MM-DD: {exc}") from exc
+    if first >= last:
+        raise ValueError("start_date must be before end_date")
+    if (last - first).days > MAX_HISTORY_DAYS:
+        raise ValueError("the history window is limited to 10 years")
 
 
 class FetchDataRequest(BaseModel):
     """Request to fetch OHLCV data"""
-    tickers: list[str] = Field(..., min_length=1, description="List of ticker symbols")
+    tickers: Tickers
     start_date: str = Field(..., description="Start date (YYYY-MM-DD)")
     end_date: str = Field(..., description="End date (YYYY-MM-DD)")
+
+    @model_validator(mode="after")
+    def _window(self) -> "FetchDataRequest":
+        _check_window(self.start_date, self.end_date)
+        return self
 
 
 class OHLCVData(BaseModel):
@@ -25,7 +53,7 @@ class OHLCVData(BaseModel):
 
 class CalibrationRequest(BaseModel):
     """Request to calibrate a model"""
-    tickers: list[str] = Field(..., min_length=1, description="List of ticker symbols")
+    tickers: Tickers
     model: str = Field(
         ...,
         description=(
@@ -48,6 +76,11 @@ class CalibrationRequest(BaseModel):
         )
     )
     include_drift: bool = Field(default=True, description="Whether to include drift parameter")
+
+    @model_validator(mode="after")
+    def _window(self) -> "CalibrationRequest":
+        _check_window(self.start_date, self.end_date)
+        return self
 
 
 class CalibrationDiagnostics(BaseModel):
@@ -115,13 +148,13 @@ class QMeasureCalibrationRequest(BaseModel):
     ticker: str = Field(..., description="Ticker symbol")
     model: str = Field(..., description="Model name (heston)")
     reference_date: str | None = Field(None, description="Reference date (YYYY-MM-DD)")
-    risk_free_rate: float = Field(default=0.05, description="Risk-free rate")
+    risk_free_rate: float = Field(default=0.05, ge=-0.05, le=0.25, description="Risk-free rate")
     filter_params: dict[str, Any] | None = Field(
         default=None,
         description="Optional filtering: min_volume, min_open_interest, max_spread_pct, moneyness_range (list)"
     )
     calibration_method: str = Field(default="differential_evolution", description="Optimization method")
-    maxiter: int = Field(default=1000, description="Maximum iterations")
+    maxiter: int = Field(default=200, ge=1, le=MAX_OPTIMIZER_ITERATIONS, description="Maximum iterations")
 
 
 class QMeasureCalibrationResult(BaseModel):
@@ -142,10 +175,22 @@ class VolSurfaceRequest(BaseModel):
     spot_price: float
     risk_free_rate: float
     dividend_yield: float = 0.0
-    n_strikes: int = Field(default=30, description="Number of strike points")
-    n_maturities: int = Field(default=20, description="Number of maturity points")
-    strike_range: list[float] = Field(default=[0.7, 1.3], description="Strike range as [min_moneyness, max_moneyness]")
-    maturity_range: list[float] = Field(default=[0.05, 2.0], description="Maturity range in years [min, max]")
+    n_strikes: int = Field(default=30, ge=2, le=MAX_SURFACE_STRIKES, description="Number of strike points")
+    n_maturities: int = Field(default=20, ge=2, le=MAX_SURFACE_MATURITIES, description="Number of maturity points")
+    strike_range: list[float] = Field(default=[0.7, 1.3], min_length=2, max_length=2,
+                                      description="Strike range as [min_moneyness, max_moneyness]")
+    maturity_range: list[float] = Field(default=[0.05, 2.0], min_length=2, max_length=2,
+                                        description="Maturity range in years [min, max]")
+
+    @model_validator(mode="after")
+    def _ranges(self) -> "VolSurfaceRequest":
+        lo, hi = self.strike_range
+        if not 0.1 <= lo < hi <= 5.0:
+            raise ValueError("strike_range must satisfy 0.1 <= min < max <= 5")
+        lo, hi = self.maturity_range
+        if not 0.0 < lo < hi <= MAX_SURFACE_MATURITY_YEARS:
+            raise ValueError("maturity_range must satisfy 0 < min < max <= 5 years")
+        return self
 
 
 class VolSurfaceResponse(BaseModel):

@@ -222,7 +222,7 @@ const CalibrationPage: React.FC = () => {
           model: config.model,
           riskFreeRate: config.riskFreeRate || 0.05,
           calibrationMethod: config.calibrationMethod === 'mle' ? 'differential_evolution' : config.calibrationMethod,
-          maxiter: 1000,
+          maxiter: 200,
           filterParams: {
             min_volume: 10,
             min_open_interest: 50,
@@ -606,6 +606,7 @@ const CalibrationPage: React.FC = () => {
                   <input
                     type="number"
                     min={10}
+                    max={2000}
                     value={simulationConfig.nPaths}
                     onChange={(e) => setSimulationConfig({
                       ...simulationConfig,
@@ -619,6 +620,7 @@ const CalibrationPage: React.FC = () => {
                   <input
                     type="number"
                     min={10}
+                    max={504}
                     value={simulationConfig.nSteps}
                     onChange={(e) => setSimulationConfig({
                       ...simulationConfig,

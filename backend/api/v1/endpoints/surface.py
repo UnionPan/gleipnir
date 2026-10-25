@@ -1,5 +1,7 @@
 """Volatility surface endpoints."""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from backend.core.compute_guard import heavy_job
 from backend.schemas.surface import (
     VolSurfaceRequest,
     VolSurfaceResponse,
@@ -12,7 +14,7 @@ router = APIRouter()
 surface_service = SurfaceService()
 
 
-@router.post("/build", response_model=VolSurfaceResponse, tags=["Volatility Surface"])
+@router.post("/build", response_model=VolSurfaceResponse, tags=["Volatility Surface"], dependencies=[Depends(heavy_job)])
 def build_vol_surface(request: VolSurfaceRequest):
     """
     Build a volatility surface from market data.
@@ -26,7 +28,7 @@ def build_vol_surface(request: VolSurfaceRequest):
         raise HTTPException(status_code=404, detail=str(e)) from e
 
 
-@router.post("/smile", response_model=VolSmileResponse, tags=["Volatility Surface"])
+@router.post("/smile", response_model=VolSmileResponse, tags=["Volatility Surface"], dependencies=[Depends(heavy_job)])
 def get_vol_smile(request: VolSmileRequest):
     """
     Get volatility smile for a specific expiration date.

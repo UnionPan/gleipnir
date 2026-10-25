@@ -46,7 +46,7 @@ steps:
       - '--port'
       - '8080'
       - '--env-vars-file=deployment/env/backend.env'
-      # The lab compiles its simulations before the port opens (LAB_WARM_UP=startup).
+      # The API compiles its programs before the port opens (WARM_UP=startup).
       # Cloud Run gives an instance full CPU only while it starts or serves, so the
       # compile belongs in startup, with extra CPU there.
       - '--cpu-boost'
@@ -54,6 +54,13 @@ steps:
       # a new revision takes traffic only once its own compile is done.
       - '--min-instances'
       - '1'
+      # Compute guard, platform side: an instance takes at most 20 requests at
+      # once (heavy ones also queue for its 2 job slots), and abuse cannot scale
+      # past 3 instances of cost.
+      - '--concurrency'
+      - '20'
+      - '--max-instances'
+      - '3'
 
 images:
   - 'gcr.io/$PROJECT_ID/options-desk-backend:$COMMIT_SHA'

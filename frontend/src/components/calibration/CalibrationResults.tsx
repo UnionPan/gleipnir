@@ -88,11 +88,17 @@ const CalibrationResults: React.FC<CalibrationResultsProps> = ({ results }) => {
                 <tbody>
                   {Object.entries(result.parameters).map(([key, value]) => {
                     const info = getParameterDisplay(key);
+                    const stdErrors = (result.diagnostics as { std_errors?: Record<string, number> } | undefined)?.std_errors;
                     return (
                       <tr key={key}>
                         <td className="param-name">{info.name}</td>
                         <td className="param-symbol">{info.symbol}</td>
-                        <td className="param-value">{formatNumber(value, 6)}</td>
+                        <td className="param-value">
+                          {formatNumber(value, 6)}
+                          {stdErrors?.[key] !== undefined && Number.isFinite(stdErrors[key]) && (
+                            <span className="param-std-error"> ± {formatNumber(stdErrors[key], 4)}</span>
+                          )}
+                        </td>
                         <td className="param-description">{info.description}</td>
                       </tr>
                     );

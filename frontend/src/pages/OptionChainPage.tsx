@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { describeApiError } from '../services/apiError';
 import { dataService } from '../services/dataService';
 import { marketApi } from '../services/marketApi';
 import { smileApi } from '../services/smileApi';
@@ -81,8 +82,8 @@ const OptionChainPage: React.FC = () => {
       if (data.expirations.length > 0) {
         setSelectedExpiration(data.expirations[0]);
       }
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to fetch expirations');
+    } catch (err) {
+      setError(describeApiError(err, 'Failed to fetch expirations'));
     } finally {
       setLoading(false);
     }
@@ -107,8 +108,8 @@ const OptionChainPage: React.FC = () => {
 
       // Also fetch volatility smile for this expiration
       await fetchVolatilitySmile(expiration);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to fetch option chain');
+    } catch (err) {
+      setError(describeApiError(err, 'Failed to fetch option chain'));
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { describeApiError } from './apiError';
 import { API_BASE_URL } from '../config/api.config';
 
 export type HedgerName = 'no_hedge' | 'bs_delta' | 'heston_delta';
@@ -100,23 +101,14 @@ export interface HedgeResponse {
 
 const REQUEST_TIMEOUT_MS = 60_000;
 
-function describe(error: unknown, fallback: string): string {
-  if (axios.isCancel(error)) return 'cancelled';
-  if (axios.isAxiosError(error)) {
-    if (error.code === 'ECONNABORTED') return 'The simulation took longer than 60 s and was stopped.';
-    const detail = error.response?.data?.detail;
-    if (typeof detail === 'string') return detail;
-    if (!error.response) return 'Cannot reach the API. Is the backend running?';
-  }
-  return fallback;
-}
+const TIMEOUT_MESSAGE = 'The simulation took longer than 60 s and was stopped.';
 
 export async function fetchCatalog(): Promise<LabCatalog> {
   try {
     const response = await axios.get<LabCatalog>(`${API_BASE_URL}/lab/assets`, { timeout: REQUEST_TIMEOUT_MS });
     return response.data;
   } catch (error) {
-    throw new Error(describe(error, 'Failed to load the lab catalog'));
+    throw new Error(describeApiError(error, 'Failed to load the lab catalog', TIMEOUT_MESSAGE));
   }
 }
 
@@ -128,6 +120,6 @@ export async function runHedge(request: HedgeRequest, signal: AbortSignal): Prom
     });
     return response.data;
   } catch (error) {
-    throw new Error(describe(error, 'The simulation failed'));
+    throw new Error(describeApiError(error, 'The simulation failed', TIMEOUT_MESSAGE));
   }
 }
