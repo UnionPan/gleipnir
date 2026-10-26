@@ -80,3 +80,60 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Fan chart ── */
+figure.simulation-chart {
+  margin: 0;
+}
+
+.simulation-chart-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.simulation-table-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font-size: 0.75rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.simulation-note {
+  margin: 0.5rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.simulation-table-wrap {
+  overflow-x: auto;
+}
+
+.simulation-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.simulation-table th,
+.simulation-table td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  text-align: right;
+  color: var(--text-primary);
+}
+
+.simulation-table thead th {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.simulation-table th[scope='row'] {
+  text-align: left;
+  color: var(--text-secondary);
+}

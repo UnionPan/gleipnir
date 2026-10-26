@@ -6,7 +6,7 @@ import OHLCVChart from '../components/calibration/OHLCVChart';
 import CalibrationResults from '../components/calibration/CalibrationResults';
 import SimulationResults from '../components/calibration/SimulationResults';
 import VolatilitySurface3D from '../components/calibration/VolatilitySurface3D';
-import { calibrationApi, OptionChainData, QMeasureCalibrationResponse, SimulationResponse, VolSurfaceResponse } from '../services/calibrationApi';
+import { calibrationApi, CalibrationResponse, OptionChainData, QMeasureCalibrationResponse, SimulationResponse, VolSurfaceResponse } from '../services/calibrationApi';
 
 export interface Asset {
   ticker: string;
@@ -22,26 +22,20 @@ export interface CalibrationConfig {
   riskFreeRate?: number;
 }
 
-export interface CalibrationResult {
-  ticker: string;
-  model: string;
-  parameters: Record<string, number>;
-  diagnostics: {
-    logLikelihood?: number;
-    aic?: number;
-    bic?: number;
-    mean_ess?: number;
-    n_particles?: number;
-    variogram_r2?: number;
-    errorMetrics?: Record<string, number>;
-    note?: string;
-  };
-  timestamp: string;
-  method?: string;
-  measure?: string;
-}
+export type CalibrationResult = CalibrationResponse;
 
 type MeasureType = 'P' | 'Q';
+
+// Daily steps; the API caps the horizon at 2 years (beyond it the drift policy
+// needs an equilibrium model the site does not have yet).
+const HORIZONS = [
+  { days: 21, label: '1 month' },
+  { days: 63, label: '3 months' },
+  { days: 126, label: '6 months' },
+  { days: 252, label: '1 year' },
+  { days: 504, label: '2 years' },
+];
+const DEFAULT_RISK_FREE_RATE = 0.04;
 
 const CalibrationPage: React.FC = () => {
   const [measureType, setMeasureType] = useState<MeasureType>('P');
@@ -66,7 +60,7 @@ const CalibrationPage: React.FC = () => {
   const [simulationResult, setSimulationResult] = useState<SimulationResponse | null>(null);
   const [simulationTicker, setSimulationTicker] = useState<string>('');
   const [simulationConfig, setSimulationConfig] = useState({
-    nPaths: 200,
+    nPaths: 1000,
     nSteps: 252,
     dt: 1 / 252,
     s0: 100,
@@ -120,13 +114,24 @@ const CalibrationPage: React.FC = () => {
       setConfig({
         ...config,
         model: 'heston',
-        calibrationMethod: 'differential_evolution',
+        calibrationMethod: 'levenberg_marquardt',
         riskFreeRate: 0.05,
       });
     }
   };
 
   const handleConfigChange = (newConfig: Partial<CalibrationConfig>) => {
+    const fitChanged = (newConfig.model !== undefined && newConfig.model !== config.model)
+      || (newConfig.calibrationMethod !== undefined && newConfig.calibrationMethod !== config.calibrationMethod);
+    if (fitChanged) {
+      // A result on screen must belong to the model shown in the picker.
+      setCalibrationResults([]);
+      setQMeasureResult(null);
+      setSimulationResult(null);
+      setSimulationError(null);
+      setVolSurfaceData(null);
+      setSurfaceError(null);
+    }
     setConfig({ ...config, ...newConfig });
   };
 
@@ -285,6 +290,8 @@ const CalibrationPage: React.FC = () => {
         nSteps: simulationConfig.nSteps,
         nPaths: simulationConfig.nPaths,
         dt: simulationConfig.dt,
+        riskFreeRate: optionChainData?.risk_free_rate ?? DEFAULT_RISK_FREE_RATE,
+        dividendYield: optionChainData?.dividend_yield ?? 0,
         maxPathsReturn: 20,
       });
       setSimulationResult(result);
@@ -519,7 +526,7 @@ const CalibrationPage: React.FC = () => {
                 <CalibrationResults results={[{
                   model: qMeasureResult.model,
                   parameters: qMeasureResult.parameters,
-                  diagnostics: qMeasureResult.diagnostics as any,
+                  diagnostics: qMeasureResult.diagnostics,
                   timestamp: qMeasureResult.timestamp,
                   ticker: qMeasureResult.ticker,
                   method: config.calibrationMethod,
@@ -590,8 +597,9 @@ const CalibrationPage: React.FC = () => {
                 )}
 
                 <div className="control-field">
-                  <label>Initial Spot (S0)</label>
+                  <label htmlFor="simulation-s0">Initial Spot (S0)</label>
                   <input
+                    id="simulation-s0"
                     type="number"
                     value={simulationConfig.s0}
                     onChange={(e) => setSimulationConfig({
@@ -602,8 +610,9 @@ const CalibrationPage: React.FC = () => {
                 </div>
 
                 <div className="control-field">
-                  <label>Paths</label>
+                  <label htmlFor="simulation-paths">Paths</label>
                   <input
+                    id="simulation-paths"
                     type="number"
                     min={10}
                     max={2000}
@@ -616,30 +625,20 @@ const CalibrationPage: React.FC = () => {
                 </div>
 
                 <div className="control-field">
-                  <label>Steps</label>
-                  <input
-                    type="number"
-                    min={10}
-                    max={504}
+                  <label htmlFor="simulation-horizon">Horizon</label>
+                  <select
+                    id="simulation-horizon"
                     value={simulationConfig.nSteps}
                     onChange={(e) => setSimulationConfig({
                       ...simulationConfig,
                       nSteps: Number(e.target.value),
+                      dt: 1 / 252,
                     })}
-                  />
-                </div>
-
-                <div className="control-field">
-                  <label>dt (years)</label>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    value={simulationConfig.dt}
-                    onChange={(e) => setSimulationConfig({
-                      ...simulationConfig,
-                      dt: Number(e.target.value),
-                    })}
-                  />
+                  >
+                    {HORIZONS.map((h) => (
+                      <option key={h.days} value={h.days}>{h.label}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <button

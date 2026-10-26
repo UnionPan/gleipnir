@@ -95,7 +95,8 @@ def fit_chain(chain: OptionChain) -> tuple[dict[str, float], dict]:
     )
     p = result.param_set.params
     parameters = {"kappa": p["kappa"], "theta": p["theta"], "xi": p["sigma_v"], "rho": p["rho"], "v0": p["v0"]}
-    std = {("xi" if k == "sigma_v" else k): v for k, v in result.std_errors.items()}
+    # JSON has no infinity: a parameter the chain cannot pin down reports null
+    std = {("xi" if k == "sigma_v" else k): (v if np.isfinite(v) else None) for k, v in result.std_errors.items()}
     feller = 2.0 * p["kappa"] * p["theta"]
     note = (f"Fitted {summary['n_quotes']} out-of-the-money quotes over {summary['n_expiries']} expiries "
             f"({summary['days_range'][0]} to {summary['days_range'][1]} days), weighted to fit implied vols.")

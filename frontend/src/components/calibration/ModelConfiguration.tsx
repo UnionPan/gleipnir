@@ -12,9 +12,9 @@ interface ModelConfigurationProps {
 // P-measure models
 const P_MEASURE_MODELS = [
   { value: 'gbm', label: 'Geometric Brownian Motion', description: 'μ, σ', method: 'mle' },
-  { value: 'ou', label: 'Ornstein-Uhlenbeck', description: 'κ, θ, σ', method: 'mle' },
-  { value: 'heston', label: 'Heston (SV)', description: 'κ, θ, ξ, ρ, v₀', method: 'particle_filter' },
-  { value: 'rough_bergomi', label: 'Rough Bergomi', description: 'μ, ξ₀, η, ρ, H', method: 'particle_filter' },
+  { value: 'ou', label: 'Ornstein-Uhlenbeck (log price)', description: 'κ, θ, σ', method: 'mle' },
+  { value: 'heston', label: 'Heston (SV)', description: 'κ, θ, ξ, ρ, v₀', method: 'moments' },
+  { value: 'rough_bergomi', label: 'Rough Bergomi', description: 'μ, ξ₀, η, ρ, H', method: 'variogram' },
   { value: 'regime_switching_gbm', label: 'Regime-Switching GBM', description: 'Bear, sideways and bull μ, σ', method: 'threshold' },
   { value: 'merton_jump', label: 'Merton Jump-Diffusion', description: 'μ, σ, λ, μ_J, σ_J', method: 'mle' },
   { value: 'garch', label: 'GARCH(1,1)', description: 'μ, ω, α, β', method: 'mle' },
@@ -30,14 +30,11 @@ const Q_MEASURE_MODELS = [
 // P-measure model-specific methods
 const P_MEASURE_METHODS: Record<string, Array<{ value: string; label: string }>> = {
   'gbm': [{ value: 'mle', label: 'Maximum Likelihood (Closed-form)' }],
-  'ou': [{ value: 'mle', label: 'Maximum Likelihood (Closed-form)' }],
-  'heston': [{ value: 'particle_filter', label: 'Particle Filter' }],
-  'rough_bergomi': [
-    { value: 'moment_matching', label: 'Moment Matching (Variogram)' },
-    { value: 'particle_filter', label: 'Particle Filter' },
-  ],
+  'ou': [{ value: 'mle', label: 'Maximum Likelihood on log prices' }],
+  'heston': [{ value: 'moments', label: 'Method of moments + parametric bootstrap' }],
+  'rough_bergomi': [{ value: 'variogram', label: 'Log-|return| variogram + parametric bootstrap' }],
   'regime_switching_gbm': [{ value: 'threshold', label: '20% drawdown / rally regimes' }],
-  'merton_jump': [{ value: 'mle', label: 'Maximum Likelihood' }],
+  'merton_jump': [{ value: 'mle', label: 'Maximum Likelihood (multi-start)' }],
   'garch': [{ value: 'mle', label: 'Quasi-MLE (Gaussian)' }],
 };
 

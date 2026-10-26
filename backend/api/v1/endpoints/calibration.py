@@ -149,6 +149,9 @@ def simulate_counterfactual(request: SimulationRequest):
             dt=request.dt,
             max_paths_return=request.max_paths_return,
             random_seed=request.random_seed,
+            risk_free_rate=request.risk_free_rate,
+            dividend_yield=request.dividend_yield,
+            scenario_excess_drift=request.scenario_excess_drift,
         )
         return result
     except ValueError as e:

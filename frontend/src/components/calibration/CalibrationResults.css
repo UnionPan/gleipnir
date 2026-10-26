@@ -287,3 +287,22 @@
     justify-content: space-between;
   }
 }
+
+/* ── Receipt ── */
+.result-method {
+  margin: 0.75rem 1rem 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.result-caption {
+  margin: 0.5rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.diagnostic-warning {
+  border-left-color: var(--error-border);
+  background: var(--error-bg);
+}

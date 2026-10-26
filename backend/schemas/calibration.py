@@ -83,14 +83,26 @@ class CalibrationRequest(BaseModel):
         return self
 
 
+class HistoricalDrift(BaseModel):
+    """The window's drift: an educational estimate, never simulated as a forecast."""
+    estimate: float = Field(..., description="Annualized arithmetic drift")
+    std_error: float
+    ci_low: float = Field(..., description="95% interval, lower end")
+    ci_high: float = Field(..., description="95% interval, upper end")
+
+
 class CalibrationDiagnostics(BaseModel):
-    """Calibration diagnostics"""
+    """Calibration diagnostics. Non-finite values are reported as null."""
+    method_label: str | None = Field(None, description="The estimator, in words")
+    converged: bool | None = None
     logLikelihood: float | None = None
     aic: float | None = None
     bic: float | None = None
-    mean_ess: float | None = None
-    n_particles: int | None = None
     variogram_r2: float | None = None
+    std_errors: dict[str, float | None] | None = Field(None, description="Per parameter")
+    bias: dict[str, float | None] | None = Field(None, description="Parametric-bootstrap bias, per parameter")
+    derived: dict[str, float | None] | None = Field(None, description="Readable quantities, e.g. long-run vol")
+    drift: HistoricalDrift | None = None
     errorMetrics: dict[str, float] | None = None
     note: str | None = None
 

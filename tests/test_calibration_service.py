@@ -42,20 +42,21 @@ class TestPMeasureOffline:
             ticker="SYN", prices=prices, dates=dates, model="gbm", method="mle", include_drift=True)
         assert params["sigma"] == pytest.approx(sigma, rel=0.05)
 
-    def test_ou_calibration_recovers_mean_reversion(self):
+    def test_ou_calibration_recovers_mean_reversion_of_the_log_price(self):
         rng = np.random.default_rng(5)
-        kappa, theta, sigma, n = 4.0, 100.0, 15.0, 5000
+        kappa, theta, sigma, n = 4.0, np.log(100.0), 0.15, 5000
         x = np.empty(n)
         x[0] = theta
         a = np.exp(-kappa * DT)
         sd = sigma * np.sqrt((1 - a**2) / (2 * kappa))
         for i in range(1, n):
             x[i] = theta + (x[i - 1] - theta) * a + sd * rng.standard_normal()
-        params, _ = CalibrationService.calibrate_model(
-            ticker="SYN", prices=x, dates=[str(i) for i in range(n)], model="ou", method="mle",
+        params, diagnostics = CalibrationService.calibrate_model(
+            ticker="SYN", prices=np.exp(x), dates=[str(i) for i in range(n)], model="ou", method="mle",
             include_drift=False)
         assert params["kappa"] == pytest.approx(kappa, rel=0.3)
-        assert params["theta"] == pytest.approx(theta, rel=0.02)
+        assert params["theta"] == pytest.approx(theta, abs=0.02)
+        assert diagnostics["derived"]["long_run_level"] == pytest.approx(100.0, rel=0.02)
 
     def test_regime_switching_reports_regimes_in_matrix_order(self):
         rng = np.random.default_rng(1)

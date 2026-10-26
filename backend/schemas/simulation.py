@@ -23,6 +23,12 @@ class SimulationRequest(BaseModel):
     dt: float = Field(default=1.0 / 252.0, gt=0, le=1.0 / 12, description="Time step size in years")
     max_paths_return: int = Field(default=20, ge=1, le=MAX_PATHS_RETURNED, description="Max sample paths to return")
     random_seed: int | None = Field(default=None, ge=0, le=2**32 - 1, description="Optional RNG seed")
+    risk_free_rate: float = Field(default=0.04, ge=-0.05, le=0.25, description="r: with q, the spot drift r - q")
+    dividend_yield: float = Field(default=0.0, ge=0.0, le=0.2, description="q, continuous")
+    scenario_excess_drift: float = Field(
+        default=0.05, ge=0.0, le=0.3,
+        description="Size of the positive and negative excess-drift scenarios shown beyond 3 months",
+    )
 
     @model_validator(mode="after")
     def _horizon(self) -> "SimulationRequest":
@@ -42,6 +48,13 @@ class SimulationStats(BaseModel):
     max: float
 
 
+class DriftScenario(BaseModel):
+    """A drift other than the policy's, shown as the median path it would give."""
+    label: str
+    excess_drift: float = Field(..., description="Annual drift on top of r - q")
+    median: list[float]
+
+
 class SimulationResponse(BaseModel):
     """Simulation results and summary stats."""
     model: str
@@ -50,5 +63,9 @@ class SimulationResponse(BaseModel):
     dt: float
     time_grid: list[float]
     mean_path: list[float]
+    quantiles: dict[str, list[float]] = Field(..., description="p5, p25, p50, p75, p95 of the spot at each time")
     sample_paths: list[list[float]]
     stats: SimulationStats
+    spot_drift: float | None = Field(..., description="Annual spot drift simulated; null when the model sets its own")
+    drift_note: str
+    scenarios: list[DriftScenario] = Field(default_factory=list)

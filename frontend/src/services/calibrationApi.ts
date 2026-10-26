@@ -21,20 +21,38 @@ export interface CalibrationRequest {
   includeDrift: boolean;
 }
 
+/** The window's drift: an educational estimate, never simulated as a forecast. */
+export interface HistoricalDrift {
+  estimate: number;
+  std_error: number;
+  ci_low: number;
+  ci_high: number;
+}
+
+/** Diagnostics of a P or Q fit; the API reports non-finite numbers as null. */
+export interface CalibrationDiagnostics {
+  method_label?: string | null;
+  converged?: boolean | null;
+  logLikelihood?: number | null;
+  aic?: number | null;
+  bic?: number | null;
+  variogram_r2?: number | null;
+  std_errors?: Record<string, number | null> | null;
+  bias?: Record<string, number | null> | null;
+  derived?: Record<string, number | null> | null;
+  drift?: HistoricalDrift | null;
+  errorMetrics?: Record<string, number> | null;
+  note?: string | null;
+  rmse_iv?: number | null;
+  n_quotes?: number | null;
+  n_expiries?: number | null;
+}
+
 export interface CalibrationResponse {
   ticker: string;
   model: string;
   parameters: Record<string, number>;
-  diagnostics: {
-    logLikelihood?: number;
-    aic?: number;
-    bic?: number;
-    mean_ess?: number;
-    n_particles?: number;
-    variogram_r2?: number;
-    errorMetrics?: Record<string, number>;
-    note?: string;
-  };
+  diagnostics: CalibrationDiagnostics;
   timestamp: string;
   method?: string;
   measure?: string;
@@ -49,6 +67,17 @@ export interface SimulationRequest {
   dt: number;
   maxPathsReturn?: number;
   randomSeed?: number;
+  riskFreeRate?: number;
+  dividendYield?: number;
+}
+
+export type QuantileName = 'p5' | 'p25' | 'p50' | 'p75' | 'p95';
+
+/** A drift other than the policy's, drawn as the median path it would give. */
+export interface DriftScenario {
+  label: string;
+  excess_drift: number;
+  median: number[];
 }
 
 export interface SimulationResponse {
@@ -58,6 +87,7 @@ export interface SimulationResponse {
   dt: number;
   time_grid: number[];
   mean_path: number[];
+  quantiles: Record<QuantileName, number[]>;
   sample_paths: number[][];
   stats: {
     mean: number;
@@ -68,6 +98,9 @@ export interface SimulationResponse {
     min: number;
     max: number;
   };
+  spot_drift: number | null;
+  drift_note: string;
+  scenarios: DriftScenario[];
 }
 
 // Q-measure interfaces
@@ -115,7 +148,7 @@ export interface QMeasureCalibrationResponse {
   ticker: string;
   model: string;
   parameters: Record<string, number>;
-  diagnostics: Record<string, any>;
+  diagnostics: CalibrationDiagnostics;
   timestamp: string;
   measure: string;
 }
@@ -238,6 +271,8 @@ class CalibrationApi {
         dt: request.dt,
         max_paths_return: request.maxPathsReturn,
         random_seed: request.randomSeed,
+        risk_free_rate: request.riskFreeRate,
+        dividend_yield: request.dividendYield,
       });
       return response.data;
     } catch (error) {
