@@ -550,3 +550,20 @@
   .lab-controls-grid,
   .lab-multiples { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ── A fit's own note (estimator caveats, regime legend) ── */
+.lab-fit-note {
+  margin: 0.5rem 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.lab-fit-note summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.lab-fit-note p {
+  margin: 0.375rem 0 0;
+  line-height: 1.45;
+}

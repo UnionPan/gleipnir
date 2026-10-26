@@ -37,6 +37,7 @@ const DERIVED: Record<string, Derived> = {
   feller_ratio: { label: 'Feller ratio 2κθ/ξ²', format: (v) => v.toFixed(2), hint: 'Above 1 keeps variance off zero' },
   variance_proxy_r2: { label: 'Variance proxy R²', format: (v) => v.toFixed(3), hint: 'How well the AR(1) explains the realized-variance proxy' },
   noise_floor: { label: 'Variogram noise floor', format: (v) => v.toFixed(2), hint: 'π²/4 ≈ 2.47 for Gaussian daily shocks' },
+  regime_today: { label: 'Regime today', format: (v) => `${v.toFixed(0)}`, hint: 'The regime the window ends in (numbered as in the parameters)' },
 };
 
 export function derivedRow(key: string, value: number): { label: string; value: string; hint: string } {

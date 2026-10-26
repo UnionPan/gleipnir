@@ -1,8 +1,9 @@
 import React from 'react';
-import type { LabCatalog, ScenarioName } from '../../services/labApi';
+import type { LabCatalog, LabModelName, ScenarioName } from '../../services/labApi';
 
 export interface LabConfig {
   asset: string;
+  model: LabModelName;
   rhoAssumed: boolean;
   scenario: ScenarioName | null;
   severity: Record<ScenarioName, number>;
@@ -27,7 +28,15 @@ interface Props {
 const LabControls: React.FC<Props> = ({ catalog, config, onChange, onRun, running, stale }) => {
   const set = <K extends keyof LabConfig>(key: K, value: LabConfig[K]) => onChange({ ...config, [key]: value });
   const asset = catalog.assets.find((a) => a.ticker === config.asset);
-  const scenario = catalog.scenarios.find((s) => s.name === config.scenario);
+  const model = catalog.models.find((m) => m.name === config.model);
+  const scenarios = catalog.scenarios.filter((s) => s.models.includes(config.model));
+  const scenario = scenarios.find((s) => s.name === config.scenario);
+  const setModel = (name: LabModelName) => {
+    // a scenario that means nothing for the new model falls back to a volatility spike
+    const keeps = config.scenario === null
+      || catalog.scenarios.some((s) => s.name === config.scenario && s.models.includes(name));
+    onChange({ ...config, model: name, scenario: keeps ? config.scenario : 'vol_spike' });
+  };
 
   return (
     <section className="lab-panel lab-controls" aria-label="Experiment setup">
@@ -45,19 +54,28 @@ const LabControls: React.FC<Props> = ({ catalog, config, onChange, onRun, runnin
               ))}
             </select>
           </label>
-          <div className="lab-field">
-            <span>Spot-vol correlation ρ</span>
-            <div className="lab-segmented" role="radiogroup" aria-label="Correlation assumption">
-              <button type="button" role="radio" aria-checked={!config.rhoAssumed}
-                className={!config.rhoAssumed ? 'active' : ''} onClick={() => set('rhoAssumed', false)}>
-                Estimated {asset ? asset.params.rho.toFixed(2) : ''}
-              </button>
-              <button type="button" role="radio" aria-checked={config.rhoAssumed}
-                className={config.rhoAssumed ? 'active' : ''} onClick={() => set('rhoAssumed', true)}>
-                Assumed {catalog.rho_assumption.toFixed(2)}
-              </button>
+          <label className="lab-field">
+            <span>Model</span>
+            <select value={config.model} onChange={(e) => setModel(e.target.value as LabModelName)}>
+              {catalog.models.map((m) => <option key={m.name} value={m.name}>{m.label}</option>)}
+            </select>
+            {model && <small className="lab-hint">{model.summary}</small>}
+          </label>
+          {model?.has_rho && (
+            <div className="lab-field">
+              <span>Spot-vol correlation ρ</span>
+              <div className="lab-segmented" role="radiogroup" aria-label="Correlation assumption">
+                <button type="button" role="radio" aria-checked={!config.rhoAssumed}
+                  className={!config.rhoAssumed ? 'active' : ''} onClick={() => set('rhoAssumed', false)}>
+                  Estimated {asset ? asset.models[config.model].params.rho.toFixed(2) : ''}
+                </button>
+                <button type="button" role="radio" aria-checked={config.rhoAssumed}
+                  className={config.rhoAssumed ? 'active' : ''} onClick={() => set('rhoAssumed', true)}>
+                  Assumed {catalog.rho_assumption.toFixed(2)}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </fieldset>
 
         <fieldset className="lab-field-group">
@@ -68,7 +86,7 @@ const LabControls: React.FC<Props> = ({ catalog, config, onChange, onRun, runnin
                 onChange={() => set('scenario', null)} />
               Factual only
             </label>
-            {catalog.scenarios.map((s) => (
+            {scenarios.map((s) => (
               <label key={s.name} className={`lab-radio ${config.scenario === s.name ? 'active' : ''}`}>
                 <input type="radio" name="world" checked={config.scenario === s.name}
                   onChange={() => set('scenario', s.name)} />

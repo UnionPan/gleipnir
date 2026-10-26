@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './HedgingLabPage.css';
 import { useTheme } from '../contexts/ThemeContext';
-import { fetchCatalog, HedgeRequest, HedgeResponse, LabCatalog, runHedge, ScenarioName } from '../services/labApi';
+import { fetchCatalog, HedgeRequest, hedgerByRole, HedgeResponse, LabCatalog, runHedge, ScenarioName } from '../services/labApi';
 import LabControls, { LabConfig } from '../components/lab/LabControls';
 import MarketCard from '../components/lab/MarketCard';
 import ResultsTable from '../components/lab/ResultsTable';
@@ -13,6 +13,7 @@ function initialConfig(catalog: LabCatalog): LabConfig {
   const severity = Object.fromEntries(catalog.scenarios.map((s) => [s.name, s.severity_default])) as Record<ScenarioName, number>;
   return {
     asset: catalog.assets[0].ticker,
+    model: 'heston',
     rhoAssumed: true,
     scenario: 'vol_spike',
     severity,
@@ -25,9 +26,11 @@ function initialConfig(catalog: LabCatalog): LabConfig {
 }
 
 function toRequest(config: LabConfig, catalog: LabCatalog): HedgeRequest {
+  const hasRho = catalog.models.find((m) => m.name === config.model)?.has_rho ?? false;
   return {
     asset: config.asset,
-    rho: config.rhoAssumed ? catalog.rho_assumption : null,
+    model: config.model,
+    rho: hasRho && config.rhoAssumed ? catalog.rho_assumption : null,
     scenario: config.scenario ? { name: config.scenario, severity: config.severity[config.scenario] } : null,
     option: { is_call: config.isCall, moneyness: config.moneyness, maturity_days: config.maturityDays },
     cost_bps: config.costBps,
@@ -127,7 +130,7 @@ const HedgingLabPage: React.FC = () => {
       {result && insight && catalog && asset && (
         <div className={`lab-results-area ${running ? 'lab-refetching' : ''}`} aria-busy={running}>
           <div className="lab-top-grid">
-            <MarketCard catalog={catalog} asset={asset} result={result} />
+            <MarketCard catalog={catalog} asset={asset} model={result.book.model} result={result} />
             <ResultsTable result={result} insight={insight} />
           </div>
           <DistributionPanels result={result} theme={theme} />
@@ -138,30 +141,32 @@ const HedgingLabPage: React.FC = () => {
               <div>
                 <h3>The book</h3>
                 <p>
-                  You sell one option at its Heston price under the factual calibration and set up the hedgers then.
-                  The premium and the hedgers' assumptions never change; only the world does.
+                  You sell one option at the chosen model's price under the factual calibration and set up the hedgers
+                  then. The premium and the hedgers' assumptions never change; only the world does.
                 </p>
               </div>
               <div>
                 <h3>The worlds</h3>
                 <p>
-                  The factual world simulates the calibrated dynamics forward from today. A counterfactual applies a
-                  stress scenario to those dynamics, with the same random numbers, so differences come from the world
-                  and not from luck.
+                  The factual world simulates the calibrated model forward from today, the spot drifting at r − q. A
+                  counterfactual applies a stress scenario in the same model, with the same random numbers, so
+                  differences come from the world and not from luck.
                 </p>
               </div>
               <div>
                 <h3>The hedgers</h3>
                 <p>
-                  Black-Scholes delta uses one volatility for the whole life of the option. Heston delta re-reads the
-                  current variance each day, so it adapts when volatility moves, as long as its model is right.
+                  Black-Scholes delta uses one volatility for the whole life of the option. The model's own hedger
+                  uses what its model watches ({hedgerByRole(result, 'model').label}): it adapts when that moves, as
+                  long as its model is right.
                 </p>
               </div>
               <div>
                 <h3>What this simplifies</h3>
                 <p>
-                  Zero interest rates, daily rebalancing, and proportional trading costs. Heston delta observes the true
-                  simulated variance, which a real desk can only estimate. Calibrated on daily prices only.
+                  Daily rebalancing and proportional trading costs. The model's hedger observes the simulated state
+                  (variance, regime) a real desk can only estimate. GARCH and rough-volatility hedgers are labelled
+                  approximations. Calibrated on daily prices only.
                 </p>
               </div>
             </div>

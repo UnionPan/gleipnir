@@ -1,0 +1,16 @@
+{
+  "asset": "MSFT",
+  "content_hash": "c1358d8116a91d1537bc5c86e84686e0693c7c3415b7761d1282ea4a0629fb32",
+  "created_at": "2026-10-26T13:29:39+00:00",
+  "measure": "P",
+  "mjollnir_version": "0.3.0",
+  "model": "gbm",
+  "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
+  "params": {
+    "sigma": 0.2700586964430376
+  },
+  "parent_hash": null,
+  "schema_version": 1,
+  "source": "Maximum likelihood (closed form) on daily closes; drift per the policy (r - q)",
+  "window": "2021-07-06..2026-07-06"
+}

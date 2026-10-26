@@ -30,6 +30,7 @@ from mjollnir.calibration.physical import (
     RegimeSwitchingCalibrator,
     RoughBergomiVariogramCalibrator,
 )
+from mjollnir.calibration.physical.garch_calibrator import garch_variances
 
 DT = 1.0 / 252
 CI_Z = 1.959964
@@ -191,9 +192,11 @@ def _regime_switching(prices, dates, returns):
         f"{k} = {result.regime_params[rid].regime_name} ({result.regime_params[rid].n_observations} days"
         + (", too few for a reliable estimate" if result.regime_params[rid].n_observations < MIN_REGIME_DAYS else "")
         + ")" for k, rid in enumerate(ids))
+    today = ids.index(int(result.regime_labels[-1]))
     return parameters, {
         "method_label": "Drawdown/rally thresholds, per-regime maximum likelihood",
         "std_errors": std_errors, "converged": True,
+        "derived": {"regime_today": float(today)},
         "note": (f"Regimes {legend}. Days are labelled bear after a 20% drawdown from the 60-day high and "
                  "bull after a 20% rally off the 60-day low; regimes that never occur are omitted. A regime's "
                  "drift over a few weeks is mostly noise: read it with its error."),
@@ -221,6 +224,9 @@ def _merton(prices, dates, returns):
 
 def _garch(prices, dates, returns):
     r = GARCHCalibrator().fit(prices, DT)
+    # today's conditional variance for tomorrow's return: the fitted filter's next value
+    h = garch_variances(np.array([r.mu, r.omega, r.alpha, r.beta]), returns, float(np.var(returns, ddof=1)))
+    h_next = r.omega + r.alpha * (returns[-1] - r.mu) ** 2 + r.beta * h[-1]
     note = (f"Parameters are per day. Long-run volatility {100 * r.long_run_vol:.1f}% a year; a variance "
             f"shock halves in {r.half_life_days:.0f} trading days (persistence {r.persistence:.3f}).")
     if not r.converged:
@@ -229,8 +235,8 @@ def _garch(prices, dates, returns):
         "method_label": "Gaussian quasi-maximum likelihood, observed information",
         "logLikelihood": r.log_likelihood, "aic": r.aic, "bic": r.bic,
         "std_errors": r.std_errors, "converged": r.converged,
-        "derived": {"long_run_vol": r.long_run_vol, "persistence": r.persistence,
-                    "half_life_days": r.half_life_days},
+        "derived": {"long_run_vol": r.long_run_vol, "vol_today": math.sqrt(h_next / DT),
+                    "persistence": r.persistence, "half_life_days": r.half_life_days},
         "note": note,
     })
 

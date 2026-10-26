@@ -1,0 +1,20 @@
+{
+  "asset": "JNJ",
+  "content_hash": "70d90afc919723ba6aaa736d89e8a70c2cc716dabb5473773b646d5d5b36a010",
+  "created_at": "2026-10-26T13:29:52+00:00",
+  "measure": "P",
+  "mjollnir_version": "0.3.0",
+  "model": "heston",
+  "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
+  "params": {
+    "kappa": 1.9238139724987697,
+    "rho": -0.0011149496030968989,
+    "sigma_v": 0.3126810087885742,
+    "theta": 0.02914898461586081,
+    "v0": 0.08964445976470217
+  },
+  "parent_hash": null,
+  "schema_version": 1,
+  "source": "Method of moments on a realized-variance proxy, parametric bootstrap on daily closes; drift per the policy (r - q)",
+  "window": "2021-07-06..2026-07-06"
+}

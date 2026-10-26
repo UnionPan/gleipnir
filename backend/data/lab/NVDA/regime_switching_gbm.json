@@ -1,0 +1,28 @@
+{
+  "asset": "NVDA",
+  "content_hash": "d096edc9e22955a3dfd21668dea37b779d4c1386e8b46e47dd5cc43572095a28",
+  "created_at": "2026-10-26T13:29:42+00:00",
+  "measure": "P",
+  "mjollnir_version": "0.3.0",
+  "model": "regime_switching_gbm",
+  "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
+  "params": {
+    "p_00": 0.926605504587156,
+    "p_01": 0.03669724770642202,
+    "p_02": 0.03669724770642202,
+    "p_10": 0.01907356948228883,
+    "p_11": 0.9237057220708447,
+    "p_12": 0.05722070844686648,
+    "p_20": 0.01347305389221557,
+    "p_21": 0.029940119760479042,
+    "p_22": 0.9565868263473054,
+    "regime0": 1.0,
+    "sigma_0": 0.6911524543402945,
+    "sigma_1": 0.4032673467992823,
+    "sigma_2": 0.49137958282900085
+  },
+  "parent_hash": null,
+  "schema_version": 1,
+  "source": "Drawdown/rally thresholds, per-regime maximum likelihood on daily closes; drift per the policy (r - q)",
+  "window": "2021-07-06..2026-07-06"
+}

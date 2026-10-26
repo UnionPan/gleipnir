@@ -1,6 +1,6 @@
 import React from 'react';
 import type { HedgeResponse, WorldResult } from '../../services/labApi';
-import { HEDGER_LABELS, HEDGER_NOTES, HEDGER_ORDER, Insight } from './insights';
+import type { Insight } from './insights';
 
 interface Props {
   result: HedgeResponse;
@@ -35,14 +35,14 @@ const ResultsTable: React.FC<Props> = ({ result, insight }) => {
                 {METRICS.map((m) => <th key={m.key} scope="col">{m.label}</th>)}
               </tr>
             </thead>
-            {HEDGER_ORDER.map((h) => (
-              <tbody key={h} className="lab-results-group">
+            {result.hedgers.map((h) => (
+              <tbody key={h.name} className="lab-results-group">
                 {worlds.map(({ key, world }, i) => (
                   <tr key={key}>
                     {i === 0 && (
                       <th scope="rowgroup" rowSpan={worlds.length}>
-                        {HEDGER_LABELS[h]}
-                        <small>{HEDGER_NOTES[h]}</small>
+                        {h.label}
+                        <small>{h.note}</small>
                       </th>
                     )}
                     {showWorld && (
@@ -51,7 +51,7 @@ const ResultsTable: React.FC<Props> = ({ result, insight }) => {
                         {world.label}
                       </td>
                     )}
-                    {METRICS.map((m) => <td key={m.key}>{world.hedgers[h][m.key].toFixed(2)}</td>)}
+                    {METRICS.map((m) => <td key={m.key}>{world.hedgers[h.name][m.key].toFixed(2)}</td>)}
                   </tr>
                 ))}
               </tbody>

@@ -1,26 +1,42 @@
-import type { HedgeResponse, HedgerStats, WorldResult } from '../../services/labApi';
+import type { HedgeResponse, HedgerStats, LabModelName, WorldResult } from '../../services/labApi';
 import { readResult } from './insights';
 
 const stats = (std: number, mean = 0): HedgerStats => ({
   mean, std, cvar_5: mean - 2 * std, mean_cost: 0.1, histogram: [], below: 0, above: 0,
 });
 
-const world = (label: string, s: [number, number, number], mean = 0): WorldResult => ({
-  label,
-  description: '',
-  params: {},
-  params_hash: label,
-  hedgers: { no_hedge: stats(s[0], mean), bs_delta: stats(s[1], mean), heston_delta: stats(s[2], mean) },
-  sample_path: { spots: [], positions: { no_hedge: [], bs_delta: [], heston_delta: [] }, pnl: { no_hedge: 0, bs_delta: 0, heston_delta: 0 } },
-});
+const MODEL_HEDGER: Record<string, [string, string]> = {
+  heston: ['heston_delta', 'Heston delta'],
+  gbm: ['gbm_delta', 'Black-Scholes at historical vol'],
+};
 
-const response = (counterfactual: WorldResult | null, maturityDays = 21): HedgeResponse => ({
+const world = (label: string, s: [number, number, number], mean = 0, model = 'heston'): WorldResult => {
+  const m = MODEL_HEDGER[model][0];
+  return {
+    label,
+    description: '',
+    params: {},
+    params_hash: label,
+    hedgers: { no_hedge: stats(s[0], mean), bs_delta: stats(s[1], mean), [m]: stats(s[2], mean) },
+    sample_path: { spots: [], positions: { no_hedge: [], bs_delta: [], [m]: [] }, pnl: { no_hedge: 0, bs_delta: 0, [m]: 0 } },
+  };
+};
+
+const response = (counterfactual: WorldResult | null, maturityDays = 21, model: LabModelName = 'heston',
+  factual: WorldResult = world('Factual', [7, 1, 1])): HedgeResponse => ({
   book: {
-    asset: 'TEST', params: {}, params_hash: 'b', parent_hash: null, rho_source: 'assumed',
-    strike: 100, maturity_days: maturityDays, is_call: true, premium: 4, implied_vol: 0.3,
+    asset: 'TEST', model, params: {}, params_hash: 'b', parent_hash: null, rho_source: 'assumed',
+    strike: 100, maturity_days: maturityDays, is_call: true, premium: 4, implied_vol: 0.3, rate: 0.04,
+    dividend_yield: 0.01,
   },
-  bin_edges: { no_hedge: [], bs_delta: [], heston_delta: [] },
-  factual: world('Factual', [7, 1, 1]),
+  hedgers: [
+    { name: 'no_hedge', role: 'none', label: 'No hedge', note: '' },
+    { name: 'bs_delta', role: 'bs', label: 'Black-Scholes delta', note: '' },
+    { name: MODEL_HEDGER[model][0], role: 'model', label: MODEL_HEDGER[model][1], note: '',
+      same_as: model === 'gbm' ? 'bs_delta' : null },
+  ],
+  bin_edges: {},
+  factual,
   counterfactual,
   n_paths: 4096, seed: 7, cost_bps: 5, elapsed_ms: 500, mjollnir_version: 'test',
 });
@@ -44,4 +60,18 @@ test('a harmless world suggests a longer expiry only when one exists', () => {
   const longest = readResult(response(quiet, 63), 'regime_shift');
   expect(longest.headline).toBe('A regime shift barely moves this 63-day book.');
   expect(longest.detail).not.toContain('longer expiry');
+});
+
+test('under Black-Scholes the model hedge and Black-Scholes delta are one hedge', () => {
+  const calm = world('Factual', [7, 1, 1], 0, 'gbm');
+  const spiked = world('Volatility spike', [14, 3, 3], 0, 'gbm');
+  const insight = readResult(response(spiked, 21, 'gbm', calm), 'vol_spike');
+  expect(insight.headline).toBe("In a volatility spike, delta hedging's error grows 3.0x.");
+  expect(insight.detail).toContain('are the same hedge');
+  expect(readResult(response(null, 21, 'gbm', calm), null).detail).toContain("the model's own delta is the same hedge");
+});
+
+test('near-equal errors read as a tie', () => {
+  const insight = readResult(response(world('Volatility spike', [14, 3, 3.05], 0)), 'vol_spike');
+  expect(insight.detail).toContain('the two hedges end up with about the same error (3.00)');
 });

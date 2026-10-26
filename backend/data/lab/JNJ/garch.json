@@ -1,0 +1,19 @@
+{
+  "asset": "JNJ",
+  "content_hash": "071a464b0829bb14ac2c39e603c3812cfa0277e277c3082284c0af8b083e5a80",
+  "created_at": "2026-10-26T13:29:52+00:00",
+  "measure": "P",
+  "mjollnir_version": "0.3.0",
+  "model": "garch",
+  "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
+  "params": {
+    "alpha": 0.0499983552491329,
+    "beta": 0.8999973397119968,
+    "h0": 0.00027520359035541393,
+    "omega": 6.7919114563891085e-06
+  },
+  "parent_hash": null,
+  "schema_version": 1,
+  "source": "Gaussian quasi-maximum likelihood, observed information on daily closes; drift per the policy (r - q)",
+  "window": "2021-07-06..2026-07-06"
+}

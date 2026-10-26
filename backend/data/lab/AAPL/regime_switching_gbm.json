@@ -1,0 +1,28 @@
+{
+  "asset": "AAPL",
+  "content_hash": "46c19743948edcd0ac5b6d0cbb07b731453735790a9589df93310a3fe8f1f903",
+  "created_at": "2026-10-26T13:29:35+00:00",
+  "measure": "P",
+  "mjollnir_version": "0.3.0",
+  "model": "regime_switching_gbm",
+  "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
+  "params": {
+    "p_00": 0.6666666666666666,
+    "p_01": 0.3333333333333333,
+    "p_02": 0.0,
+    "p_10": 0.01331967213114754,
+    "p_11": 0.9590163934426229,
+    "p_12": 0.027663934426229508,
+    "p_20": 0.0,
+    "p_21": 0.1092436974789916,
+    "p_22": 0.8907563025210085,
+    "regime0": 2.0,
+    "sigma_0": 0.4100071418107621,
+    "sigma_1": 0.27013127116730457,
+    "sigma_2": 0.2542745726909225
+  },
+  "parent_hash": null,
+  "schema_version": 1,
+  "source": "Drawdown/rally thresholds, per-regime maximum likelihood on daily closes; drift per the policy (r - q)",
+  "window": "2021-07-06..2026-07-06"
+}

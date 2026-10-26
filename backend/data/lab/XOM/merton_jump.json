@@ -1,0 +1,19 @@
+{
+  "asset": "XOM",
+  "content_hash": "71c8ec948f80d607cbfcb85d1b221853524153144e1ec9dd8e31ca84a4e3bbc3",
+  "created_at": "2026-10-26T13:29:50+00:00",
+  "measure": "P",
+  "mjollnir_version": "0.3.0",
+  "model": "merton",
+  "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
+  "params": {
+    "lambda_j": 99.9166522378093,
+    "mu_j": -0.003306587417772269,
+    "sigma": 0.19906149806929208,
+    "sigma_j": 0.017482807999303615
+  },
+  "parent_hash": null,
+  "schema_version": 1,
+  "source": "Maximum likelihood (multi-start), observed information on daily closes; drift per the policy (r - q)",
+  "window": "2021-07-06..2026-07-06"
+}

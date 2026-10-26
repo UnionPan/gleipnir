@@ -1,12 +1,15 @@
 import React from 'react';
-import type { AssetInfo, HedgeResponse, LabCatalog } from '../../services/labApi';
+import type { AssetInfo, HedgeResponse, LabCatalog, LabModelName } from '../../services/labApi';
 
 const short = (hash: string | null | undefined) => (hash ? hash.slice(0, 8) : '—');
 const pct = (x: number, digits = 1) => `${(x * 100).toFixed(digits)}%`;
+const signedPct = (x: number) => `${x < 0 ? '−' : ''}${pct(Math.abs(x))}`;
+const DAYS_PER_YEAR = 252;
 
-function halfLife(kappa: number): string {
-  const days = (Math.LN2 / kappa) * 252;
-  return days < 60 ? `${days.toFixed(0)} trading days` : `${(days / 21).toFixed(1)} months`;
+const days = (n: number) => `${n.toFixed(0)} trading day${Math.round(n) === 1 ? '' : 's'}`;
+
+function halfLife(n: number): string {
+  return n < 60 ? days(n) : `${(n / 21).toFixed(1)} months`;
 }
 
 interface Row {
@@ -16,33 +19,77 @@ interface Row {
   format: (p: Record<string, number>) => string;
 }
 
-const ROWS: Row[] = [
-  { key: 'v0', label: 'Volatility today', hint: 'Trailing 21-day realized vol: the starting state', format: (p) => pct(Math.sqrt(p.v0)) },
-  { key: 'theta', label: 'Long-run volatility', hint: 'Where volatility reverts to', format: (p) => pct(Math.sqrt(p.theta)) },
-  { key: 'kappa', label: 'Mean-reversion half-life', hint: 'How fast a vol shock fades', format: (p) => halfLife(p.kappa) },
-  { key: 'sigma_v', label: 'Vol of variance ξ', hint: 'How violently volatility itself moves', format: (p) => p.sigma_v.toFixed(2) },
-  { key: 'rho', label: 'Spot-vol correlation ρ', hint: 'Negative means vol rises when the price falls', format: (p) => p.rho.toFixed(2) },
-  { key: 'mu', label: 'Spot drift', hint: 'r − q: no excess drift for books up to 3 months', format: (p) => pct(p.mu) },
-];
-
-const signedPct = (x: number) => `${x < 0 ? '−' : ''}${pct(Math.abs(x))}`;
+/** Rows in each world's own parameter names (mjollnir), read for a person. */
+function rows(model: LabModelName, params: Record<string, number>): Row[] {
+  switch (model) {
+    case 'heston':
+      return [
+        { key: 'v0', label: 'Volatility today', hint: 'Trailing 21-day realized vol: the starting state', format: (p) => pct(Math.sqrt(p.v0)) },
+        { key: 'theta', label: 'Long-run volatility', hint: 'Where volatility reverts to', format: (p) => pct(Math.sqrt(p.theta)) },
+        { key: 'kappa', label: 'Mean-reversion half-life', hint: 'How fast a vol shock fades', format: (p) => halfLife((Math.LN2 / p.kappa) * DAYS_PER_YEAR) },
+        { key: 'sigma_v', label: 'Vol of variance ξ', hint: 'How violently volatility itself moves', format: (p) => p.sigma_v.toFixed(2) },
+        { key: 'rho', label: 'Spot-vol correlation ρ', hint: 'Negative means vol rises when the price falls', format: (p) => p.rho.toFixed(2) },
+      ];
+    case 'gbm':
+      return [{ key: 'sigma', label: 'Volatility', hint: 'Constant: the historical volatility of the window', format: (p) => pct(p.sigma) }];
+    case 'merton_jump':
+      return [
+        { key: 'sigma', label: 'Diffusion volatility', hint: 'Between jumps', format: (p) => pct(p.sigma) },
+        { key: 'lambda_j', label: 'Jumps a year', hint: 'Average number of jumps', format: (p) => p.lambda_j.toFixed(0) },
+        { key: 'mu_j', label: 'Average jump', hint: 'Mean log-size of a jump', format: (p) => signedPct(p.mu_j) },
+        { key: 'sigma_j', label: 'Jump size spread', hint: 'Standard deviation of a jump', format: (p) => pct(p.sigma_j) },
+      ];
+    case 'regime_switching_gbm': {
+      const n = Object.keys(params).filter((k) => /^sigma_\d+$/.test(k)).length;
+      return [
+        ...Array.from({ length: n }, (_, k): Row => ({
+          key: `sigma_${k}`,
+          label: `Regime ${k} volatility`,
+          hint: `Lasts about ${days(1 / Math.max(1 - params[`p_${k}${k}`], 1e-9))} at a time`,
+          format: (p) => pct(p[`sigma_${k}`]),
+        })),
+        { key: 'regime0', label: 'Regime today', hint: 'Where the window ends', format: (p) => `${p.regime0.toFixed(0)}` },
+      ];
+    }
+    case 'garch':
+      return [
+        { key: 'h0', label: 'Volatility today', hint: 'The GARCH filter at the end of the window', format: (p) => pct(Math.sqrt(p.h0 * DAYS_PER_YEAR)) },
+        { key: 'omega', label: 'Long-run volatility', hint: 'sqrt(ω / (1 − α − β)), annualized', format: (p) => pct(Math.sqrt((p.omega / (1 - p.alpha - p.beta)) * DAYS_PER_YEAR)) },
+        { key: 'alpha', label: 'Shock reaction α', hint: 'How much a big day raises tomorrow\'s variance', format: (p) => p.alpha.toFixed(3) },
+        { key: 'beta', label: 'Shock half-life', hint: 'Persistence α + β', format: (p) => halfLife(Math.log(0.5) / Math.log(p.alpha + p.beta)) },
+      ];
+    case 'rough_bergomi':
+      return [
+        { key: 'xi0', label: 'Volatility today', hint: 'Trailing 21-day realized vol: the forward variance', format: (p) => pct(Math.sqrt(p.xi0)) },
+        { key: 'eta', label: 'Vol of variance η', hint: 'Scale of log-variance moves', format: (p) => p.eta.toFixed(2) },
+        { key: 'H', label: 'Roughness H', hint: 'Below 0.5 is rough; daily closes barely identify it', format: (p) => p.H.toFixed(2) },
+        { key: 'rho', label: 'Spot-vol correlation ρ', hint: 'Negative means vol rises when the price falls', format: (p) => p.rho.toFixed(2) },
+      ];
+  }
+}
 
 interface Props {
   catalog: LabCatalog;
   asset: AssetInfo;
+  model: LabModelName;
   result: HedgeResponse | null;
 }
 
-const MarketCard: React.FC<Props> = ({ catalog, asset, result }) => {
-  const factual = result?.factual.params ?? asset.params;
+const MarketCard: React.FC<Props> = ({ catalog, asset, model, result }) => {
+  // With a result on screen, describe the book that ran; otherwise the current setup.
+  const shownModel = result?.book.model ?? model;
+  const fit = asset.models[shownModel];
+  const info = catalog.models.find((m) => m.name === shownModel);
+  const factual = result?.factual.params ?? fit.params;
   const shocked = result?.counterfactual?.params;
+  const drift = catalog.rate - asset.dividend_yield;
   return (
     <section className="lab-panel" aria-label="Market and book">
       <div className="lab-titlebar">Market · {asset.ticker}</div>
       <div className="lab-panel-body">
         <p className="lab-caption">
-          Heston dynamics fitted to {asset.ticker}'s daily closes over {catalog.window.replace('..', ' to ')} by
-          quasi-maximum likelihood. Prices are normalized so today's spot is 100.
+          {info?.label} fitted to {asset.ticker}'s daily closes over {catalog.window.replace('..', ' to ')}.
+          Prices are normalized so today's spot is 100.
         </p>
         <table className="lab-params">
           <thead>
@@ -53,7 +100,7 @@ const MarketCard: React.FC<Props> = ({ catalog, asset, result }) => {
             </tr>
           </thead>
           <tbody>
-            {ROWS.map((row) => {
+            {rows(shownModel, factual).map((row) => {
               const before = row.format(factual);
               const after = shocked ? row.format(shocked) : null;
               return (
@@ -67,8 +114,22 @@ const MarketCard: React.FC<Props> = ({ catalog, asset, result }) => {
                 </tr>
               );
             })}
+            <tr>
+              <th scope="row">
+                Spot drift r − q
+                <small>No excess drift for books up to 3 months</small>
+              </th>
+              <td>{pct(drift)}</td>
+              {shocked && <td>{pct(drift)}</td>}
+            </tr>
           </tbody>
         </table>
+        {fit.note && (
+          <details className="lab-fit-note">
+            <summary>About this fit</summary>
+            <p>{fit.note}</p>
+          </details>
+        )}
         {result && (
           <dl className="lab-book">
             <div><dt>Premium received</dt><dd>{result.book.premium.toFixed(2)}</dd></div>
@@ -78,16 +139,22 @@ const MarketCard: React.FC<Props> = ({ catalog, asset, result }) => {
           </dl>
         )}
         <p className="lab-note">
+          Rate r {pct(catalog.rate, 2)} ({catalog.rate_source}); dividend yield q {pct(asset.dividend_yield, 2)}.
+          Cash earns r and the shares held earn q.
+        </p>
+        <p className="lab-note">
           Historical drift {signedPct(asset.historical_drift.estimate)} a year ± {pct(asset.historical_drift.std_error)}{' '}
           (95% interval {signedPct(asset.historical_drift.ci_low)} to {signedPct(asset.historical_drift.ci_high)}).
           Too uncertain to forecast with, so the lab never simulates it.
         </p>
-        <p className="lab-note">
-          ρ is not identified by daily closes: the estimator returns about 0 for every stock. Equity option
-          markets typically imply about {catalog.rho_assumption.toFixed(1)}, which you can assume instead.
-        </p>
+        {info?.has_rho && (
+          <p className="lab-note">
+            ρ is not identified by daily closes: the estimators return about 0 for every stock. Equity option
+            markets typically imply about {catalog.rho_assumption.toFixed(1)}, which you can assume instead.
+          </p>
+        )}
         <p className="lab-provenance">
-          calibration <code>{short(asset.params_hash)}</code>
+          calibration <code>{short(fit.params_hash)}</code>
           {result && result.book.parent_hash && <> → book <code>{short(result.book.params_hash)}</code></>}
           {result?.counterfactual && <> → world <code>{short(result.counterfactual.params_hash)}</code></>}
         </p>

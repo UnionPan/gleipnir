@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import Plot from 'react-plotly.js';
 import type { Data } from 'plotly.js';
-import type { HedgeResponse, HedgerName, WorldResult } from '../../services/labApi';
-import { HEDGER_LABELS, HEDGER_ORDER } from './insights';
+import type { HedgeResponse, HedgerInfo, HedgerName, WorldResult } from '../../services/labApi';
 import { baseLayout, chrome, PLOT_CONFIG, ThemeName, wash, World } from './chartTheme';
 
 interface Props {
@@ -22,7 +21,8 @@ function worlds(result: HedgeResponse): [World, WorldResult][] {
   return [['factual', result.factual], ...(result.counterfactual ? [['counterfactual', result.counterfactual] as [World, WorldResult]] : [])];
 }
 
-const Panel: React.FC<{ hedger: HedgerName; result: HedgeResponse; theme: ThemeName }> = ({ hedger, result, theme }) => {
+const Panel: React.FC<{ info: HedgerInfo; result: HedgeResponse; theme: ThemeName }> = ({ info, result, theme }) => {
+  const hedger: HedgerName = info.name;
   const [asTable, setAsTable] = useState(false);
   const c = chrome(theme);
   const edges = result.bin_edges[hedger];
@@ -44,7 +44,7 @@ const Panel: React.FC<{ hedger: HedgerName; result: HedgeResponse; theme: ThemeN
   return (
     <figure className="lab-chart">
       <figcaption>
-        <span className="lab-chart-title">{HEDGER_LABELS[hedger]}</span>
+        <span className="lab-chart-title">{info.label}</span>
         <button type="button" className="lab-link" onClick={() => setAsTable(!asTable)}>
           {asTable ? 'Chart' : 'Table'}
         </button>
@@ -88,7 +88,7 @@ const Panel: React.FC<{ hedger: HedgerName; result: HedgeResponse; theme: ThemeN
       <p className="lab-chart-note">
         {tailNote(ws.map(([, w]) => w), hedger, result.n_paths)}
       </p>
-      {hedger === 'no_hedge' && (
+      {info.role === 'none' && (
         <p className="lab-chart-note">
           The spike is every path where the option expires worthless: the book simply keeps the premium.
         </p>
@@ -103,7 +103,7 @@ const DistributionPanels: React.FC<Props> = ({ result, theme }) => (
     <div className="lab-panel-body">
       <WorldLegend result={result} />
       <div className="lab-multiples">
-        {HEDGER_ORDER.map((h) => <Panel key={h} hedger={h} result={result} theme={theme} />)}
+        {result.hedgers.map((h) => <Panel key={h.name} info={h} result={result} theme={theme} />)}
       </div>
       <p className="lab-caption">
         Each panel has its own P&L scale: unhedged outcomes spread about ten times wider than hedged ones.

@@ -42,12 +42,13 @@ import requests
 API = "https://api.yunianpan.com/api/v1"
 run = requests.post(f"{API}/lab/hedge", json={
     "asset": "AAPL",
-    "rho": -0.7,
-    "scenario": {"name": "vol_spike", "severity": 2.0},
+    "model": "merton_jump",  # heston, gbm, merton_jump, regime_switching_gbm, garch, rough_bergomi
+    "scenario": {"name": "jump_cascade", "severity": 4.0},
     "option": {"is_call": True, "moneyness": 1.0, "maturity_days": 21},
 }, timeout=60).json()
 
-for world in ("factual", "counterfactual"):
-    stats = run[world]["hedgers"]["bs_delta"]
-    print(world, round(stats["std"], 2), round(stats["cvar_5"], 2))
+for hedger in run["hedgers"]:  # no hedge, Black-Scholes delta, the model's own delta
+    for world in ("factual", "counterfactual"):
+        stats = run[world]["hedgers"][hedger["name"]]
+        print(hedger["label"], world, round(stats["std"], 2), round(stats["cvar_5"], 2))
 ```

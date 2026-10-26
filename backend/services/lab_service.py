@@ -1,15 +1,17 @@
 """Counterfactual Hedging Lab: a short-option book run through factual and counterfactual worlds.
 
-The book (premium, hedgers) is fixed by an asset's real-data Heston calibration;
-the world is either that calibration or a mjollnir scenario applied to it. All
-numerics come from mjollnir.hedging; this module selects inputs from the
-shipped ParamSets and reduces results to what the lab page draws.
+The book (premium, hedgers) is fixed by an asset's real-data calibration of
+the chosen model; the world is either that calibration or a mjollnir scenario
+expressed in the same model. All numerics come from mjollnir (worlds,
+hedging, scenarios); this module selects inputs from the shipped ParamSets and
+reduces results to what the lab page draws.
 
 Drift policy: every lab book expires within 3 months, so the simulated spot
-drifts at r - q with zero excess drift (0 here: the lab's world has no rates or
-dividends). An asset's historical drift is reported with its standard error as
-an educational estimate and never simulated: over five years of daily closes
-its 95% interval is typically wider than 40 points of annual return.
+drifts at r - q with no excess drift. r is the 13-week Treasury bill yield at
+the end of the calibration window and q the asset's dividend yield; the book
+is priced and hedged at the same r and q, cash earns r and held shares earn q.
+An asset's historical drift is reported with its standard error as an
+educational estimate and never simulated.
 """
 
 from __future__ import annotations
@@ -24,10 +26,11 @@ from pathlib import Path
 import numpy as np
 from mjollnir import __version__ as mjollnir_version
 from mjollnir.backtest import BacktestResult
-from mjollnir.hedging import EuropeanOption, compare_hedgers, heston_price, implied_vol, standard_hedgers
+from mjollnir.hedging import MODEL_HEDGERS, EuropeanOption, compare_hedgers, implied_vol, model_price, \
+    standard_hedgers
 from mjollnir.jax import configure_runtime
 from mjollnir.params import ParamSet
-from mjollnir.scenarios import correlation_breakdown, regime_shift, vol_spike
+from mjollnir.scenarios import SCENARIO_MODELS, scenario_for
 
 from backend.schemas.lab import (
     AssetInfo,
@@ -35,62 +38,59 @@ from backend.schemas.lab import (
     DriftEstimate,
     HedgeRequest,
     HedgeResponse,
+    HedgerInfo,
     HedgerStats,
     LabCatalog,
+    LabModelInfo,
+    ModelFit,
     SamplePath,
     ScenarioInfo,
     WorldResult,
 )
+from backend.services.lab_models import LAB_MODELS
 
 logger = logging.getLogger(__name__)
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "lab"
 DT = 1.0 / 252
 SPOT0 = 100.0
-N_PATHS = 2048  # fixed so every request reuses the warmed-up compiled programs
+N_PATHS = 2048  # fixed so every request reuses the compiled programs
 MATURITIES_DAYS = (5, 21, 63)
 RHO_ASSUMPTION = -0.7  # typical equity option-implied spot-vol correlation
 HISTOGRAM_BINS = 48
 HISTOGRAM_PAD = 0.04
 TAIL = 0.05
-CI_Z = 1.959964  # two-sided 95% normal quantile
-DRIFT_POLICY_NOTE = (
-    "drift policy: books up to 3 months simulate zero excess drift; with no rates or "
-    "dividends in the lab the spot drift r - q is 0"
-)
+
+HEDGER_LABELS = {
+    "heston_delta": "Heston delta",
+    "gbm_delta": "Black-Scholes at historical vol",
+    "merton_delta": "Merton delta",
+    "regime_delta": "Regime delta",
+    "garch_delta": "GARCH-forecast delta",
+    "rough_delta": "Rough-vol delta",
+}
 
 
 @dataclass(frozen=True)
 class _ScenarioKind:
-    info: ScenarioInfo
-    build: object  # severity -> mjollnir Scenario
+    label: str
+    summary: str
+    severity: tuple[float, float, float]  # min, max, default
 
 
 SCENARIOS = {
-    "vol_spike": _ScenarioKind(
-        ScenarioInfo(
-            name="vol_spike", label="Volatility spike",
-            summary="Spot vol jumps by the severity multiple; long-run vol and vol-of-vol rise less.",
-            severity_min=1.25, severity_max=3.0, severity_default=2.0,
-        ),
-        vol_spike,
-    ),
-    "correlation_breakdown": _ScenarioKind(
-        ScenarioInfo(
-            name="correlation_breakdown", label="Correlation breakdown",
-            summary="Spot-vol correlation pinned to a crisis level (the severity is the new rho).",
-            severity_min=-0.95, severity_max=-0.5, severity_default=-0.9,
-        ),
-        correlation_breakdown,
-    ),
-    "regime_shift": _ScenarioKind(
-        ScenarioInfo(
-            name="regime_shift", label="Regime shift",
-            summary="Mean reversion slows by the severity factor and long-run variance rises.",
-            severity_min=1.5, severity_max=5.0, severity_default=3.0,
-        ),
-        regime_shift,
-    ),
+    "vol_spike": _ScenarioKind("Volatility spike",
+                               "Spot vol jumps by the severity multiple; slower-moving volatility rises less.",
+                               (1.25, 3.0, 2.0)),
+    "correlation_breakdown": _ScenarioKind("Correlation breakdown",
+                                           "Spot-vol correlation pinned to a crisis level (the severity is the new rho).",
+                                           (-0.95, -0.5, -0.9)),
+    "regime_shift": _ScenarioKind("Regime shift",
+                                  "Volatility shocks last the severity times longer and long-run variance rises.",
+                                  (1.5, 5.0, 3.0)),
+    "jump_cascade": _ScenarioKind("Jump cascade",
+                                  "Jumps arrive the severity times as often, and the average jump grows.",
+                                  (2.0, 10.0, 4.0)),
 }
 
 
@@ -98,58 +98,75 @@ class UnknownAssetError(KeyError):
     """The requested ticker is not among the shipped calibrations."""
 
 
+def _models_for(scenario: str) -> list[str]:
+    worlds = SCENARIO_MODELS[scenario]
+    return [name for name, lab in LAB_MODELS.items() if lab.world in worlds]
+
+
+def _has_rho(model: str) -> bool:
+    return LAB_MODELS[model].world in SCENARIO_MODELS["correlation_breakdown"]
+
+
 @cache
 def _manifest() -> dict:
     return json.loads((DATA_DIR / "manifest.json").read_text())
 
 
-@cache
-def _calibration(ticker: str) -> ParamSet:
+def _asset(ticker: str) -> dict:
     entries = {a["ticker"]: a for a in _manifest()["assets"]}
     if ticker not in entries:
         raise UnknownAssetError(ticker)
-    return ParamSet.load(DATA_DIR / entries[ticker]["file"])
+    return entries[ticker]
 
 
-def historical_drift(ps: ParamSet, n_observations: int) -> DriftEstimate:
-    """The calibration's drift with its approximate standard error.
-
-    The mean of daily log returns has variance (average variance) / T; Heston's
-    long-run variance theta stands in for the average over the window.
-    """
-    years = n_observations * DT
-    std_error = float(np.sqrt(ps.params["theta"] / years))
-    estimate = float(ps.params["mu"])
-    return DriftEstimate(estimate=estimate, std_error=std_error, years=years,
-                         ci_low=estimate - CI_Z * std_error, ci_high=estimate + CI_Z * std_error)
+@cache
+def _calibration(ticker: str, model: str) -> ParamSet:
+    entry = _asset(ticker)["models"].get(model)
+    if entry is None:
+        raise UnknownAssetError(f"{ticker} has no {model} calibration")
+    return ParamSet.load(DATA_DIR / entry["file"])
 
 
 def catalog() -> LabCatalog:
     manifest = _manifest()
     assets = []
     for entry in manifest["assets"]:
-        ps = _calibration(entry["ticker"])
+        models = {}
+        for model, fit in entry["models"].items():
+            ps = _calibration(entry["ticker"], model)
+            models[model] = ModelFit(params=dict(ps.params), params_hash=ps.content_hash(),
+                                     fit_params=fit["fit"]["parameters"], std_errors=fit["fit"]["std_errors"],
+                                     derived=fit["fit"]["derived"], note=fit["fit"]["note"])
         assets.append(AssetInfo(
-            ticker=entry["ticker"], sector=entry["sector"], params=dict(ps.params),
-            params_hash=ps.content_hash(), vol_today=entry["state"]["vol_today"],
-            as_of=entry["state"]["as_of"], diagnostics=entry["diagnostics"],
-            historical_drift=historical_drift(ps, int(entry["diagnostics"]["n_observations"])),
+            ticker=entry["ticker"], sector=entry["sector"], vol_today=entry["state"]["vol_today"],
+            as_of=entry["state"]["as_of"], dividend_yield=entry["dividend_yield"],
+            historical_drift=DriftEstimate(**entry["historical_drift"]), models=models,
         ))
+    models = []
+    for name, lab in LAB_MODELS.items():
+        hedger, note = MODEL_HEDGERS[lab.world]
+        models.append(LabModelInfo(name=name, label=lab.label, summary=lab.summary,
+                                   hedger_label=HEDGER_LABELS[hedger], hedger_note=note, has_rho=_has_rho(name)))
+    scenarios = [ScenarioInfo(name=name, label=kind.label, summary=kind.summary, severity_min=kind.severity[0],
+                              severity_max=kind.severity[1], severity_default=kind.severity[2],
+                              models=_models_for(name))
+                 for name, kind in SCENARIOS.items()]
     return LabCatalog(
-        window=manifest["window"], estimator=manifest["estimator"], assets=assets,
-        scenarios=[kind.info for kind in SCENARIOS.values()],
-        maturities_days=list(MATURITIES_DAYS), n_paths=N_PATHS, rho_assumption=RHO_ASSUMPTION,
+        window=manifest["window"], rate=manifest["rate"], rate_source=manifest["rate_source"], assets=assets,
+        models=models, scenarios=scenarios, maturities_days=list(MATURITIES_DAYS), n_paths=N_PATHS,
+        rho_assumption=RHO_ASSUMPTION,
     )
 
 
 def _book(request: HedgeRequest) -> tuple[ParamSet, EuropeanOption]:
-    calibration = _calibration(request.asset)
-    changes: dict[str, float] = {"mu": 0.0}
-    notes = [DRIFT_POLICY_NOTE]
+    book = _calibration(request.asset, request.model)
     if request.rho is not None:
-        changes["rho"] = request.rho
-        notes.append(f"rho assumed {request.rho:g}: daily closes do not identify the spot-vol correlation")
-    book = calibration.derive(set_=changes, note="; ".join(notes))
+        if not _has_rho(request.model):
+            raise ValueError(f"{LAB_MODELS[request.model].label} has no spot-vol correlation to assume")
+        book = book.derive(
+            set_={"rho": request.rho},
+            note=f"rho assumed {request.rho:g}: daily closes do not identify the spot-vol correlation",
+        )
     option = EuropeanOption(
         strike=SPOT0 * request.option.moneyness,
         maturity=request.option.maturity_days * DT,
@@ -158,14 +175,16 @@ def _book(request: HedgeRequest) -> tuple[ParamSet, EuropeanOption]:
     return book, option
 
 
-def _scenario(request: HedgeRequest):
+def _scenario(request: HedgeRequest, book: ParamSet):
     if request.scenario is None:
         return None
-    kind = SCENARIOS[request.scenario.name]
-    lo, hi = kind.info.severity_min, kind.info.severity_max
-    if not lo <= request.scenario.severity <= hi:
-        raise ValueError(f"{request.scenario.name} severity must be in [{lo}, {hi}]")
-    return kind.build(request.scenario.severity)
+    name, severity = request.scenario.name, request.scenario.severity
+    if request.model not in _models_for(name):
+        raise ValueError(f"{SCENARIOS[name].label} has no meaning for {LAB_MODELS[request.model].label}")
+    lo, hi, _ = SCENARIOS[name].severity
+    if not lo <= severity <= hi:
+        raise ValueError(f"{name} severity must be in [{lo}, {hi}]")
+    return scenario_for(name, severity, book)
 
 
 def _cvar(pnl: np.ndarray) -> float:
@@ -196,15 +215,30 @@ def _world(label: str, description: str, params: ParamSet, results: dict[str, Ba
     )
 
 
+def _hedger_infos(model: str, book: ParamSet, sigma: float) -> list[HedgerInfo]:
+    name, note = MODEL_HEDGERS[LAB_MODELS[model].world]
+    # A GBM book priced by its own model has implied vol = sigma: its delta is Black-Scholes delta.
+    same = "bs_delta" if model == "gbm" and abs(book.params["sigma"] - sigma) < 1e-6 else None
+    return [
+        HedgerInfo(name="no_hedge", role="none", label="No hedge", note="Keeps the premium and pays the payoff."),
+        HedgerInfo(name="bs_delta", role="bs", label="Black-Scholes delta",
+                   note=f"Delta at the premium's implied vol ({100 * sigma:.1f}%), fixed for the life of the option."),
+        HedgerInfo(name=name, role="model", label=HEDGER_LABELS[name], note=note + ".", same_as=same),
+    ]
+
+
 def run_hedge(request: HedgeRequest) -> HedgeResponse:
     configure_runtime()
     started = time.perf_counter()
+    asset = _asset(request.asset)
+    rate, dividend = float(_manifest()["rate"]), float(asset["dividend_yield"])
     book, option = _book(request)
-    scenario = _scenario(request)
-    premium = heston_price(option, book, SPOT0)
-    hedgers = standard_hedgers(option, book, dt=DT, spot0=SPOT0)
-    common = {"hedgers": hedgers, "n_paths": N_PATHS, "dt": DT, "spot0": SPOT0,
-              "cost_bps": request.cost_bps, "seed": request.seed}
+    scenario = _scenario(request, book)
+    premium = model_price(option, book, SPOT0, rate=rate, dividend=dividend, dt=DT, seed=request.seed)
+    sigma = implied_vol(option, premium, SPOT0, rate, dividend)
+    hedgers = standard_hedgers(option, book, dt=DT, spot0=SPOT0, rate=rate, dividend=dividend, premium=premium)
+    common = {"hedgers": hedgers, "n_paths": N_PATHS, "dt": DT, "spot0": SPOT0, "rate": rate,
+              "dividend": dividend, "premium": premium, "cost_bps": request.cost_bps, "seed": request.seed}
 
     worlds = {"factual": (book, compare_hedgers(book, option, **common))}
     if scenario is not None:
@@ -223,24 +257,25 @@ def run_hedge(request: HedgeRequest) -> HedgeResponse:
     terminal = next(iter(factual_results.values())).spots[:, -1]
     path_index = int(np.argmin(np.abs(terminal - np.median(terminal))))
 
-    factual = _world("Factual", "As calibrated on real prices", book, factual_results, edges,
-                     path_index)
+    factual = _world("Factual", "As calibrated on real prices", book, factual_results, edges, path_index)
     counterfactual = None
     if scenario is not None:
         shocked, shocked_results = worlds["counterfactual"]
-        counterfactual = _world(SCENARIOS[request.scenario.name].info.label, scenario.description,
+        counterfactual = _world(SCENARIOS[request.scenario.name].label, scenario.description,
                                 shocked, shocked_results, edges, path_index)
 
     elapsed_ms = (time.perf_counter() - started) * 1000.0
-    logger.info("lab hedge %s %s in %.0f ms", request.asset,
+    logger.info("lab hedge %s %s %s in %.0f ms", request.asset, request.model,
                 getattr(scenario, "name", "factual"), elapsed_ms)
+    rho_source = None if not _has_rho(request.model) else ("estimated" if request.rho is None else "assumed")
     return HedgeResponse(
         book=Book(
-            asset=request.asset, params=dict(book.params), params_hash=book.content_hash(),
-            parent_hash=book.parent_hash, rho_source="estimated" if request.rho is None else "assumed",
-            strike=option.strike, maturity_days=request.option.maturity_days,
-            is_call=option.is_call, premium=premium, implied_vol=implied_vol(option, premium, SPOT0),
+            asset=request.asset, model=request.model, params=dict(book.params), params_hash=book.content_hash(),
+            parent_hash=book.parent_hash, rho_source=rho_source, strike=option.strike,
+            maturity_days=request.option.maturity_days, is_call=option.is_call, premium=premium,
+            implied_vol=sigma, rate=rate, dividend_yield=dividend,
         ),
+        hedgers=_hedger_infos(request.model, book, sigma),
         bin_edges={name: e.tolist() for name, e in edges.items()},
         factual=factual, counterfactual=counterfactual,
         n_paths=N_PATHS, seed=request.seed, cost_bps=request.cost_bps,
@@ -249,10 +284,12 @@ def run_hedge(request: HedgeRequest) -> HedgeResponse:
 
 
 def warm_up() -> None:
-    """Compile every maturity's programs so the first visitor does not pay for it."""
+    """Compile every model's programs at every maturity, so no visitor pays for a
+    compile (a scenario reuses its factual world's program)."""
     started = time.perf_counter()
     ticker = _manifest()["assets"][0]["ticker"]
-    for days in MATURITIES_DAYS:
-        run_hedge(HedgeRequest(asset=ticker, option={"maturity_days": days}))
-    logger.info("lab warm-up compiled %d maturities in %.1f s", len(MATURITIES_DAYS),
-                time.perf_counter() - started)
+    for model in LAB_MODELS:
+        for days in MATURITIES_DAYS:
+            run_hedge(HedgeRequest(asset=ticker, model=model, option={"maturity_days": days}))
+    logger.info("lab warm-up compiled %d models x %d maturities in %.1f s", len(LAB_MODELS),
+                len(MATURITIES_DAYS), time.perf_counter() - started)

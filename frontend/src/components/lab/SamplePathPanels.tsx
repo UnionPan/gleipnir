@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import Plot from 'react-plotly.js';
 import type { Data } from 'plotly.js';
-import type { HedgeResponse, HedgerName, WorldResult } from '../../services/labApi';
-import { HEDGER_LABELS } from './insights';
+import type { HedgeResponse, WorldResult } from '../../services/labApi';
 import { baseLayout, chrome, PLOT_CONFIG, ThemeName, World } from './chartTheme';
 import { WorldLegend } from './DistributionPanels';
 
@@ -13,20 +12,30 @@ interface Props {
 
 type Series = (w: WorldResult) => number[];
 
-const HEDGERS: HedgerName[] = ['no_hedge', 'bs_delta', 'heston_delta'];
+interface PanelSpec {
+  key: string;
+  title: string;
+  yTitle: string;
+  series: Series;
+  days: (n: number) => number[];
+}
 
-const PANELS: { key: string; title: string; yTitle: string; series: Series; days: (n: number) => number[] }[] = [
-  { key: 'spot', title: 'Spot price', yTitle: 'Spot', series: (w) => w.sample_path.spots, days: (n) => [...Array(n + 1).keys()] },
-  ...(['bs_delta', 'heston_delta'] as HedgerName[]).map((h) => ({
-    key: h,
-    title: `${HEDGER_LABELS[h]} position`,
-    yTitle: 'Shares held',
-    series: (w: WorldResult) => w.sample_path.positions[h],
-    days: (n: number) => [...Array(n).keys()],
-  })),
-];
+/** The spot, then the position of every hedger that holds one. */
+function panels(result: HedgeResponse): PanelSpec[] {
+  return [
+    { key: 'spot', title: 'Spot price', yTitle: 'Spot', series: (w) => w.sample_path.spots, days: (n) => [...Array(n + 1).keys()] },
+    ...result.hedgers.filter((h) => h.role !== 'none').map((h) => ({
+      key: h.name,
+      title: `${h.label} position`,
+      yTitle: 'Shares held',
+      series: (w: WorldResult) => w.sample_path.positions[h.name],
+      days: (n: number) => [...Array(n).keys()],
+    })),
+  ];
+}
 
 const SamplePathPanels: React.FC<Props> = ({ result, theme }) => {
+  const PANELS = panels(result);
   const [asTable, setAsTable] = useState(false);
   const c = chrome(theme);
   const n = result.book.maturity_days;
@@ -105,14 +114,14 @@ const SamplePathPanels: React.FC<Props> = ({ result, theme }) => {
           <thead>
             <tr>
               <th scope="col">World</th>
-              {HEDGERS.map((h) => <th key={h} scope="col">{HEDGER_LABELS[h]}</th>)}
+              {result.hedgers.map((h) => <th key={h.name} scope="col">{h.label}</th>)}
             </tr>
           </thead>
           <tbody>
             {worlds.map(([key, w]) => (
               <tr key={key}>
                 <td className="lab-world-cell"><span className={`lab-key lab-key-${key}`} aria-hidden />{w.label}</td>
-                {HEDGERS.map((h) => <td key={h}>{w.sample_path.pnl[h].toFixed(2)}</td>)}
+                {result.hedgers.map((h) => <td key={h.name}>{w.sample_path.pnl[h.name].toFixed(2)}</td>)}
               </tr>
             ))}
           </tbody>

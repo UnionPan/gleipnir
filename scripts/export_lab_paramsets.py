@@ -1,52 +1,57 @@
 #!/usr/bin/env python3
-"""Export real-data Heston ParamSets for the Counterfactual Hedging Lab.
+"""Export real-data ParamSets of every lab model for the Counterfactual Hedging Lab.
 
 Inputs (local artifacts, not committed):
 
-* ``runs/calibration/sp500-batched/heston_qmle.parquet`` from mjollnir's
-  calibration pipeline (``mjollnir-calibrate``): P-measure Heston QMLE on five
-  years of daily closes for the S&P 500.
-* ``data/price_lake/prices/<TICKER>.parquet``: the same daily price history.
+* ``runs/calibration/sp500-batched/``: the universe run's window (manifest) and
+  GICS sectors (heston_qmle.parquet).
+* ``data/price_lake/prices/<TICKER>.parquet``: daily adjusted closes.
 
-Outputs, under ``backend/data/lab/``:
+Each asset is fitted with every model the lab runs, by the same estimators the
+Calibration tab uses (``backend.services.physical_fits``), and each fit is
+mapped onto its mjollnir world (``backend.services.lab_models``). The drift is
+left out: books follow the drift policy and drift at r - q. The historical
+drift is kept per asset as the educational estimate the market card shows.
 
-* one mjollnir ``ParamSet`` JSON per asset;
-* ``manifest.json`` with the per-asset metadata the lab displays.
+Rates and dividends: the 13-week Treasury bill yield (^IRX) on the window's
+last day, and each asset's dividend yield from yfinance (needs the network).
 
-Parameters vs state. QMLE estimates the dynamics (kappa, theta, sigma_v, mu),
-but the lab simulates forward from *today*, so ``v0`` is replaced by today's
-variance, taken as the trailing 21-day realized variance. It is model-free and
-stable; a Heston particle filter's end-of-window estimate was evaluated and
-rejected because it moves by up to 2x on a single large daily return.
+Outputs, under ``backend/data/lab/``: ``<TICKER>/<model>.json`` ParamSets and
+``manifest.json``.
 
-Correlation. Daily closes do not identify the spot-variance correlation rho:
-QMLE returns rho ~ 0 for every name (an amortized NPE posterior returns its
-prior instead). The ParamSets keep the QMLE value; the lab exposes rho as an
-explicit, labelled assumption derived from these sets at request time.
-
-Usage: ``uv run python scripts/export_lab_paramsets.py``
+Usage: ``uv run --extra web python scripts/export_lab_paramsets.py``
 """
 
 from __future__ import annotations
 
 import json
 import math
-from datetime import UTC, datetime
+import shutil
+import sys
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import yfinance as yf
 from mjollnir.params import ParamSet
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from backend.services import physical_fits  # noqa: E402
+from backend.services.lab_models import LAB_MODELS, world_params  # noqa: E402
+from backend.services.market_data import fetch_dividend_yield  # noqa: E402
+
 RUN = ROOT / "runs" / "calibration" / "sp500-batched"
 PRICES = ROOT / "data" / "price_lake" / "prices"
 OUT = ROOT / "backend" / "data" / "lab"
 
 ASSETS = ["AAPL", "MSFT", "NVDA", "TSLA", "JPM", "XOM", "JNJ", "KO"]
-DYNAMICS = ["kappa", "theta", "sigma_v", "rho", "mu"]
-DT = 1.0 / 252
 REALIZED_WINDOW = 21
+DT = 1.0 / 252
+METHODS = {"heston": "moments", "gbm": "mle", "merton_jump": "mle", "regime_switching_gbm": "threshold",
+           "garch": "mle", "rough_bergomi": "variogram"}
 
 
 def _closes(ticker: str, start: str, end: str) -> pd.Series:
@@ -56,60 +61,78 @@ def _closes(ticker: str, start: str, end: str) -> pd.Series:
     return closes.sort_index().loc[start:end].dropna()
 
 
-def main() -> int:
-    manifest_in = json.loads((RUN / "manifest.json").read_text())
-    start, end = manifest_in["start"], manifest_in["end"]
-    window = f"{start}..{end}"
-    table = pd.read_parquet(RUN / "heston_qmle.parquet").set_index("ticker")
-    OUT.mkdir(parents=True, exist_ok=True)
-    for stale in OUT.glob("*.json"):
-        stale.unlink()
+def _treasury_bill_rate(on: str) -> float:
+    """Continuously compounded 13-week T-bill yield on (or just before) ``on``."""
+    day = date.fromisoformat(on)
+    history = yf.Ticker("^IRX").history(start=(day - timedelta(days=10)).isoformat(),
+                                        end=(day + timedelta(days=1)).isoformat())
+    if history.empty:
+        raise SystemExit(f"no ^IRX quote near {on}")
+    discount_yield = float(history["Close"].iloc[-1]) / 100.0
+    return math.log1p(discount_yield)
 
+
+def _finite(d: dict | None) -> dict:
+    return {k: v for k, v in (d or {}).items() if v is not None and math.isfinite(v)}
+
+
+def main() -> int:
+    run = json.loads((RUN / "manifest.json").read_text())
+    start, end = run["start"], run["end"]
+    window = f"{start}..{end}"
+    rate = _treasury_bill_rate(end)
+    sectors = pd.read_parquet(RUN / "heston_qmle.parquet").set_index("ticker")["sector"]
+
+    shutil.rmtree(OUT, ignore_errors=True)
+    OUT.mkdir(parents=True)
     assets = []
     for ticker in ASSETS:
-        row = table.loc[ticker]
-        dynamics = {k: float(row[k]) for k in DYNAMICS}
-        if not bool(row["converged"]) or not all(map(math.isfinite, dynamics.values())):
-            raise SystemExit(f"{ticker}: QMLE did not converge or is not finite")
-
-        log_returns = np.diff(np.log(_closes(ticker, start, end).to_numpy()))
-        v_today = float(log_returns[-REALIZED_WINDOW:].var(ddof=1) / DT)
-
-        ps = ParamSet.create(
-            "heston", "P", {"v0": v_today, **dynamics},
-            asset=ticker, window=window,
-            source=(
-                "dynamics: mjollnir heston_qmle on yfinance daily closes; "
-                f"v0: trailing {REALIZED_WINDOW}-day realized variance at {end}"
-            ),
-            note="Exported for the gleipnir Counterfactual Hedging Lab.",
-        )
-        filename = f"{ticker}.json"
-        ps.save(OUT / filename)
+        closes = _closes(ticker, start, end)
+        prices, dates = closes.to_numpy(), [d.strftime("%Y-%m-%d") for d in closes.index]
+        log_returns = np.diff(np.log(prices))
+        vol_today = float(math.sqrt(log_returns[-REALIZED_WINDOW:].var(ddof=1) / DT))
+        models, drift = {}, None
+        for model, lab in LAB_MODELS.items():
+            parameters, diagnostics = physical_fits.fit(model, METHODS[model], prices, dates, include_drift=False)
+            if diagnostics.get("converged") is False:
+                raise SystemExit(f"{ticker} {model}: the fit did not converge")
+            drift = diagnostics["drift"]
+            ps = ParamSet.create(
+                lab.world, "P", world_params(model, parameters, diagnostics.get("derived")),
+                asset=ticker, window=window,
+                source=f"{diagnostics['method_label']} on daily closes; drift per the policy (r - q)",
+                note="Exported for the gleipnir Counterfactual Hedging Lab.",
+            )
+            path = OUT / ticker / f"{model}.json"
+            ps.save(path)
+            models[model] = {
+                "file": f"{ticker}/{model}.json",
+                "hash": ps.content_hash(),
+                "fit": {"parameters": parameters, "std_errors": _finite(diagnostics.get("std_errors")),
+                        "derived": _finite(diagnostics.get("derived")), "note": diagnostics.get("note")},
+            }
+        sector = str(sectors.get(ticker, "Unknown"))
         assets.append({
             "ticker": ticker,
-            "sector": str(row["sector"]),
-            "file": filename,
-            "hash": ps.content_hash(),
-            "state": {"as_of": end, "vol_today": math.sqrt(v_today), "window_days": REALIZED_WINDOW},
-            "diagnostics": {
-                "feller_ratio": float(row["feller_ratio"]),
-                "variance_proxy_r2": float(row["variance_proxy_r2"]),
-                "n_observations": int(row["n_observations"]),
-            },
+            "sector": sector,
+            "dividend_yield": fetch_dividend_yield(ticker),
+            "state": {"as_of": end, "vol_today": vol_today, "window_days": REALIZED_WINDOW},
+            "historical_drift": drift,
+            "n_observations": int(log_returns.size),
+            "models": models,
         })
+        print(f"  {ticker:5s} vol today {vol_today:.2f}  q {assets[-1]['dividend_yield']:.4f}")
 
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "window": window,
-        "estimator": "Quasi-MLE on daily closes (mjollnir heston_qmle)",
+        "rate": rate,
+        "rate_source": f"13-week Treasury bill (^IRX) on {end}, continuously compounded",
         "assets": assets,
     }
     (OUT / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    print(f"wrote {len(assets)} ParamSets to {OUT.relative_to(ROOT)}")
-    for a in assets:
-        print(f"  {a['ticker']:5s} vol today {a['state']['vol_today']:.2f}")
+    print(f"wrote {len(assets)} assets x {len(LAB_MODELS)} models to {OUT.relative_to(ROOT)}; r = {rate:.4f}")
     return 0
 
 

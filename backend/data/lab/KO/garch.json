@@ -1,0 +1,19 @@
+{
+  "asset": "KO",
+  "content_hash": "46325ecb6deb7341e94b358873ffde14019ed3767c255b8e02cbde1644217b1e",
+  "created_at": "2026-10-26T13:29:55+00:00",
+  "measure": "P",
+  "mjollnir_version": "0.3.0",
+  "model": "garch",
+  "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
+  "params": {
+    "alpha": 0.04999632590820727,
+    "beta": 0.8999931460069417,
+    "h0": 0.00018656413823461902,
+    "omega": 5.230844772814972e-06
+  },
+  "parent_hash": null,
+  "schema_version": 1,
+  "source": "Gaussian quasi-maximum likelihood, observed information on daily closes; drift per the policy (r - q)",
+  "window": "2021-07-06..2026-07-06"
+}

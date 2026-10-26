@@ -11,8 +11,8 @@ Gleipnir keeps only what is specific to the demos: the web app, the agents and t
 ## Demos
 
 **Counterfactual Hedging Lab.**
-Sell an option on a real S&P 500 name, priced and hedged under its Heston calibration, then run the same book through the factual world and a stressed one (volatility spike, correlation breakdown, regime shift).
-No hedge, Black-Scholes delta and Heston delta are compared on 2,048 common paths per world, with every result traceable to the parameter set that produced it.
+Sell an option on a real S&P 500 name, priced and hedged under one of six calibrated models (Heston, Black-Scholes, Merton jumps, regime switching, GARCH, rough Bergomi), then run the same book through the factual world and a stressed one (volatility spike, correlation breakdown, regime shift, jump cascade, wherever the model gives it a meaning).
+No hedge, Black-Scholes delta and the model's own delta are compared on 2,048 common paths per world, with the spot drifting at r - q, and every result traceable to the parameter set that produced it.
 
 **Calibration.**
 Fit physical-measure models (GBM, OU, Heston, rough Bergomi, Merton, GARCH, regime-switching GBM) to price history, and risk-neutral models (Heston, SABR, Dupire) to live option chains.
@@ -47,7 +47,7 @@ cd frontend && npm run lint
 | Path | Contents |
 |------|----------|
 | `backend/` | FastAPI app: lab, calibration, market-data and pricing endpoints |
-| `backend/data/lab/` | Shipped Heston calibrations for the lab (regenerate with `scripts/export_lab_paramsets.py`) |
+| `backend/data/lab/` | Shipped calibrations of every lab model for eight assets (regenerate with `scripts/export_lab_paramsets.py`) |
 | `frontend/` | React and TypeScript web app |
 | `src/gleipnir/deep_hedging/` | Hedging agents (LSTM, Transformer, POMARL), training loops, JAX rollouts, baselines |
 | `scripts/` | Research experiments, `dev.py` (the `make dev` runner) |

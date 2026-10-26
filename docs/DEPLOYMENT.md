@@ -24,7 +24,7 @@ Repository secrets: `GCP_PROJECT_ID` and `GCP_SA_KEY`.
 
 Dependencies are installed exactly from `uv.lock`, so mjollnir is the commit pinned there; moving that pin redeploys the backend.
 Only the `web` extra is installed (the API does not use torch).
-The API compiles the Hedging Lab's simulations and the Heston chain fit before it opens its port.
+The API compiles the Hedging Lab's simulations (six models at three maturities) and the Heston chain fit before it opens its port, about two minutes at 2 CPUs in Docker and roughly half that on Cloud Run with startup CPU boost.
 That work has to happen during startup: Cloud Run gives an instance full CPU only while it starts or serves a request, and a compile left in a background thread took over 7 minutes there.
 Cloud Run routes no traffic to an instance until its port is open, so during a deploy the previous revision keeps serving until the new one has compiled.
 
