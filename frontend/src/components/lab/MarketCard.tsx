@@ -1,5 +1,5 @@
 import React from 'react';
-import type { AssetInfo, HedgeResponse, LabCatalog, LabModelName } from '../../services/labApi';
+import type { HedgeResponse, LabCatalog, LabModelName } from '../../services/labApi';
 
 const short = (hash: string | null | undefined) => (hash ? hash.slice(0, 8) : '—');
 const pct = (x: number, digits = 1) => `${(x * 100).toFixed(digits)}%`;
@@ -70,25 +70,27 @@ function rows(model: LabModelName, params: Record<string, number>): Row[] {
 
 interface Props {
   catalog: LabCatalog;
-  asset: AssetInfo;
-  model: LabModelName;
-  result: HedgeResponse | null;
+  result: HedgeResponse;
 }
 
-const MarketCard: React.FC<Props> = ({ catalog, asset, model, result }) => {
-  // With a result on screen, describe the book that ran; otherwise the current setup.
-  const shownModel = result?.book.model ?? model;
-  const fit = asset.models[shownModel];
-  const info = catalog.models.find((m) => m.name === shownModel);
-  const factual = result?.factual.params ?? fit.params;
-  const shocked = result?.counterfactual?.params;
-  const drift = catalog.rate - asset.dividend_yield;
+/** The book that ran, described from the result alone (shipped or visitor calibration). */
+const MarketCard: React.FC<Props> = ({ catalog, result }) => {
+  const { book } = result;
+  const { origin } = book;
+  const info = catalog.models.find((m) => m.name === book.model);
+  const factual = result.factual.params;
+  const shocked = result.counterfactual?.params;
+  const drift = book.rate - book.dividend_yield;
+  const whose = origin.kind === 'visitor' ? 'your calibration of' : '';
   return (
     <section className="lab-panel" aria-label="Market and book">
-      <div className="lab-titlebar">Market · {asset.ticker}</div>
+      <div className="lab-titlebar">
+        Market · {book.asset}
+        {origin.kind === 'visitor' && <span className="lab-origin-badge">Your calibration</span>}
+      </div>
       <div className="lab-panel-body">
         <p className="lab-caption">
-          {info?.label} fitted to {asset.ticker}'s daily closes over {catalog.window.replace('..', ' to ')}.
+          {info?.label}, {whose} {book.asset}'s daily closes over {origin.window.replace('..', ' to ')}.
           Prices are normalized so today's spot is 100.
         </p>
         <table className="lab-params">
@@ -96,11 +98,11 @@ const MarketCard: React.FC<Props> = ({ catalog, asset, model, result }) => {
             <tr>
               <th scope="col">Parameter</th>
               <th scope="col"><span className="lab-key lab-key-factual" aria-hidden />Factual</th>
-              {shocked && <th scope="col"><span className="lab-key lab-key-counterfactual" aria-hidden />{result?.counterfactual?.label}</th>}
+              {shocked && <th scope="col"><span className="lab-key lab-key-counterfactual" aria-hidden />{result.counterfactual?.label}</th>}
             </tr>
           </thead>
           <tbody>
-            {rows(shownModel, factual).map((row) => {
+            {rows(book.model, factual).map((row) => {
               const before = row.format(factual);
               const after = shocked ? row.format(shocked) : null;
               return (
@@ -124,29 +126,30 @@ const MarketCard: React.FC<Props> = ({ catalog, asset, model, result }) => {
             </tr>
           </tbody>
         </table>
-        {fit.note && (
+        {origin.note && (
           <details className="lab-fit-note">
             <summary>About this fit</summary>
-            <p>{fit.note}</p>
+            <p>{origin.method_label}. {origin.note}</p>
           </details>
         )}
-        {result && (
-          <dl className="lab-book">
-            <div><dt>Premium received</dt><dd>{result.book.premium.toFixed(2)}</dd></div>
-            <div><dt>Implied vol</dt><dd>{pct(result.book.implied_vol)}</dd></div>
-            <div><dt>Strike</dt><dd>{result.book.strike.toFixed(0)}</dd></div>
-            <div><dt>Expiry</dt><dd>{result.book.maturity_days} trading days</dd></div>
-          </dl>
+        <dl className="lab-book">
+          <div><dt>Premium received</dt><dd>{book.premium.toFixed(2)}</dd></div>
+          <div><dt>Implied vol</dt><dd>{pct(book.implied_vol)}</dd></div>
+          <div><dt>Strike</dt><dd>{book.strike.toFixed(0)}</dd></div>
+          <div><dt>Expiry</dt><dd>{book.maturity_days} trading days</dd></div>
+        </dl>
+        <p className="lab-note">
+          Rate r {pct(book.rate, 2)}
+          {origin.kind === 'shipped' ? ` (${catalog.rate_source})` : ' (13-week Treasury bill on the day you calibrated)'};
+          dividend yield q {pct(book.dividend_yield, 2)}. Cash earns r and the shares held earn q.
+        </p>
+        {origin.historical_drift && (
+          <p className="lab-note">
+            Historical drift {signedPct(origin.historical_drift.estimate)} a year ± {pct(origin.historical_drift.std_error)}{' '}
+            (95% interval {signedPct(origin.historical_drift.ci_low)} to {signedPct(origin.historical_drift.ci_high)}).
+            Too uncertain to forecast with, so the lab never simulates it.
+          </p>
         )}
-        <p className="lab-note">
-          Rate r {pct(catalog.rate, 2)} ({catalog.rate_source}); dividend yield q {pct(asset.dividend_yield, 2)}.
-          Cash earns r and the shares held earn q.
-        </p>
-        <p className="lab-note">
-          Historical drift {signedPct(asset.historical_drift.estimate)} a year ± {pct(asset.historical_drift.std_error)}{' '}
-          (95% interval {signedPct(asset.historical_drift.ci_low)} to {signedPct(asset.historical_drift.ci_high)}).
-          Too uncertain to forecast with, so the lab never simulates it.
-        </p>
         {info?.has_rho && (
           <p className="lab-note">
             ρ is not identified by daily closes: the estimators return about 0 for every stock. Equity option
@@ -154,9 +157,9 @@ const MarketCard: React.FC<Props> = ({ catalog, asset, model, result }) => {
           </p>
         )}
         <p className="lab-provenance">
-          calibration <code>{short(fit.params_hash)}</code>
-          {result && result.book.parent_hash && <> → book <code>{short(result.book.params_hash)}</code></>}
-          {result?.counterfactual && <> → world <code>{short(result.counterfactual.params_hash)}</code></>}
+          calibration <code>{short(origin.calibration_hash)}</code>
+          {book.parent_hash && <> → book <code>{short(book.params_hash)}</code></>}
+          {result.counterfactual && <> → world <code>{short(result.counterfactual.params_hash)}</code></>}
         </p>
       </div>
     </section>

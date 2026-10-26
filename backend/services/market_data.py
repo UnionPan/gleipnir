@@ -1,6 +1,9 @@
 """Market-data boundary shared by the services: typed failures and unit conventions."""
 import logging
+import math
 from collections.abc import Mapping
+from datetime import date, timedelta
+from functools import lru_cache
 
 import yfinance as yf
 from yfinance.exceptions import YFException
@@ -41,3 +44,33 @@ def fetch_dividend_yield(ticker: str) -> float:
         logger.warning("dividend yield for %s unavailable (%s); assuming 0", ticker, exc)
         return 0.0
     return dividend_yield(info)
+
+
+@lru_cache(maxsize=4096)
+def _daily_dividend_yield(ticker: str, day: str) -> float:
+    return fetch_dividend_yield(ticker)
+
+
+def todays_dividend_yield(ticker: str) -> float:
+    """``fetch_dividend_yield``, fetched once a day per ticker."""
+    return _daily_dividend_yield(ticker.upper(), date.today().isoformat())
+
+
+@lru_cache(maxsize=16)
+def _treasury_bill_rate(day: str) -> float:
+    on = date.fromisoformat(day)
+    history = yf.Ticker("^IRX").history(start=(on - timedelta(days=10)).isoformat(),
+                                        end=(on + timedelta(days=1)).isoformat())
+    if history.empty:
+        raise ValueError(f"no ^IRX quote near {day}")
+    return math.log1p(float(history["Close"].iloc[-1]) / 100.0)
+
+
+def treasury_bill_rate(default: float) -> float:
+    """Today's 13-week Treasury bill yield (^IRX), continuously compounded and
+    fetched once a day; ``default`` (logged) when it cannot be fetched."""
+    try:
+        return _treasury_bill_rate(date.today().isoformat())
+    except FETCH_ERRORS as exc:
+        logger.warning("13-week T-bill yield unavailable (%s); using %.4f", exc, default)
+        return default

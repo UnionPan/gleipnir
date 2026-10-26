@@ -8,6 +8,8 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, Field, model_validator
 
+from backend.schemas.lab import CalibrationBundle
+
 MAX_TICKERS = 5
 MAX_HISTORY_DAYS = 3653  # 10 years
 MAX_OPTIMIZER_ITERATIONS = 500
@@ -116,6 +118,8 @@ class CalibrationResult(BaseModel):
     timestamp: str
     method: str | None = None
     measure: str | None = Field(default="P-measure")
+    lab_bundle: CalibrationBundle | None = Field(
+        None, description="The fit as the Hedging Lab takes it; null for models the lab does not run")
 
 
 # ========== Q-measure (Risk-Neutral) Calibration Schemas ==========

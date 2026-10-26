@@ -18,10 +18,12 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import time
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
+from types import MappingProxyType
 
 import numpy as np
 from mjollnir import __version__ as mjollnir_version
@@ -35,6 +37,8 @@ from mjollnir.scenarios import SCENARIO_MODELS, scenario_for
 from backend.schemas.lab import (
     AssetInfo,
     Book,
+    BookOrigin,
+    CalibrationBundle,
     DriftEstimate,
     HedgeRequest,
     HedgeResponse,
@@ -47,6 +51,7 @@ from backend.schemas.lab import (
     ScenarioInfo,
     WorldResult,
 )
+from backend.services.lab_bundle import bundle_hash, validated_world_params
 from backend.services.lab_models import LAB_MODELS
 
 logger = logging.getLogger(__name__)
@@ -158,8 +163,55 @@ def catalog() -> LabCatalog:
     )
 
 
-def _book(request: HedgeRequest) -> tuple[ParamSet, EuropeanOption]:
-    book = _calibration(request.asset, request.model)
+@dataclass(frozen=True)
+class _Source:
+    """What a book is built on: a shipped calibration or a visitor's bundle."""
+
+    asset: str
+    params: ParamSet
+    rate: float
+    dividend: float
+    origin: BookOrigin
+
+
+def _shipped(request: HedgeRequest) -> _Source:
+    entry = _asset(request.asset)
+    ps = _calibration(request.asset, request.model)
+    fit = entry["models"][request.model]["fit"]
+    origin = BookOrigin(kind="shipped", window=ps.window or _manifest()["window"], as_of=entry["state"]["as_of"],
+                        vol_today=entry["state"]["vol_today"],
+                        historical_drift=DriftEstimate(**entry["historical_drift"]),
+                        method_label=ps.source or "", note=fit.get("note"), calibration_hash=ps.content_hash())
+    return _Source(request.asset, ps, float(_manifest()["rate"]), float(entry["dividend_yield"]), origin)
+
+
+def _visitor(bundle: CalibrationBundle) -> _Source:
+    world = validated_world_params(bundle.model, bundle.parameters, bundle.derived)
+    # Built directly (not ParamSet.create): stamped with the bundle's date, so the
+    # same bundle always gives the same book hash.
+    ps = ParamSet(model=LAB_MODELS[bundle.model].world, measure="P", params=MappingProxyType(world),
+                  asset=bundle.asset, window=bundle.window, source=f"Visitor calibration: {bundle.method_label}",
+                  note=f"calibration bundle {bundle.hash}", created_at=bundle.as_of,
+                  mjollnir_version=mjollnir_version)
+    vol_today = bundle.derived.get("vol_today") or _world_vol_today(bundle.model, world)
+    origin = BookOrigin(kind="visitor", window=bundle.window, as_of=bundle.as_of, vol_today=vol_today,
+                        historical_drift=bundle.historical_drift, method_label=bundle.method_label,
+                        note=bundle.note, calibration_hash=bundle_hash(bundle.model_dump()))
+    return _Source(bundle.asset, ps, bundle.rate, bundle.dividend_yield, origin)
+
+
+def _world_vol_today(model: str, world: dict) -> float:
+    if model == "heston":
+        return math.sqrt(world["v0"])
+    if model == "rough_bergomi":
+        return math.sqrt(world["xi0"])
+    if model == "regime_switching_gbm":
+        return world[f"sigma_{int(world['regime0'])}"]
+    return world.get("sigma", float("nan"))
+
+
+def _book(request: HedgeRequest, source: _Source) -> tuple[ParamSet, EuropeanOption]:
+    book = source.params
     if request.rho is not None:
         if not _has_rho(request.model):
             raise ValueError(f"{LAB_MODELS[request.model].label} has no spot-vol correlation to assume")
@@ -230,9 +282,9 @@ def _hedger_infos(model: str, book: ParamSet, sigma: float) -> list[HedgerInfo]:
 def run_hedge(request: HedgeRequest) -> HedgeResponse:
     configure_runtime()
     started = time.perf_counter()
-    asset = _asset(request.asset)
-    rate, dividend = float(_manifest()["rate"]), float(asset["dividend_yield"])
-    book, option = _book(request)
+    source = _visitor(request.calibration) if request.calibration is not None else _shipped(request)
+    rate, dividend = source.rate, source.dividend
+    book, option = _book(request, source)
     scenario = _scenario(request, book)
     premium = model_price(option, book, SPOT0, rate=rate, dividend=dividend, dt=DT, seed=request.seed)
     sigma = implied_vol(option, premium, SPOT0, rate, dividend)
@@ -265,12 +317,13 @@ def run_hedge(request: HedgeRequest) -> HedgeResponse:
                                 shocked, shocked_results, edges, path_index)
 
     elapsed_ms = (time.perf_counter() - started) * 1000.0
-    logger.info("lab hedge %s %s %s in %.0f ms", request.asset, request.model,
+    logger.info("lab hedge %s %s (%s) %s in %.0f ms", source.asset, request.model, source.origin.kind,
                 getattr(scenario, "name", "factual"), elapsed_ms)
     rho_source = None if not _has_rho(request.model) else ("estimated" if request.rho is None else "assumed")
     return HedgeResponse(
         book=Book(
-            asset=request.asset, model=request.model, params=dict(book.params), params_hash=book.content_hash(),
+            asset=source.asset, model=request.model, origin=source.origin, params=dict(book.params),
+            params_hash=book.content_hash(),
             parent_hash=book.parent_hash, rho_source=rho_source, strike=option.strike,
             maturity_days=request.option.maturity_days, is_call=option.is_call, premium=premium,
             implied_vol=sigma, rate=rate, dividend_yield=dividend,

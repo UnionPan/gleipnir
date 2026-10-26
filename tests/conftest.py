@@ -4,6 +4,7 @@ import pytest
 
 from backend.core import compute_guard
 from backend.core.config import settings
+from backend.services import lab_bundle
 
 
 @pytest.fixture(autouse=True)
@@ -14,3 +15,11 @@ def fresh_rate_limits(monkeypatch):
         compute_guard.Rate(settings.RATE_REQUESTS_BURST, settings.RATE_REQUESTS_PER_MINUTE)))
     monkeypatch.setattr(compute_guard, "_HEAVY", compute_guard.TokenBuckets(
         compute_guard.Rate(settings.RATE_HEAVY_BURST, settings.RATE_HEAVY_PER_MINUTE)))
+
+
+@pytest.fixture(autouse=True)
+def offline_market_snapshot(monkeypatch):
+    """A fit's lab bundle records today's T-bill rate and dividend yield; tests
+    stay off the network."""
+    monkeypatch.setattr(lab_bundle, "treasury_bill_rate", lambda default: 0.041)
+    monkeypatch.setattr(lab_bundle, "todays_dividend_yield", lambda ticker: 0.012)

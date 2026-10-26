@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 LabModelName = Literal["heston", "gbm", "merton_jump", "regime_switching_gbm", "garch", "rough_bergomi"]
 ScenarioName = Literal["vol_spike", "correlation_breakdown", "regime_shift", "jump_cascade"]
@@ -25,8 +25,44 @@ class OptionSpec(BaseModel):
     maturity_days: MaturityDays = Field(21, description="Trading days to expiry")
 
 
+class DriftEstimate(BaseModel):
+    """Historical drift: educational only, never simulated (see the drift policy)."""
+
+    estimate: float = Field(..., description="Annualized drift of the window")
+    std_error: float = Field(..., description="Standard error, annualized")
+    ci_low: float = Field(..., description="Lower end of the 95% confidence interval")
+    ci_high: float = Field(..., description="Upper end of the 95% confidence interval")
+
+
+class CalibrationBundle(BaseModel):
+    """A Calibration-tab fit, carried to the lab by the visitor's browser
+    (backend.services.lab_bundle). Every value is re-validated by the lab."""
+
+    asset: str = Field(..., pattern=r"^[A-Za-z0-9.^=\-]{1,15}$")
+    model: LabModelName
+    parameters: dict[str, float]
+    derived: dict[str, float] = Field(default_factory=dict)
+    std_errors: dict[str, float] = Field(default_factory=dict)
+    historical_drift: DriftEstimate | None = None
+    window: str = Field(..., max_length=40)
+    as_of: str = Field(..., max_length=20)
+    rate: float = Field(..., ge=-0.05, le=0.25)
+    dividend_yield: float = Field(..., ge=0.0, le=0.25)
+    method_label: str = Field("", max_length=200)
+    note: str | None = Field(None, max_length=2000)
+    hash: str = Field(..., pattern=r"^[0-9a-f]{64}$")
+
+    @field_validator("parameters", "derived", "std_errors")
+    @classmethod
+    def _small(cls, value: dict[str, float]) -> dict[str, float]:
+        if len(value) > 32:
+            raise ValueError("at most 32 entries")
+        return value
+
+
 class HedgeRequest(BaseModel):
-    asset: str = Field(..., description="Ticker from GET /lab/assets")
+    asset: str | None = Field(None, description="Ticker from GET /lab/assets (or send a calibration)")
+    calibration: CalibrationBundle | None = Field(None, description="The visitor's own calibration, in place of asset")
     model: LabModelName = Field("heston", description="The model the book is priced, hedged and simulated with")
     rho: float | None = Field(
         None, ge=-0.95, le=0.0,
@@ -36,6 +72,14 @@ class HedgeRequest(BaseModel):
     option: OptionSpec = OptionSpec()
     cost_bps: float = Field(5.0, ge=0.0, le=50.0, description="Proportional trading cost")
     seed: int = Field(7, ge=0, le=2**31 - 1)
+
+    @model_validator(mode="after")
+    def _one_source(self) -> "HedgeRequest":
+        if (self.asset is None) == (self.calibration is None):
+            raise ValueError("send exactly one of asset or calibration")
+        if self.calibration is not None:
+            self.model = self.calibration.model  # a bundle fixes its model
+        return self
 
 
 class HedgerStats(BaseModel):
@@ -71,9 +115,23 @@ class WorldResult(BaseModel):
     sample_path: SamplePath
 
 
+class BookOrigin(BaseModel):
+    """Where the book's calibration came from, for the market card."""
+
+    kind: Literal["shipped", "visitor"]
+    window: str
+    as_of: str
+    vol_today: float
+    historical_drift: DriftEstimate | None
+    method_label: str
+    note: str | None
+    calibration_hash: str = Field(..., description="The shipped ParamSet's hash, or the visitor bundle's")
+
+
 class Book(BaseModel):
     asset: str
     model: LabModelName
+    origin: BookOrigin
     params: dict[str, float]
     params_hash: str
     parent_hash: str | None
@@ -108,15 +166,6 @@ class ScenarioInfo(BaseModel):
     severity_max: float
     severity_default: float
     models: list[LabModelName] = Field(..., description="Models the scenario means something for")
-
-
-class DriftEstimate(BaseModel):
-    """Historical drift: educational only, never simulated (see the drift policy)."""
-
-    estimate: float = Field(..., description="Annualized drift of the window")
-    std_error: float = Field(..., description="Standard error, annualized")
-    ci_low: float = Field(..., description="Lower end of the 95% confidence interval")
-    ci_high: float = Field(..., description="Upper end of the 95% confidence interval")
 
 
 class ModelFit(BaseModel):

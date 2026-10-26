@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { describeApiError } from './apiError';
+import type { CalibrationBundle } from './labApi';
 import { API_BASE_URL } from '../config/api.config';
 
 export interface OHLCVData {
@@ -53,6 +54,8 @@ export interface CalibrationResponse {
   model: string;
   parameters: Record<string, number>;
   diagnostics: CalibrationDiagnostics;
+  /** The fit as the Hedging Lab takes it; null for models the lab does not run. */
+  lab_bundle?: CalibrationBundle | null;
   timestamp: string;
   method?: string;
   measure?: string;

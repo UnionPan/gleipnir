@@ -4,6 +4,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend.core.compute_guard import heavy_job
+from backend.services import lab_bundle
 from backend.services.calibration_service import CalibrationService
 from backend.schemas.calibration import (
     # P-measure schemas
@@ -69,14 +70,17 @@ def calibrate_pmeasure(request: CalibrationRequest):
             )
 
             # Format result
+            diagnostics = CalibrationDiagnostics(**diagnostics).model_dump()
             result = CalibrationResult(
                 ticker=ticker,
                 model=request.model,
                 parameters=parameters,
-                diagnostics=CalibrationDiagnostics(**diagnostics),
+                diagnostics=diagnostics,
                 timestamp=datetime.now().isoformat(),
                 method=request.method,
                 measure="P-measure",
+                lab_bundle=lab_bundle.make_bundle(ticker, request.model, parameters, diagnostics,
+                                                  window=f"{dates[0]}..{dates[-1]}", as_of=dates[-1]),
             )
             results.append(result)
 

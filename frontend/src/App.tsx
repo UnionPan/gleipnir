@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './App.css';
 import HomePage from './pages/HomePage';
 import CalibrationPage from './pages/CalibrationPage';
 import HedgingLabPage from './pages/HedgingLabPage';
 import { useTheme } from './contexts/ThemeContext';
+import { BUNDLES_EVENT, unseenBundle } from './services/labBundles';
 
 type Page = 'market' | 'calibration' | 'lab';
 
@@ -38,6 +39,17 @@ const Logo = () => (
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('market');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [labHasNew, setLabHasNew] = useState(() => unseenBundle() !== null);
+
+  useEffect(() => {
+    const refresh = () => setLabHasNew(unseenBundle() !== null);
+    window.addEventListener(BUNDLES_EVENT, refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener(BUNDLES_EVENT, refresh);
+      window.removeEventListener('storage', refresh);
+    };
+  }, []);
   const { theme, toggleTheme } = useTheme();
 
   const handlePageChange = (page: Page) => {
@@ -76,6 +88,11 @@ function App() {
                 onClick={() => handlePageChange(item.id)}
               >
                 {item.label}
+                {item.id === 'lab' && labHasNew && currentPage !== 'lab' && (
+                  <span className="nav-tab-new" title="A calibration is waiting in the Hedging Lab">
+                    <span className="sr-only">(new calibration waiting)</span>
+                  </span>
+                )}
                 {currentPage === item.id && <span className="nav-tab-indicator" />}
               </button>
             ))}

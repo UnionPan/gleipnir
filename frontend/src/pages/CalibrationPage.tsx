@@ -7,6 +7,9 @@ import CalibrationResults from '../components/calibration/CalibrationResults';
 import SimulationResults from '../components/calibration/SimulationResults';
 import VolatilitySurface3D from '../components/calibration/VolatilitySurface3D';
 import { calibrationApi, CalibrationResponse, OptionChainData, QMeasureCalibrationResponse, SimulationResponse, VolSurfaceResponse } from '../services/calibrationApi';
+import type { CalibrationBundle } from '../services/labApi';
+import { saveBundle } from '../services/labBundles';
+import SavedToLab from '../components/calibration/SavedToLab';
 
 export interface Asset {
   ticker: string;
@@ -52,6 +55,8 @@ const CalibrationPage: React.FC = () => {
   const [optionChainData, setOptionChainData] = useState<OptionChainData | null>(null);
   const [calibrationResults, setCalibrationResults] = useState<CalibrationResult[]>([]);
   const [qMeasureResult, setQMeasureResult] = useState<QMeasureCalibrationResponse | null>(null);
+  const [savedBundles, setSavedBundles] = useState<CalibrationBundle[]>([]);
+  const [labStorageFailed, setLabStorageFailed] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
@@ -126,6 +131,8 @@ const CalibrationPage: React.FC = () => {
     if (fitChanged) {
       // A result on screen must belong to the model shown in the picker.
       setCalibrationResults([]);
+      setSavedBundles([]);
+      setLabStorageFailed(false);
       setQMeasureResult(null);
       setSimulationResult(null);
       setSimulationError(null);
@@ -205,6 +212,9 @@ const CalibrationPage: React.FC = () => {
         includeDrift: config.includeDrift,
       });
       setCalibrationResults(results);
+      const bundles = results.map((r) => r.lab_bundle).filter((b): b is CalibrationBundle => !!b);
+      setLabStorageFailed(!bundles.every((b) => saveBundle(b)));
+      setSavedBundles(bundles);
         if (results.length > 0) {
           setSimulationTicker(results[0].ticker);
           const match = ohlcvData.find((d) => d.ticker === results[0].ticker);
@@ -521,6 +531,7 @@ const CalibrationPage: React.FC = () => {
                   📥 Download JSON
                 </button>
               </div>
+              {measureType === 'P' && <SavedToLab bundles={savedBundles} storageFailed={labStorageFailed} />}
               {measureType === 'P' && <CalibrationResults results={calibrationResults} />}
               {measureType === 'Q' && qMeasureResult && (
                 <CalibrationResults results={[{

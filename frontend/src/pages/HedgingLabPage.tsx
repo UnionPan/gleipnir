@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './HedgingLabPage.css';
 import { useTheme } from '../contexts/ThemeContext';
 import { fetchCatalog, HedgeRequest, hedgerByRole, HedgeResponse, LabCatalog, runHedge, ScenarioName } from '../services/labApi';
+import { BUNDLES_EVENT, listBundles, markBundlesSeen, StoredBundle, unseenBundle } from '../services/labBundles';
 import LabControls, { LabConfig } from '../components/lab/LabControls';
 import MarketCard from '../components/lab/MarketCard';
 import ResultsTable from '../components/lab/ResultsTable';
@@ -9,11 +10,14 @@ import DistributionPanels from '../components/lab/DistributionPanels';
 import SamplePathPanels from '../components/lab/SamplePathPanels';
 import { readResult } from '../components/lab/insights';
 
-function initialConfig(catalog: LabCatalog): LabConfig {
+function initialConfig(catalog: LabCatalog, bundles: StoredBundle[], arrival: string | null): LabConfig {
   const severity = Object.fromEntries(catalog.scenarios.map((s) => [s.name, s.severity_default])) as Record<ScenarioName, number>;
+  // A calibration saved since the lab was last opened is what the visitor came for.
+  const fresh = bundles.find((b) => b.key === arrival);
   return {
     asset: catalog.assets[0].ticker,
-    model: 'heston',
+    bundleKey: fresh?.key ?? null,
+    model: fresh?.bundle.model ?? 'heston',
     rhoAssumed: true,
     scenario: 'vol_spike',
     severity,
@@ -25,10 +29,11 @@ function initialConfig(catalog: LabCatalog): LabConfig {
   };
 }
 
-function toRequest(config: LabConfig, catalog: LabCatalog): HedgeRequest {
+function toRequest(config: LabConfig, catalog: LabCatalog, bundles: StoredBundle[]): HedgeRequest {
   const hasRho = catalog.models.find((m) => m.name === config.model)?.has_rho ?? false;
+  const bundle = bundles.find((b) => b.key === config.bundleKey)?.bundle;
   return {
-    asset: config.asset,
+    ...(bundle ? { calibration: bundle } : { asset: config.asset }),
     model: config.model,
     rho: hasRho && config.rhoAssumed ? catalog.rho_assumption : null,
     scenario: config.scenario ? { name: config.scenario, severity: config.severity[config.scenario] } : null,
@@ -48,13 +53,26 @@ const HedgingLabPage: React.FC = () => {
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [bundles, setBundles] = useState<StoredBundle[]>(() => listBundles());
+  // Read once per visit: effects may run twice (StrictMode), and marking it seen must not lose it.
+  const [arrival] = useState<string | null>(() => unseenBundle());
   const inFlight = useRef<AbortController | null>(null);
 
-  const run = useCallback(async (cfg: LabConfig, cat: LabCatalog) => {
+  useEffect(() => {
+    const reload = () => setBundles(listBundles());
+    window.addEventListener(BUNDLES_EVENT, reload);
+    window.addEventListener('storage', reload);  // saved from another tab
+    return () => {
+      window.removeEventListener(BUNDLES_EVENT, reload);
+      window.removeEventListener('storage', reload);
+    };
+  }, []);
+
+  const run = useCallback(async (cfg: LabConfig, cat: LabCatalog, saved: StoredBundle[]) => {
     inFlight.current?.abort();
     const controller = new AbortController();
     inFlight.current = controller;
-    const request = toRequest(cfg, cat);
+    const request = toRequest(cfg, cat, saved);
     setRunning(true);
     setError(null);
     const started = performance.now();
@@ -77,21 +95,22 @@ const HedgingLabPage: React.FC = () => {
     const start = async () => {
       try {
         const cat = await fetchCatalog();
-        const cfg = initialConfig(cat);
+        const saved = listBundles();
+        const cfg = initialConfig(cat, saved, arrival);
+        markBundlesSeen();
         setCatalog(cat);
         setConfig(cfg);
-        await run(cfg, cat);
+        await run(cfg, cat, saved);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       }
     };
     void start();
     return () => inFlight.current?.abort();
-  }, [run]);
+  }, [run, arrival]);
 
   const insight = useMemo(() => (result ? readResult(result, resultScenario) : null), [result, resultScenario]);
-  const stale = !!(catalog && config && lastRun && JSON.stringify(toRequest(config, catalog)) !== lastRun);
-  const asset = catalog?.assets.find((a) => a.ticker === (result?.book.asset ?? config?.asset));
+  const stale = !!(catalog && config && lastRun && JSON.stringify(toRequest(config, catalog, bundles)) !== lastRun);
   const worldCount = config?.scenario ? 2 : 1;
 
   return (
@@ -111,8 +130,8 @@ const HedgingLabPage: React.FC = () => {
       )}
 
       {catalog && config && (
-        <LabControls catalog={catalog} config={config} onChange={setConfig}
-          onRun={() => void run(config, catalog)} running={running} stale={stale} />
+        <LabControls catalog={catalog} bundles={bundles} config={config} onChange={setConfig}
+          onRun={() => void run(config, catalog, bundles)} running={running} stale={stale} />
       )}
 
       {running && catalog && (
@@ -127,10 +146,10 @@ const HedgingLabPage: React.FC = () => {
         <p className="lab-empty">{catalog ? 'Running the first experiment…' : 'Loading calibrations…'}</p>
       )}
 
-      {result && insight && catalog && asset && (
+      {result && insight && catalog && (
         <div className={`lab-results-area ${running ? 'lab-refetching' : ''}`} aria-busy={running}>
           <div className="lab-top-grid">
-            <MarketCard catalog={catalog} asset={asset} model={result.book.model} result={result} />
+            <MarketCard catalog={catalog} result={result} />
             <ResultsTable result={result} insight={insight} />
           </div>
           <DistributionPanels result={result} theme={theme} />

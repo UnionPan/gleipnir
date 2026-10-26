@@ -67,8 +67,27 @@ export interface LabCatalog {
   rho_assumption: number;
 }
 
-export interface HedgeRequest {
+/** A Calibration-tab fit, carried to the lab by the browser (see labBundles). */
+export interface CalibrationBundle {
   asset: string;
+  model: LabModelName;
+  parameters: Record<string, number>;
+  derived: Record<string, number>;
+  std_errors: Record<string, number>;
+  historical_drift: DriftEstimate | null;
+  window: string;
+  as_of: string;
+  rate: number;
+  dividend_yield: number;
+  method_label: string;
+  note: string | null;
+  hash: string;
+}
+
+export interface HedgeRequest {
+  /** Exactly one of asset (a shipped calibration) or calibration (the visitor's). */
+  asset?: string;
+  calibration?: CalibrationBundle;
   model: LabModelName;
   rho: number | null;
   scenario: { name: ScenarioName; severity: number } | null;
@@ -109,10 +128,22 @@ export interface WorldResult {
   };
 }
 
+export interface BookOrigin {
+  kind: 'shipped' | 'visitor';
+  window: string;
+  as_of: string;
+  vol_today: number;
+  historical_drift: DriftEstimate | null;
+  method_label: string;
+  note: string | null;
+  calibration_hash: string;
+}
+
 export interface HedgeResponse {
   book: {
     asset: string;
     model: LabModelName;
+    origin: BookOrigin;
     params: Record<string, number>;
     params_hash: string;
     parent_hash: string | null;

@@ -26,6 +26,10 @@ const response = (counterfactual: WorldResult | null, maturityDays = 21, model: 
   factual: WorldResult = world('Factual', [7, 1, 1])): HedgeResponse => ({
   book: {
     asset: 'TEST', model, params: {}, params_hash: 'b', parent_hash: null, rho_source: 'assumed',
+    origin: {
+      kind: 'shipped', window: '2021..2026', as_of: '2026-01-02', vol_today: 0.3, historical_drift: null,
+      method_label: '', note: null, calibration_hash: 'c',
+    },
     strike: 100, maturity_days: maturityDays, is_call: true, premium: 4, implied_vol: 0.3, rate: 0.04,
     dividend_yield: 0.01,
   },
