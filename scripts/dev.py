@@ -173,7 +173,9 @@ def main() -> int:
     for directory in reload_dirs:
         api_command += ["--reload-dir", str(directory)]
 
-    api_env = {"WARM_UP": "background", **os.environ}  # reloads serve at once
+    # Reloads serve at once; on a GPU, allocate on demand instead of JAX's default 75% up
+    # front, so the dev API leaves the card to training jobs.
+    api_env = {"WARM_UP": "background", "XLA_PYTHON_CLIENT_PREALLOCATE": "false", **os.environ}
     web_env = {
         **os.environ,
         "PORT": str(web_port),
