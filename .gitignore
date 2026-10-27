@@ -172,8 +172,10 @@ cython_debug/
 
 .DS_Store
 
-data/price_lake/
-data/npe/
+# Anchored: without a .gcloudignore, `gcloud builds submit` filters uploads by this file and
+# read an unanchored data/npe/ as matching backend/data/npe too, dropping the shipped networks.
+/data/price_lake/
+/data/npe/
 
 # Calibration/hedging run outputs
 runs/
