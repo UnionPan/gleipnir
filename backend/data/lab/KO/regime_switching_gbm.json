@@ -1,22 +1,22 @@
 {
   "asset": "KO",
-  "content_hash": "aca79b3f99e1f5841e362711cd078e3712be96924c56218a69100a2c4db88b49",
-  "created_at": "2026-10-26T13:29:55+00:00",
+  "content_hash": "cefb5f6216b363863ecda58443d1ebaf35fdbe1d0595ca8807f4efc96e6d26a0",
+  "created_at": "2026-10-27T19:35:52+00:00",
   "measure": "P",
   "mjollnir_version": "0.3.0",
   "model": "regime_switching_gbm",
   "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
   "params": {
-    "p_00": 0.9967974379503602,
-    "p_01": 0.0032025620496397116,
-    "p_10": 1.0,
-    "p_11": 0.0,
-    "regime0": 0.0,
-    "sigma_0": 0.16180775846708131,
-    "sigma_1": 0.18008069486521983
+    "p_00": 0.973443597670193,
+    "p_01": 0.026556402329807122,
+    "p_10": 0.0749974212026476,
+    "p_11": 0.9250025787973524,
+    "regime0": 1.0,
+    "sigma_0": 0.12069440429081528,
+    "sigma_1": 0.25437011415354926
   },
   "parent_hash": null,
   "schema_version": 1,
-  "source": "Drawdown/rally thresholds, per-regime maximum likelihood on daily closes; drift per the policy (r - q)",
+  "source": "Amortized neural posterior (mixture density network), Consumer Staples sector prior (34 S&P 500 stocks) on daily closes; drift per the policy (r - q)",
   "window": "2021-07-06..2026-07-06"
 }

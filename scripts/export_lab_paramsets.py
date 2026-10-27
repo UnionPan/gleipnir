@@ -7,11 +7,13 @@ Inputs (local artifacts, not committed):
   GICS sectors (heston_qmle.parquet).
 * ``data/price_lake/prices/<TICKER>.parquet``: daily adjusted closes.
 
-Each asset is fitted with every model the lab runs, by the same estimators the
-Calibration tab uses (``backend.services.physical_fits``), and each fit is
-mapped onto its mjollnir world (``backend.services.lab_models``). The drift is
-left out: books follow the drift policy and drift at r - q. The historical
-drift is kept per asset as the educational estimate the market card shows.
+Each asset is fitted with every model the lab runs, by the Calibration tab's
+default (``backend.services.physical_fits``): the Bayesian fit under the
+asset's sector prior, whose posterior means are the book's parameters. Each
+fit is mapped onto its mjollnir world (``backend.services.lab_models``). The
+drift is left out: books follow the drift policy and drift at r - q. The
+historical drift is kept per asset as the educational estimate the market
+card shows.
 
 Rates and dividends: the 13-week Treasury bill yield (^IRX) on the window's
 last day, and each asset's dividend yield from yfinance (needs the network).
@@ -50,8 +52,6 @@ OUT = ROOT / "backend" / "data" / "lab"
 ASSETS = ["AAPL", "MSFT", "NVDA", "TSLA", "JPM", "XOM", "JNJ", "KO"]
 REALIZED_WINDOW = 21
 DT = 1.0 / 252
-METHODS = {"heston": "moments", "gbm": "mle", "merton_jump": "mle", "regime_switching_gbm": "threshold",
-           "garch": "mle", "rough_bergomi": "variogram"}
 
 
 def _closes(ticker: str, start: str, end: str) -> pd.Series:
@@ -93,7 +93,8 @@ def main() -> int:
         vol_today = float(math.sqrt(log_returns[-REALIZED_WINDOW:].var(ddof=1) / DT))
         models, drift = {}, None
         for model, lab in LAB_MODELS.items():
-            parameters, diagnostics = physical_fits.fit(model, METHODS[model], prices, dates, include_drift=False)
+            parameters, diagnostics, _ = physical_fits.fit(model, None, prices, dates, include_drift=False,
+                                                           ticker=ticker, prior="sector")
             if diagnostics.get("converged") is False:
                 raise SystemExit(f"{ticker} {model}: the fit did not converge")
             drift = diagnostics["drift"]

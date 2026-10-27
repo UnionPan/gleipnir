@@ -1,19 +1,19 @@
 {
   "asset": "JPM",
-  "content_hash": "18c2d6df84778a2af58d5b73a65b3d6528c56cc1b86255edf0da661729f950f6",
-  "created_at": "2026-10-26T13:29:50+00:00",
+  "content_hash": "2e10517a44ed2b8f452d919ed053260ee93c1e3bc11507c3ea34c9eb4face2ea",
+  "created_at": "2026-10-27T19:35:44+00:00",
   "measure": "P",
   "mjollnir_version": "0.3.0",
   "model": "rough_bergomi",
   "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
   "params": {
-    "H": 0.01000000000000477,
-    "eta": 2.341315477356383,
-    "rho": -0.0893038782837878,
+    "H": 0.05244663408967433,
+    "eta": 0.9936081362312268,
+    "rho": -0.3939169235901488,
     "xi0": 0.06278035259835145
   },
   "parent_hash": null,
   "schema_version": 1,
-  "source": "Noise-corrected log-|return| variogram, parametric bootstrap on daily closes; drift per the policy (r - q)",
+  "source": "Amortized neural posterior (mixture density network), Financials sector prior (76 S&P 500 stocks) on daily closes; drift per the policy (r - q)",
   "window": "2021-07-06..2026-07-06"
 }

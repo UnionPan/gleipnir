@@ -1,19 +1,19 @@
 {
   "asset": "NVDA",
-  "content_hash": "87968bbba1520ec35af7cd7c05588733471ad4d0c0c0267a8ad25e68d4d31e6b",
-  "created_at": "2026-10-26T13:29:42+00:00",
+  "content_hash": "fced75e63fce67ca3427870f0662c48dd3a437ea47cc48d40e1c401606af782e",
+  "created_at": "2026-10-27T19:35:36+00:00",
   "measure": "P",
   "mjollnir_version": "0.3.0",
   "model": "merton",
   "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
   "params": {
-    "lambda_j": 72.75249688009825,
-    "mu_j": -0.0005593789660690245,
-    "sigma": 0.3783630015651333,
-    "sigma_j": 0.040058412137521635
+    "lambda_j": 63.36442382441861,
+    "mu_j": 0.00319897111070794,
+    "sigma": 0.33582531910678526,
+    "sigma_j": 0.049352385288312005
   },
   "parent_hash": null,
   "schema_version": 1,
-  "source": "Maximum likelihood (multi-start), observed information on daily closes; drift per the policy (r - q)",
+  "source": "Amortized neural posterior (mixture density network), Information Technology sector prior (73 S&P 500 stocks) on daily closes; drift per the policy (r - q)",
   "window": "2021-07-06..2026-07-06"
 }

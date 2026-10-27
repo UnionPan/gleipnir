@@ -33,7 +33,8 @@ def _run(bundle, **overrides):
     return client.post("/api/v1/lab/hedge", json=body)
 
 
-@pytest.mark.parametrize(("model", "method"), [("heston", "moments"), ("garch", "mle"), ("regime_switching_gbm", "threshold")])
+@pytest.mark.parametrize(("model", "method"), [("heston", "moments"), ("garch", "mle"), ("regime_switching_gbm", "threshold"),
+                                             ("garch", "bayesian"), ("regime_switching_gbm", "bayesian")])
 def test_a_fit_runs_in_the_lab_as_the_same_book_every_time(offline, model, method):
     bundle = _bundle(model, method)
     assert bundle["rate"] == 0.041 and bundle["dividend_yield"] == 0.012 and "mu" not in bundle["parameters"]

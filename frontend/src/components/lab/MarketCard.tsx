@@ -57,6 +57,9 @@ function rows(model: LabModelName, params: Record<string, number>): Row[] {
         { key: 'omega', label: 'Long-run volatility', hint: 'sqrt(ω / (1 − α − β)), annualized', format: (p) => pct(Math.sqrt((p.omega / (1 - p.alpha - p.beta)) * DAYS_PER_YEAR)) },
         { key: 'alpha', label: 'Shock reaction α', hint: 'How much a big day raises tomorrow\'s variance', format: (p) => p.alpha.toFixed(3) },
         { key: 'beta', label: 'Shock half-life', hint: 'Persistence α + β', format: (p) => halfLife(Math.log(0.5) / Math.log(p.alpha + p.beta)) },
+        ...(params.nu === undefined ? [] : [
+          { key: 'nu', label: 'Tail index ν', hint: 'Student-t shocks: lower is fatter-tailed', format: (p: Record<string, number>) => p.nu.toFixed(1) },
+        ]),
       ];
     case 'rough_bergomi':
       return [

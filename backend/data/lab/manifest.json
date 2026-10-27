@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-10-26T13:29:57+00:00",
+  "generated_at": "2026-10-27T19:35:55+00:00",
   "window": "2021-07-06..2026-07-06",
   "rate": 0.036235493133937056,
   "rate_source": "13-week Treasury bill (^IRX) on 2026-07-06, continuously compounded",
@@ -8,7 +8,7 @@
     {
       "ticker": "AAPL",
       "sector": "Information Technology",
-      "dividend_yield": 0.003105902652958516,
+      "dividend_yield": 0.0031079136690647484,
       "state": {
         "as_of": "2026-07-06",
         "vol_today": 0.38076320462503904,
@@ -24,152 +24,141 @@
       "models": {
         "heston": {
           "file": "AAPL/heston.json",
-          "hash": "1b9c498f9ebfc99ff32b425138c87490e25a709fdae87870ee870f2c76ee069a",
+          "hash": "fbe85d5b38c154c8b4318383dd24958d86b32e879b86e56d6cbeeb5077eda227",
           "fit": {
             "parameters": {
-              "kappa": 1.1247730180037867,
-              "theta": 0.0762017400643017,
-              "xi": 0.5440070373033232,
-              "rho": -0.006743087450118789,
+              "kappa": 16.29859398826586,
+              "theta": 0.08768089350946814,
+              "xi": 1.3199318149655974,
+              "rho": -0.44210542550549187,
               "v0": 0.13833032298090142
             },
             "std_errors": {
-              "kappa": 0.2121266343873919,
-              "theta": 0.04760249664224056,
-              "xi": 0.10881572927614672,
-              "rho": 0.0034927961431065716,
-              "mu": 0.116474881464878
+              "kappa": 2.4685236245371103,
+              "theta": 0.012074661281554355,
+              "xi": 0.17324753925908587,
+              "rho": 0.13388301202583083
             },
             "derived": {
-              "long_run_vol": 0.2760466266127911,
+              "long_run_vol": 0.2961095971248959,
               "vol_today": 0.3719278464714647,
-              "half_life_days": 155.2963013027382,
-              "feller_ratio": 0.5792295879807818,
-              "variance_proxy_r2": 0.9132546993442827
+              "half_life_days": 10.717064896939071,
+              "feller_ratio": 1.640522192364146
             },
-            "note": "Moments of a 10-day realized-variance proxy, so kappa and xi come out biased: the bootstrap (200 simulated histories from this fit) measures how much. Daily closes barely identify rho; equity option markets typically imply about -0.7. v0 is the trailing 21-day realized variance."
+            "note": "v0 is the trailing 21-day realized variance. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's skewness, fat tails and roughness: the model leaves them out."
           }
         },
         "gbm": {
           "file": "AAPL/gbm.json",
-          "hash": "d88ce5ef9261937e0a16395fdbe413dd761d9e7555aee097c480deb348304ad0",
+          "hash": "b4d019870956b7929af16c4c8ece999ddce6ee76d84268eb97170eec68b12d52",
           "fit": {
             "parameters": {
-              "sigma": 0.2770654726263386
+              "sigma": 0.27723158455841157
             },
             "std_errors": {
-              "sigma": 0.005534671826523863,
-              "mu": 0.12425307433849582
+              "sigma": 0.005545185901604339
             },
             "derived": {},
-            "note": null
+            "note": "With constant volatility the posterior is available in closed form; no network is needed. Its 90% interval is exact. None of 64 histories simulated from this posterior matches the stock's skewness, fat tails, volatility clustering, leverage and volatility of volatility: the model leaves them out."
           }
         },
         "merton_jump": {
           "file": "AAPL/merton_jump.json",
-          "hash": "f09662ad84f2c0321ac0e2e86ff9423e55d48ecd474ce621c8ef62ac2fc8959f",
+          "hash": "d4603d59cc79459cf1bff7c9de272d3d091f0294bb9a3a34d095e6c05b90a508",
           "fit": {
             "parameters": {
-              "sigma": 0.13881284450933318,
-              "lambda": 182.38979445438105,
-              "mu_j": -0.0010253626509239462,
-              "sigma_j": 0.017308310604124185
+              "sigma": 0.19314839016564078,
+              "lambda": 43.00709028293926,
+              "mu_j": -0.00040453075544785423,
+              "sigma_j": 0.03220767748837486
             },
             "std_errors": {
-              "mu": 0.1219678598334816,
-              "sigma": 0.018207329485852908,
-              "lambda": 50.28260758588684,
-              "mu_j": 0.0009865377862880976,
-              "sigma_j": 0.0018163948294756692
+              "sigma": 0.015866110373426726,
+              "lambda": 21.14511453833101,
+              "mu_j": 0.004796858498819551,
+              "sigma_j": 0.006634867350950549
             },
             "derived": {
-              "jump_variance_share": 0.7399617677986149,
-              "total_vol": 0.27221437231912315
+              "jump_variance_share": 0.5139706476306627,
+              "total_vol": 0.27899333564744727
             },
-            "note": "Jumps carry 74% of the return variance, the share the data identify best. 182 jumps a year of about 1.7% each: the likelihood is describing fat daily tails with frequent small jumps, not rare crashes."
+            "note": "Jumps carry 51% of the return variance (90% interval 38-65%). No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's fat tails, volatility clustering, leverage and volatility of volatility: the model leaves them out."
           }
         },
         "regime_switching_gbm": {
           "file": "AAPL/regime_switching_gbm.json",
-          "hash": "46c19743948edcd0ac5b6d0cbb07b731453735790a9589df93310a3fe8f1f903",
+          "hash": "e5c9feede4d6e8cbb4dab4ccf91f3aaacc072b152e05d5e9f4c5ce7192fa40dd",
           "fit": {
             "parameters": {
-              "mu_regime0": -3.8848604388195898,
-              "sigma_regime0": 0.4100071418107621,
-              "p_00": 0.6666666666666666,
-              "p_01": 0.3333333333333333,
-              "p_02": 0.0,
-              "mu_regime1": 0.1100054912420928,
-              "sigma_regime1": 0.27013127116730457,
-              "p_10": 0.01331967213114754,
-              "p_11": 0.9590163934426229,
-              "p_12": 0.027663934426229508,
-              "mu_regime2": 1.0305211854744931,
-              "sigma_regime2": 0.2542745726909225,
-              "p_20": 0.0,
-              "p_21": 0.1092436974789916,
-              "p_22": 0.8907563025210085
+              "sigma_regime0": 0.20058283376129,
+              "sigma_regime1": 0.5181056942064135,
+              "p_00": 0.9829395070522019,
+              "p_01": 0.017060492947798045,
+              "p_10": 0.07275999493978363,
+              "p_11": 0.9272400050602163
             },
             "std_errors": {
-              "mu_regime0": 1.0422199654218043,
-              "sigma_regime0": 0.04642416705075923,
-              "mu_regime1": 0.13733234150603096,
-              "sigma_regime1": 0.006117268690940504,
-              "mu_regime2": 0.2610984255966445,
-              "sigma_regime2": 0.011630248247722989
+              "sigma_regime0": 0.007322948110838118,
+              "sigma_regime1": 0.03972875937059868,
+              "p_00": 0.005559080603287992,
+              "p_01": 0.005559080603287991,
+              "p_10": 0.013518392768683031,
+              "p_11": 0.013518392768683031
             },
             "derived": {
-              "regime_today": 2.0
+              "regime_today": 1.0,
+              "turbulent_probability_today": 0.9971616977453249,
+              "calm_duration_days": 58.61495345180325,
+              "turbulent_duration_days": 13.743816238959372
             },
-            "note": "Regimes 0 = Bear (39 days), 1 = Sideways (975 days), 2 = Bull (239 days). Days are labelled bear after a 20% drawdown from the 60-day high and bull after a 20% rally off the 60-day low; regimes that never occur are omitted. A regime's drift over a few weeks is mostly noise: read it with its error."
+            "note": "Regime 0 is calm and regime 1 turbulent, told apart by volatility alone; both drift at r - q in simulations. Today's regime is the filtered likelier one. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's fat tails and leverage: the model leaves them out."
           }
         },
         "garch": {
           "file": "AAPL/garch.json",
-          "hash": "fa7ca59f3e076490ee52fcb322d6dfaf5c8f1ecfe3e0fdc7d11529d0699f498f",
+          "hash": "9b90a7be8a2e205b9ea1dc3fac5485079d37a1a91de57a431ed814c5e10c2a2a",
           "fit": {
             "parameters": {
-              "omega": 1.344372982740236e-05,
-              "alpha": 0.04999267144934061,
-              "beta": 0.899983694497259
+              "omega": 8.440206231232142e-06,
+              "alpha": 0.06511681850041244,
+              "beta": 0.9146476863886432,
+              "nu": 5.0022094778777255
             },
             "std_errors": {
-              "mu": 0.0004422678445814382,
-              "omega": 5.063633726530624e-06,
-              "alpha": 0.00889360100417193,
-              "beta": 0.024356265591855237
+              "omega": 5.781124631384513e-06,
+              "alpha": 0.025583636873394242,
+              "beta": 0.03770237971075101,
+              "nu": 0.7633223541476867
             },
             "derived": {
-              "long_run_vol": 0.2602390944782584,
-              "vol_today": 0.348146184070142,
-              "persistence": 0.9499763659465996,
-              "half_life_days": 13.506856242035422
+              "long_run_vol": 0.3242051297118935,
+              "vol_today": 0.38563822319726376,
+              "persistence": 0.9797645048890556,
+              "half_life_days": 33.906271824288346
             },
-            "note": "Parameters are per day. Long-run volatility 26.0% a year; a variance shock halves in 14 trading days (persistence 0.950)."
+            "note": "Parameters are per day. The history says little about persistence: its interval is mostly the prior's. None of 64 histories simulated from this posterior matches the stock's leverage: the model leaves it out."
           }
         },
         "rough_bergomi": {
           "file": "AAPL/rough_bergomi.json",
-          "hash": "d8cf39b471ce65d027a88ce1400a8779a6b2310204cd7da18076d47562534f60",
+          "hash": "16cd9a01faa3e7d1090e9fbd52df5d384adaa058ebabee4d3e9551ff8f5877be",
           "fit": {
             "parameters": {
-              "xi0": 0.13833032298090142,
-              "eta": 1.5639981802991665,
-              "rho": -0.08906488066280498,
-              "H": 0.3359997285334091
+              "H": 0.0685280382813582,
+              "eta": 0.9908566103310961,
+              "rho": -0.38194441577734684,
+              "xi0": 0.13833032298090142
             },
             "std_errors": {
-              "H": 0.20535055833955757,
-              "eta": 0.5841827606772348,
-              "rho": 0.029312359199926395,
-              "xi0": 0.20344519062209518,
-              "mu": 0.14595999483741934
+              "H": 0.019432034966145324,
+              "eta": 0.0948655074216936,
+              "rho": 0.14350149040559568
             },
             "derived": {
               "vol_today": 0.3719278464714647,
-              "noise_floor": 2.4530821619064334
+              "window_vol": 0.3413230831533538
             },
-            "note": "H and eta come from how fast log|returns| decorrelate across lags, above a noise floor (pi^2/4 for Gaussian shocks; fitted here). Daily closes barely identify roughness: the bootstrap spread of H says how little. The rho proxy is strongly attenuated toward 0 (in simulations a true -0.7 reads as about -0.1). xi0 is the trailing 21-day realized variance."
+            "note": "xi0 is the trailing 21-day realized variance; the posterior's variance level is the window's average. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's leverage: the model leaves it out."
           }
         }
       }
@@ -177,7 +166,7 @@
     {
       "ticker": "MSFT",
       "sector": "Information Technology",
-      "dividend_yield": 0.0074736420659281995,
+      "dividend_yield": 0.007362746755320148,
       "state": {
         "as_of": "2026-07-06",
         "vol_today": 0.3892702363731534,
@@ -193,152 +182,141 @@
       "models": {
         "heston": {
           "file": "MSFT/heston.json",
-          "hash": "9ffd64a7d8b8433d3a69d86f689142efb21b9e1d48f00a82847eb62e371ab678",
+          "hash": "b81325d85922aa2d036aa984e493a5bcd518f284319a9447e2f65d0425db464a",
           "fit": {
             "parameters": {
-              "kappa": 1.6645698606876715,
-              "theta": 0.07266679262460124,
-              "xi": 0.44621953230594313,
-              "rho": -0.003418081287408843,
+              "kappa": 13.370081908723323,
+              "theta": 0.08283082522815532,
+              "xi": 1.1333662411976286,
+              "rho": -0.24452306173861127,
               "v0": 0.1528688865248667
             },
             "std_errors": {
-              "kappa": 0.23327575715067855,
-              "theta": 0.028305626112395385,
-              "xi": 0.06950141744391401,
-              "rho": 0.002922736838364291,
-              "mu": 0.11399269445572249
+              "kappa": 2.40057981416489,
+              "theta": 0.011940398405449233,
+              "xi": 0.15631636338245125,
+              "rho": 0.13347974924114736
             },
             "derived": {
-              "long_run_vol": 0.26956778855160207,
+              "long_run_vol": 0.287803448951112,
               "vol_today": 0.3909845093157358,
-              "half_life_days": 104.93587179870288,
-              "feller_ratio": 1.2149848450659853,
-              "variance_proxy_r2": 0.8744316965749208
+              "half_life_days": 13.064474151586206,
+              "feller_ratio": 1.724310634935213
             },
-            "note": "Moments of a 10-day realized-variance proxy, so kappa and xi come out biased: the bootstrap (200 simulated histories from this fit) measures how much. Daily closes barely identify rho; equity option markets typically imply about -0.7. v0 is the trailing 21-day realized variance."
+            "note": "v0 is the trailing 21-day realized variance. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's volatility clustering: the model leaves it out."
           }
         },
         "gbm": {
           "file": "MSFT/gbm.json",
-          "hash": "c1358d8116a91d1537bc5c86e84686e0693c7c3415b7761d1282ea4a0629fb32",
+          "hash": "767917dd14897dfaa09248224f628356b6f7f93cbe21b88fc0b5ecf164a87578",
           "fit": {
             "parameters": {
-              "sigma": 0.2700586964430376
+              "sigma": 0.27022060753002375
             },
             "std_errors": {
-              "sigma": 0.005394704163397628,
-              "mu": 0.12111080809462123
+              "sigma": 0.005404952345472029
             },
             "derived": {},
-            "note": null
+            "note": "With constant volatility the posterior is available in closed form; no network is needed. Its 90% interval is exact. None of 64 histories simulated from this posterior matches the stock's fat tails, volatility clustering and volatility of volatility: the model leaves them out."
           }
         },
         "merton_jump": {
           "file": "MSFT/merton_jump.json",
-          "hash": "5fc385a1c703cd1acb47a56082da388c4e0bc733b252fbff4b939a11fbb10bb7",
+          "hash": "4247acbfbf2684fb427a3b73f34b3707a077ea64de3b3d647befaa5ca971bd2e",
           "fit": {
             "parameters": {
-              "sigma": 0.14660007401318131,
-              "lambda": 181.95356330149778,
-              "mu_j": -0.0013120230069377304,
-              "sigma_j": 0.01649943141818467
+              "sigma": 0.17399554155007552,
+              "lambda": 74.01070268343123,
+              "mu_j": -0.0013024584031018059,
+              "sigma_j": 0.02533600713761628
             },
             "std_errors": {
-              "mu": 0.11965188755418339,
-              "sigma": 0.021874500797125652,
-              "lambda": 64.226192587883,
-              "mu_j": 0.0010722111398455989,
-              "sigma_j": 0.0020624328897364736
+              "sigma": 0.01750476968993565,
+              "lambda": 31.30692984936314,
+              "mu_j": 0.003164531384820782,
+              "sigma_j": 0.004240695022318787
             },
             "derived": {
-              "jump_variance_share": 0.6987368709895687,
-              "total_vol": 0.2670921956860251
+              "jump_variance_share": 0.5857455675471149,
+              "total_vol": 0.27267981773367755
             },
-            "note": "Jumps carry 70% of the return variance, the share the data identify best. 182 jumps a year of about 1.6% each: the likelihood is describing fat daily tails with frequent small jumps, not rare crashes."
+            "note": "Jumps carry 59% of the return variance (90% interval 42-72%). No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's volatility clustering and volatility of volatility: the model leaves them out."
           }
         },
         "regime_switching_gbm": {
           "file": "MSFT/regime_switching_gbm.json",
-          "hash": "a4585428a640fe9cce3f6860eadc5589c637e22eac0c55ed6a51081914ef64cf",
+          "hash": "aff4e700f7be94283bdd9ec19bb80841528a7bc9f1e08e7600357f04e4fd15a8",
           "fit": {
             "parameters": {
-              "mu_regime0": -2.5592489788752526,
-              "sigma_regime0": 0.3787657851521397,
-              "p_00": 0.7346938775510204,
-              "p_01": 0.2653061224489796,
-              "p_02": 0.0,
-              "mu_regime1": 0.006341122443485947,
-              "sigma_regime1": 0.2674610449274975,
-              "p_10": 0.012896825396825396,
-              "p_11": 0.9632936507936508,
-              "p_12": 0.023809523809523808,
-              "mu_regime2": 1.0985272667456258,
-              "sigma_regime2": 0.2287662904152073,
-              "p_20": 0.0,
-              "p_21": 0.12244897959183673,
-              "p_22": 0.8775510204081632
+              "sigma_regime0": 0.17970725310571128,
+              "sigma_regime1": 0.4079509441211666,
+              "p_00": 0.971384783295258,
+              "p_01": 0.028615216704741972,
+              "p_10": 0.06476028585053221,
+              "p_11": 0.9352397141494677
             },
             "std_errors": {
-              "mu_regime0": 0.8589600622737281,
-              "sigma_regime0": 0.03826112216607499,
-              "mu_regime1": 0.13373052246374875,
-              "sigma_regime1": 0.00595683091920981,
-              "mu_regime2": 0.259396591197179,
-              "sigma_regime2": 0.011554442518534583
+              "sigma_regime0": 0.007745416163271017,
+              "sigma_regime1": 0.023522896853957594,
+              "p_00": 0.00960097549401184,
+              "p_01": 0.00960097549401184,
+              "p_10": 0.013736146279157858,
+              "p_11": 0.013736146279157858
             },
             "derived": {
-              "regime_today": 1.0
+              "regime_today": 1.0,
+              "turbulent_probability_today": 0.8887692221719421,
+              "calm_duration_days": 34.94644161944386,
+              "turbulent_duration_days": 15.441562477164108
             },
-            "note": "Regimes 0 = Bear (49 days), 1 = Sideways (1008 days), 2 = Bull (196 days). Days are labelled bear after a 20% drawdown from the 60-day high and bull after a 20% rally off the 60-day low; regimes that never occur are omitted. A regime's drift over a few weeks is mostly noise: read it with its error."
+            "note": "Regime 0 is calm and regime 1 turbulent, told apart by volatility alone; both drift at r - q in simulations. Today's regime is the filtered likelier one. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's volatility clustering: the model leaves it out."
           }
         },
         "garch": {
           "file": "MSFT/garch.json",
-          "hash": "17d08751e254636215c83f19528b3ef53516f00c204c5fbecb4eb2c97341d024",
+          "hash": "410eed61d1a2ae9521922c506e57d4e78893cf69b1a3bc3493961de497e29c41",
           "fit": {
             "parameters": {
-              "omega": 1.358434426165922e-05,
-              "alpha": 0.04999204857188346,
-              "beta": 0.8999837571747415
+              "omega": 2.3868829608747326e-06,
+              "alpha": 0.03443489976006818,
+              "beta": 0.960901833566719,
+              "nu": 4.604651384319064
             },
             "std_errors": {
-              "mu": 0.0004419415271184491,
-              "omega": 1.3029992595526865e-05,
-              "alpha": 0.01885942979413823,
-              "beta": 0.06649179887203532
+              "omega": 2.0754378556840327e-06,
+              "alpha": 0.011973915352364348,
+              "beta": 0.015049031405152196,
+              "nu": 0.6210408842965844
             },
             "derived": {
-              "long_run_vol": 0.2615950723247645,
-              "vol_today": 0.34633236792928906,
-              "persistence": 0.949975805746625,
-              "half_life_days": 13.506701036032089
+              "long_run_vol": 0.3591457294319501,
+              "vol_today": 0.37530233264728297,
+              "persistence": 0.9953367333267872,
+              "half_life_days": 148.29298963750617
             },
-            "note": "Parameters are per day. Long-run volatility 26.2% a year; a variance shock halves in 14 trading days (persistence 0.950)."
+            "note": "Parameters are per day. No parameter is left mostly to the prior."
           }
         },
         "rough_bergomi": {
           "file": "MSFT/rough_bergomi.json",
-          "hash": "0290d9857954878fdaa3d12cf669a236b7e2f28970809e788c10009b26cb9cf4",
+          "hash": "18fa2f0738483ac083799b4f64452c792e13db5e23417a1128986525ec4e519f",
           "fit": {
             "parameters": {
-              "xi0": 0.1528688865248667,
-              "eta": 1.2112825408454386,
-              "rho": -0.059757544281501214,
-              "H": 0.22847712416468588
+              "H": 0.04888478617369736,
+              "eta": 0.9693990219866404,
+              "rho": -0.22604436269603412,
+              "xi0": 0.1528688865248667
             },
             "std_errors": {
-              "H": 0.20291533980805834,
-              "eta": 0.6102720247686562,
-              "rho": 0.029734790472514462,
-              "xi0": 0.3232358070898923,
-              "mu": 0.1531006195523579
+              "H": 0.012423309403231279,
+              "eta": 0.08508151488494162,
+              "rho": 0.12659144602650887
             },
             "derived": {
               "vol_today": 0.3909845093157358,
-              "noise_floor": 2.5973653418802476
+              "window_vol": 0.33161926995830243
             },
-            "note": "H and eta come from how fast log|returns| decorrelate across lags, above a noise floor (pi^2/4 for Gaussian shocks; fitted here). Daily closes barely identify roughness: the bootstrap spread of H says how little. The rho proxy is strongly attenuated toward 0 (in simulations a true -0.7 reads as about -0.1). xi0 is the trailing 21-day realized variance."
+            "note": "xi0 is the trailing 21-day realized variance; the posterior's variance level is the window's average. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's volatility clustering: the model leaves it out."
           }
         }
       }
@@ -346,7 +324,7 @@
     {
       "ticker": "NVDA",
       "sector": "Information Technology",
-      "dividend_yield": 0.004740235115661737,
+      "dividend_yield": 0.004588734656418492,
       "state": {
         "as_of": "2026-07-06",
         "vol_today": 0.41479702157557924,
@@ -362,152 +340,141 @@
       "models": {
         "heston": {
           "file": "NVDA/heston.json",
-          "hash": "b123fb25506f19d4e0f63339ac02b55a4feb1d4935342638e89244b3a9489713",
+          "hash": "1478e5a7f5cbe7ec1d029407692914da4e4181ea174d119e121a51ebdeb8bb56",
           "fit": {
             "parameters": {
-              "kappa": 1.873691211287235,
-              "theta": 0.26624642529341935,
-              "xi": 0.8859821756333418,
-              "rho": -0.011557673859555221,
+              "kappa": 12.839130715289357,
+              "theta": 0.26463317510993983,
+              "xi": 1.7748990344986115,
+              "rho": -0.21723194326573805,
               "v0": 0.17398235626564396
             },
             "std_errors": {
-              "kappa": 0.22896289518804147,
-              "theta": 0.09710236443436172,
-              "xi": 0.12784734035185982,
-              "rho": 0.005571881440658563,
-              "mu": 0.21893902114661304
+              "kappa": 2.5650898814375895,
+              "theta": 0.03586626053256645,
+              "xi": 0.23486164644253682,
+              "rho": 0.12774406962355198
             },
             "derived": {
-              "long_run_vol": 0.5159907221001356,
+              "long_run_vol": 0.5144250918354779,
               "vol_today": 0.41711192294831845,
-              "half_life_days": 93.22405338129592,
-              "feller_ratio": 1.2710476481045243,
-              "variance_proxy_r2": 0.8616189347946336
+              "half_life_days": 13.604744228758292,
+              "feller_ratio": 2.157061847105814
             },
-            "note": "Moments of a 10-day realized-variance proxy, so kappa and xi come out biased: the bootstrap (200 simulated histories from this fit) measures how much. Daily closes barely identify rho; equity option markets typically imply about -0.7. v0 is the trailing 21-day realized variance."
+            "note": "v0 is the trailing 21-day realized variance. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's fat tails: the model leaves it out."
           }
         },
         "gbm": {
           "file": "NVDA/gbm.json",
-          "hash": "ee04beb35de93718a02beea21028412d52f60460281c98c2eceda7db218a1e23",
+          "hash": "303fca06b20aec302ef7965ad6cc63d99ec1815a9f09ccac60e35b4a6472e700",
           "fit": {
             "parameters": {
-              "sigma": 0.5143051669306025
+              "sigma": 0.5146135136334382
             },
             "std_errors": {
-              "sigma": 0.010273782188246074,
-              "mu": 0.23064583808854483
+              "sigma": 0.010293299030559595
             },
             "derived": {},
-            "note": null
+            "note": "With constant volatility the posterior is available in closed form; no network is needed. Its 90% interval is exact. None of 64 histories simulated from this posterior matches the stock's skewness, fat tails, volatility clustering and volatility of volatility: the model leaves them out."
           }
         },
         "merton_jump": {
           "file": "NVDA/merton_jump.json",
-          "hash": "87968bbba1520ec35af7cd7c05588733471ad4d0c0c0267a8ad25e68d4d31e6b",
+          "hash": "fced75e63fce67ca3427870f0662c48dd3a437ea47cc48d40e1c401606af782e",
           "fit": {
             "parameters": {
-              "sigma": 0.3783630015651333,
-              "lambda": 72.75249688009825,
-              "mu_j": -0.0005593789660690245,
-              "sigma_j": 0.040058412137521635
+              "sigma": 0.33582531910678526,
+              "lambda": 63.36442382441861,
+              "mu_j": 0.00319897111070794,
+              "sigma_j": 0.049352385288312005
             },
             "std_errors": {
-              "mu": 0.22876275195432438,
-              "sigma": 0.04645809644252548,
-              "lambda": 57.508874015091806,
-              "mu_j": 0.003540893644483927,
-              "sigma_j": 0.010729559222112177
+              "sigma": 0.061056220549652984,
+              "lambda": 35.82280847894643,
+              "mu_j": 0.00623627866341346,
+              "sigma_j": 0.012425581405199228
             },
             "derived": {
-              "jump_variance_share": 0.4492324169255444,
-              "total_vol": 0.5098289312182696
+              "jump_variance_share": 0.5306424192019615,
+              "total_vol": 0.4944711510169365
             },
-            "note": "Jumps carry 45% of the return variance, the share the data identify best. 73 jumps a year of about 4.0% each: the likelihood is describing fat daily tails with frequent small jumps, not rare crashes."
+            "note": "Jumps carry 53% of the return variance (90% interval 33-76%). The history says little about lambda: its interval is mostly the prior's. None of 64 histories simulated from this posterior matches the stock's volatility clustering and leverage: the model leaves them out."
           }
         },
         "regime_switching_gbm": {
           "file": "NVDA/regime_switching_gbm.json",
-          "hash": "d096edc9e22955a3dfd21668dea37b779d4c1386e8b46e47dd5cc43572095a28",
+          "hash": "3628803c211ad816bc2fdd954705c08e5cb42712cdec769f4af4bc63b52a9021",
           "fit": {
             "parameters": {
-              "mu_regime0": -1.6424371387157062,
-              "sigma_regime0": 0.6911524543402945,
-              "p_00": 0.926605504587156,
-              "p_01": 0.03669724770642202,
-              "p_02": 0.03669724770642202,
-              "mu_regime1": -0.12662579949651417,
-              "sigma_regime1": 0.4032673467992823,
-              "p_10": 0.01907356948228883,
-              "p_11": 0.9237057220708447,
-              "p_12": 0.05722070844686648,
-              "mu_regime2": 1.4526852807147885,
-              "sigma_regime2": 0.49137958282900085,
-              "p_20": 0.01347305389221557,
-              "p_21": 0.029940119760479042,
-              "p_22": 0.9565868263473054
+              "sigma_regime0": 0.3520658812602502,
+              "sigma_regime1": 0.7529571362579455,
+              "p_00": 0.9733023868029214,
+              "p_01": 0.02669761319707864,
+              "p_10": 0.06117604110739591,
+              "p_11": 0.9388239588926041
             },
             "std_errors": {
-              "mu_regime0": 0.7430976333775735,
-              "sigma_regime0": 0.03310019939311228,
-              "mu_regime1": 0.334164488835103,
-              "sigma_regime1": 0.014884869381516683,
-              "mu_regime2": 0.30180688742409684,
-              "sigma_regime2": 0.013443547258447895
+              "sigma_regime0": 0.014653271499583271,
+              "sigma_regime1": 0.04186445195005463,
+              "p_00": 0.008619669763119875,
+              "p_01": 0.008619669763119875,
+              "p_10": 0.01326971342681172,
+              "p_11": 0.01326971342681172
             },
             "derived": {
-              "regime_today": 1.0
+              "regime_today": 0.0,
+              "turbulent_probability_today": 0.038241655674660445,
+              "calm_duration_days": 37.456531886132204,
+              "turbulent_duration_days": 16.346268602842045
             },
-            "note": "Regimes 0 = Bear (218 days), 1 = Sideways (367 days), 2 = Bull (668 days). Days are labelled bear after a 20% drawdown from the 60-day high and bull after a 20% rally off the 60-day low; regimes that never occur are omitted. A regime's drift over a few weeks is mostly noise: read it with its error."
+            "note": "Regime 0 is calm and regime 1 turbulent, told apart by volatility alone; both drift at r - q in simulations. Today's regime is the filtered likelier one. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's fat tails and volatility clustering: the model leaves them out."
           }
         },
         "garch": {
           "file": "NVDA/garch.json",
-          "hash": "027a3177277a5d761f70848abbc3bff4c9ebd8b56c5a5c2a3d160cf5c6e0bbe0",
+          "hash": "8ab9b4fca6d3cc1b87b8d2c36882b12a8a998a227976c0941f441f7889e9332c",
           "fit": {
             "parameters": {
-              "omega": 3.656900763315613e-05,
-              "alpha": 0.05748606501559519,
-              "beta": 0.909740627319873
+              "omega": 9.50011871294315e-06,
+              "alpha": 0.04010607154700302,
+              "beta": 0.9514560690061733,
+              "nu": 5.564521640911469
             },
             "std_errors": {
-              "mu": 0.0008544413582809946,
-              "omega": 1.3710889144773388e-05,
-              "alpha": 0.017921813252925863,
-              "beta": 0.026407560219524354
+              "omega": 7.256863743838981e-06,
+              "alpha": 0.013642799671389969,
+              "beta": 0.018181943214211092,
+              "nu": 0.8336342679073624
             },
             "derived": {
-              "long_run_vol": 0.5302695883108811,
-              "vol_today": 0.4384689822554031,
-              "persistence": 0.9672266923354682,
-              "half_life_days": 20.801249129848024
+              "long_run_vol": 0.5326582317993165,
+              "vol_today": 0.42149627432761444,
+              "persistence": 0.9915621405531763,
+              "half_life_days": 81.80021434298796
             },
-            "note": "Parameters are per day. Long-run volatility 53.0% a year; a variance shock halves in 21 trading days (persistence 0.967)."
+            "note": "Parameters are per day. No parameter is left mostly to the prior."
           }
         },
         "rough_bergomi": {
           "file": "NVDA/rough_bergomi.json",
-          "hash": "960be77a0334d324c6196f3e3bcffb8c0cdee11b6b4a81ef26aa2b1e5c4a00f3",
+          "hash": "de6b69c6090c7659114be107cd55a067b9f90ee8821e150daea851039dde7b16",
           "fit": {
             "parameters": {
-              "xi0": 0.17398235626564396,
-              "eta": 1.1060114782213295e-05,
-              "rho": -0.024210622743636674,
-              "H": 0.3054498927311078
+              "H": 0.06239689442514607,
+              "eta": 0.8921148466476563,
+              "rho": -0.27855095838051225,
+              "xi0": 0.17398235626564396
             },
             "std_errors": {
-              "H": 0.22822233159288877,
-              "eta": 0.6115133212660989,
-              "rho": 0.02987974850529856,
-              "xi0": 0.047982773664684356,
-              "mu": 0.16457403069052504
+              "H": 0.01876066844499654,
+              "eta": 0.08892688338578382,
+              "rho": 0.12672787714185085
             },
             "derived": {
               "vol_today": 0.41711192294831845,
-              "noise_floor": 2.3706101488355054
+              "window_vol": 0.4757637006808271
             },
-            "note": "H and eta come from how fast log|returns| decorrelate across lags, above a noise floor (pi^2/4 for Gaussian shocks; fitted here). Daily closes barely identify roughness: the bootstrap spread of H says how little. The rho proxy is strongly attenuated toward 0 (in simulations a true -0.7 reads as about -0.1). xi0 is the trailing 21-day realized variance."
+            "note": "xi0 is the trailing 21-day realized variance; the posterior's variance level is the window's average. No parameter is left mostly to the prior."
           }
         }
       }
@@ -531,152 +498,141 @@
       "models": {
         "heston": {
           "file": "TSLA/heston.json",
-          "hash": "acf573badfa7c189fb4c5eeae6476233fcce1e29559952012896ab1d25e13f4d",
+          "hash": "47c9c48e0154f3fc8f3f046e659dc9b76d1fb9c445d971ec2fbb3a6eee24165a",
           "fit": {
             "parameters": {
-              "kappa": 1.932782229728237,
-              "theta": 0.34839049196085625,
-              "xi": 0.9024490212046231,
-              "rho": 0.0009593910895567849,
+              "kappa": 12.628259627364637,
+              "theta": 0.3477554826575414,
+              "xi": 1.9607261890678256,
+              "rho": -0.25974850246941417,
               "v0": 0.3574713817532063
             },
             "std_errors": {
-              "kappa": 0.24914714069287858,
-              "theta": 0.1109687575428671,
-              "xi": 0.12535512123667922,
-              "rho": 0.006021195268273099,
-              "mu": 0.2503442004998276
+              "kappa": 2.686252075997926,
+              "theta": 0.04074615769470393,
+              "xi": 0.30568054640164044,
+              "rho": 0.12215796819947083
             },
             "derived": {
-              "long_run_vol": 0.5902461282895943,
+              "long_run_vol": 0.5897079638749517,
               "vol_today": 0.5978891048958881,
-              "half_life_days": 90.37391114966248,
-              "feller_ratio": 1.6536129213072228,
-              "variance_proxy_r2": 0.858243372989008
+              "half_life_days": 13.831920997458806,
+              "feller_ratio": 2.2846179471418178
             },
-            "note": "Moments of a 10-day realized-variance proxy, so kappa and xi come out biased: the bootstrap (200 simulated histories from this fit) measures how much. Daily closes barely identify rho; equity option markets typically imply about -0.7. v0 is the trailing 21-day realized variance."
+            "note": "v0 is the trailing 21-day realized variance. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's volatility clustering and roughness: the model leaves them out."
           }
         },
         "gbm": {
           "file": "TSLA/gbm.json",
-          "hash": "0f58146e064f7cf4f97c6f28b6dc100e9a0b03be486628d5512378f4663dbbe5",
+          "hash": "a83282388414120c1742fe4db9d69ae2f440d6ea9f2f6d50320350f0ea0f5b5a",
           "fit": {
             "parameters": {
-              "sigma": 0.5905274663088543
+              "sigma": 0.5908815113561887
             },
             "std_errors": {
-              "sigma": 0.01179640212685756,
-              "mu": 0.26482857093187456
+              "sigma": 0.01181881145148032
             },
             "derived": {},
-            "note": null
+            "note": "With constant volatility the posterior is available in closed form; no network is needed. Its 90% interval is exact. None of 64 histories simulated from this posterior matches the stock's fat tails, leverage, volatility of volatility and roughness: the model leaves them out."
           }
         },
         "merton_jump": {
           "file": "TSLA/merton_jump.json",
-          "hash": "defcf9426dc76e30e73d8c23097c958e25908cbeaffdf8e721725c209d07872e",
+          "hash": "a392f149b35b72ecaa9b699dbe9c0ee24a3cfd3f49e4caaffaf34b3ac7a1d617",
           "fit": {
             "parameters": {
-              "sigma": 0.4219257569369063,
-              "lambda": 83.06464515867893,
-              "mu_j": -0.0026089132707763237,
-              "sigma_j": 0.04498966480166171
+              "sigma": 0.3674432893049003,
+              "lambda": 99.07506591204574,
+              "mu_j": -0.0007390967128736268,
+              "sigma_j": 0.04635326201985886
             },
             "std_errors": {
-              "mu": 0.26388835050270537,
-              "sigma": 0.046611842655915774,
-              "lambda": 52.51351033261841,
-              "mu_j": 0.003839295348157105,
-              "sigma_j": 0.009853702766863596
+              "sigma": 0.04069488524906287,
+              "lambda": 34.44473178985959,
+              "mu_j": 0.004543373605627694,
+              "sigma_j": 0.0071006993689880825
             },
             "derived": {
-              "jump_variance_share": 0.4865490249715222,
-              "total_vol": 0.5888254148622462
+              "jump_variance_share": 0.5920547934782736,
+              "total_vol": 0.5795239838615669
             },
-            "note": "Jumps carry 49% of the return variance, the share the data identify best. 83 jumps a year of about 4.5% each: the likelihood is describing fat daily tails with frequent small jumps, not rare crashes."
+            "note": "Jumps carry 59% of the return variance (90% interval 43-72%). No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's leverage and volatility of volatility: the model leaves them out."
           }
         },
         "regime_switching_gbm": {
           "file": "TSLA/regime_switching_gbm.json",
-          "hash": "2b7d9103ffe159c626c86f5a1a35f79ea155923a8240eb134856aa88f75163ee",
+          "hash": "17a80ca0fa1d9a6efcedc4e6ad0e9506db6fc9b282f22c7aab40ec14da250e80",
           "fit": {
             "parameters": {
-              "mu_regime0": -1.6358873207412539,
-              "sigma_regime0": 0.7035912702585777,
-              "p_00": 0.935064935064935,
-              "p_01": 0.03116883116883117,
-              "p_02": 0.033766233766233764,
-              "mu_regime1": -0.35847157180302136,
-              "sigma_regime1": 0.42759712657457066,
-              "p_10": 0.046153846153846156,
-              "p_11": 0.8692307692307693,
-              "p_12": 0.08461538461538462,
-              "mu_regime2": 1.4303847269905907,
-              "sigma_regime2": 0.5595662454749794,
-              "p_20": 0.02138157894736842,
-              "p_21": 0.03618421052631579,
-              "p_22": 0.9424342105263158
+              "sigma_regime0": 0.4119131379353375,
+              "sigma_regime1": 0.8213555660195939,
+              "p_00": 0.9672786593618388,
+              "p_01": 0.03272134063816126,
+              "p_10": 0.06131434357506198,
+              "p_11": 0.938685656424938
             },
             "std_errors": {
-              "mu_regime0": 0.5692333651664051,
-              "sigma_regime0": 0.025355669352060333,
-              "mu_regime1": 0.4209673122200318,
-              "sigma_regime1": 0.0187513744447435,
-              "mu_regime2": 0.36024668205604166,
-              "sigma_regime2": 0.01604666260685466
+              "sigma_regime0": 0.01945273648557789,
+              "sigma_regime1": 0.047856437731489704,
+              "p_00": 0.011416078764572967,
+              "p_01": 0.011416078764572967,
+              "p_10": 0.014402475419316803,
+              "p_11": 0.014402475419316801
             },
             "derived": {
-              "regime_today": 1.0
+              "regime_today": 1.0,
+              "turbulent_probability_today": 0.8975932596200421,
+              "calm_duration_days": 30.56109500702273,
+              "turbulent_duration_days": 16.309397470361635
             },
-            "note": "Regimes 0 = Bear (385 days), 1 = Sideways (260 days), 2 = Bull (608 days). Days are labelled bear after a 20% drawdown from the 60-day high and bull after a 20% rally off the 60-day low; regimes that never occur are omitted. A regime's drift over a few weeks is mostly noise: read it with its error."
+            "note": "Regime 0 is calm and regime 1 turbulent, told apart by volatility alone; both drift at r - q in simulations. Today's regime is the filtered likelier one. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's fat tails and volatility clustering: the model leaves them out."
           }
         },
         "garch": {
           "file": "TSLA/garch.json",
-          "hash": "e098b0fbbdc0a6a8193c8e2c30558d767e50b738db550466335685b8338ce1c6",
+          "hash": "d0393f75edac54cb7ee0dd9e0a439a5fdeeb4691969c5d513eb5268369c8a943",
           "fit": {
             "parameters": {
-              "omega": 4.792210764693278e-05,
-              "alpha": 0.056799245634143646,
-              "beta": 0.9118561905355133
+              "omega": 9.899695374859048e-06,
+              "alpha": 0.03103613094115723,
+              "beta": 0.9617579911992007,
+              "nu": 5.300474862544889
             },
             "std_errors": {
-              "mu": 0.0009994917807058215,
-              "omega": 2.5370732764788272e-05,
-              "alpha": 0.017361988240076152,
-              "beta": 0.030893176978731403
+              "omega": 9.369584459622687e-06,
+              "alpha": 0.010646154779310489,
+              "beta": 0.015126507232890798,
+              "nu": 0.7687796266810136
             },
             "derived": {
-              "long_run_vol": 0.62070766743271,
-              "vol_today": 0.625148246257822,
-              "persistence": 0.9686554361696569,
-              "half_life_days": 21.765379425795196
+              "long_run_vol": 0.5883933255581624,
+              "vol_today": 0.5460197366321323,
+              "persistence": 0.9927941221403579,
+              "half_life_days": 95.84492228551491
             },
-            "note": "Parameters are per day. Long-run volatility 62.1% a year; a variance shock halves in 22 trading days (persistence 0.969)."
+            "note": "Parameters are per day. No parameter is left mostly to the prior."
           }
         },
         "rough_bergomi": {
           "file": "TSLA/rough_bergomi.json",
-          "hash": "53844c58ab631562d0ccc04ad9a43239d93e007aa3386b13715f45d05cf7c7b9",
+          "hash": "b760e5b6dcb27024f91f366eeef9181f5754e05244dba9fa119d166c0d980ef9",
           "fit": {
             "parameters": {
-              "xi0": 0.3574713817532063,
-              "eta": 0.00016056961186035465,
-              "rho": -0.045324878415761084,
-              "H": 0.010000196307113438
+              "H": 0.04649635256178263,
+              "eta": 0.8886836939440161,
+              "rho": -0.1758545938026292,
+              "xi0": 0.3574713817532063
             },
             "std_errors": {
-              "H": 0.2225372748040441,
-              "eta": 0.5867084654595099,
-              "rho": 0.03024134922321145,
-              "xi0": 0.10028824373375576,
-              "mu": 0.2372665389702242
+              "H": 0.012218433532353905,
+              "eta": 0.08299643437182826,
+              "rho": 0.12325947589851967
             },
             "derived": {
               "vol_today": 0.5978891048958881,
-              "noise_floor": 2.745457035846331
+              "window_vol": 0.5258275176404912
             },
-            "note": "H and eta come from how fast log|returns| decorrelate across lags, above a noise floor (pi^2/4 for Gaussian shocks; fitted here). Daily closes barely identify roughness: the bootstrap spread of H says how little. The rho proxy is strongly attenuated toward 0 (in simulations a true -0.7 reads as about -0.1). xi0 is the trailing 21-day realized variance."
+            "note": "xi0 is the trailing 21-day realized variance; the posterior's variance level is the window's average. No parameter is left mostly to the prior."
           }
         }
       }
@@ -684,7 +640,7 @@
     {
       "ticker": "JPM",
       "sector": "Financials",
-      "dividend_yield": 0.019904698715242173,
+      "dividend_yield": 0.019632976380042067,
       "state": {
         "as_of": "2026-07-06",
         "vol_today": 0.243377019331664,
@@ -700,152 +656,141 @@
       "models": {
         "heston": {
           "file": "JPM/heston.json",
-          "hash": "0e9300f4311fd5a7ae9609c7f35a187b704326c18b2760af05ac34375edd5c6c",
+          "hash": "eef27c8fe406283a513f83a0a8e9011d94a6b9d57420b134dc9323b80fd7b57c",
           "fit": {
             "parameters": {
-              "kappa": 1.6090999405696487,
-              "theta": 0.05999070428765672,
-              "xi": 0.45735628978733567,
-              "rho": -0.003068935250316395,
+              "kappa": 17.73094148732903,
+              "theta": 0.07150900378106892,
+              "xi": 1.269424786165483,
+              "rho": -0.44372999075292674,
               "v0": 0.06278035259835145
             },
             "std_errors": {
-              "kappa": 0.2139005956345108,
-              "theta": 0.026926739991482682,
-              "xi": 0.07398891630756323,
-              "rho": 0.0028398177438751543,
-              "mu": 0.10376482180246654
+              "kappa": 1.582343410798408,
+              "theta": 0.00990295954936125,
+              "xi": 0.14564437399028013,
+              "rho": 0.12005837547026854
             },
             "derived": {
-              "long_run_vol": 0.24492999874996269,
+              "long_run_vol": 0.26741167472843985,
               "vol_today": 0.25056007782236867,
-              "half_life_days": 108.55328814397258,
-              "feller_ratio": 0.9229701653184769,
-              "variance_proxy_r2": 0.8802810220508365
+              "half_life_days": 9.85131498098575,
+              "feller_ratio": 1.5736515443214851
             },
-            "note": "Moments of a 10-day realized-variance proxy, so kappa and xi come out biased: the bootstrap (200 simulated histories from this fit) measures how much. Daily closes barely identify rho; equity option markets typically imply about -0.7. v0 is the trailing 21-day realized variance."
+            "note": "v0 is the trailing 21-day realized variance. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's fat tails and volatility clustering: the model leaves them out."
           }
         },
         "gbm": {
           "file": "JPM/gbm.json",
-          "hash": "cface6e32dc00d5693918a0ca169e3dccc9580a240afbe5e5373a32cdab367fd",
+          "hash": "dc9c4909c0de50ffb479cdcfb9382f6a76e4e1fad11b3bb50928851ad533589f",
           "fit": {
             "parameters": {
-              "sigma": 0.24469649956115488
+              "sigma": 0.2448432049875954
             },
             "std_errors": {
-              "sigma": 0.004888067825024936,
-              "mu": 0.10973685050733951
+              "sigma": 0.004897353562954718
             },
             "derived": {},
-            "note": null
+            "note": "With constant volatility the posterior is available in closed form; no network is needed. Its 90% interval is exact. None of 64 histories simulated from this posterior matches the stock's fat tails, volatility clustering, leverage and volatility of volatility: the model leaves them out."
           }
         },
         "merton_jump": {
           "file": "JPM/merton_jump.json",
-          "hash": "705f541e2659188d240cabeb508289808fe34efc6c46731cfef54a48f6766853",
+          "hash": "10f9d25c2f41487816efb7ba339ee035e3f3fe7c243b0ce3ad36131e7161e6ba",
           "fit": {
             "parameters": {
-              "sigma": 0.16726276399677165,
-              "lambda": 62.39240773159009,
-              "mu_j": -0.0037687768966143424,
-              "sigma_j": 0.022064811630932993
+              "sigma": 0.17122031493789516,
+              "lambda": 49.14258123561063,
+              "mu_j": -0.003167606742221227,
+              "sigma_j": 0.025991383925800013
             },
             "std_errors": {
-              "mu": 0.10886120173078732,
-              "sigma": 0.008813167934070535,
-              "lambda": 18.369982105201785,
-              "mu_j": 0.0018674547096941055,
-              "sigma_j": 0.0027198496832136847
+              "sigma": 0.012133164174811119,
+              "lambda": 18.41745582980064,
+              "mu_j": 0.003658098645899631,
+              "sigma_j": 0.003789230970212539
             },
             "derived": {
-              "jump_variance_share": 0.5277306672053262,
-              "total_vol": 0.24339093359672115
+              "jump_variance_share": 0.5184860988025536,
+              "total_vol": 0.24802698951076466
             },
-            "note": "Jumps carry 53% of the return variance, the share the data identify best. 62 jumps a year of about 2.2% each: the likelihood is describing fat daily tails with frequent small jumps, not rare crashes."
+            "note": "Jumps carry 52% of the return variance (90% interval 40-63%). No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's volatility clustering, leverage and volatility of volatility: the model leaves them out."
           }
         },
         "regime_switching_gbm": {
           "file": "JPM/regime_switching_gbm.json",
-          "hash": "c8f2e60d214d4004db16093e5ef88e2e30e25e8bab7e1a69c656fda671717a3e",
+          "hash": "aeffb76cb80562b014974109c2ac4f860f1e841866e23fe694fcfe8b06b88b3f",
           "fit": {
             "parameters": {
-              "mu_regime0": -1.8240867966239391,
-              "sigma_regime0": 0.3554030543745039,
-              "p_00": 0.78125,
-              "p_01": 0.21875,
-              "p_02": 0.0,
-              "mu_regime1": 0.10737056933419842,
-              "sigma_regime1": 0.24643135201642316,
-              "p_10": 0.006815968841285297,
-              "p_11": 0.9805258033106135,
-              "p_12": 0.012658227848101266,
-              "mu_regime2": 0.9016056769015566,
-              "sigma_regime2": 0.20116046423564124,
-              "p_20": 0.0,
-              "p_21": 0.06701030927835051,
-              "p_22": 0.9329896907216495
+              "sigma_regime0": 0.17158684624192921,
+              "sigma_regime1": 0.4160467638662452,
+              "p_00": 0.9735131959919702,
+              "p_01": 0.02648680400802983,
+              "p_10": 0.08196889441960592,
+              "p_11": 0.918031105580394
             },
             "std_errors": {
-              "mu_regime0": 0.9973473477617876,
-              "sigma_regime0": 0.04442538179681299,
-              "mu_regime1": 0.12207058007815474,
-              "sigma_regime1": 0.0054374558054429475,
-              "mu_regime2": 0.22926725679709772,
-              "sigma_regime2": 0.010212375296907843
+              "sigma_regime0": 0.007464838562639514,
+              "sigma_regime1": 0.03019299309178824,
+              "p_00": 0.007809775205329229,
+              "p_01": 0.007809775205329229,
+              "p_10": 0.010780081247888788,
+              "p_11": 0.010780081247888788
             },
             "derived": {
-              "regime_today": 1.0
+              "regime_today": 0.0,
+              "turbulent_probability_today": 0.07045406222086849,
+              "calm_duration_days": 37.75464943587896,
+              "turbulent_duration_days": 12.199749759718763
             },
-            "note": "Regimes 0 = Bear (32 days), 1 = Sideways (1027 days), 2 = Bull (194 days). Days are labelled bear after a 20% drawdown from the 60-day high and bull after a 20% rally off the 60-day low; regimes that never occur are omitted. A regime's drift over a few weeks is mostly noise: read it with its error."
+            "note": "Regime 0 is calm and regime 1 turbulent, told apart by volatility alone; both drift at r - q in simulations. Today's regime is the filtered likelier one. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's fat tails, volatility clustering and leverage: the model leaves them out."
           }
         },
         "garch": {
           "file": "JPM/garch.json",
-          "hash": "f6dbf9b68d8469f35490b6da4a0506ae00ec03800cbc7a2786c3d341ec2602c5",
+          "hash": "9a4e2d2f67e8e3209938cf19db84d042fd0edb487568bf7a22ce167f4f1f627b",
           "fit": {
             "parameters": {
-              "omega": 1.202623849849084e-05,
-              "alpha": 0.04999483399474351,
-              "beta": 0.8999516643556302
+              "omega": 2.350951306207442e-05,
+              "alpha": 0.10372605315742232,
+              "beta": 0.8090659773956448,
+              "nu": 4.610006634696105
             },
             "std_errors": {
-              "mu": 0.00041231013268520504,
-              "omega": 7.045995214007057e-06,
-              "alpha": 0.015115436838878319,
-              "beta": 0.04164234553918762
+              "omega": 1.089425319845001e-05,
+              "alpha": 0.03547027829613658,
+              "beta": 0.06472214877298008,
+              "nu": 0.6107048640268504
             },
             "derived": {
-              "long_run_vol": 0.24606392311495717,
-              "vol_today": 0.23557485493301886,
-              "persistence": 0.9499464983503737,
-              "half_life_days": 13.498586129933102
+              "long_run_vol": 0.26064176032881553,
+              "vol_today": 0.23274596068631934,
+              "persistence": 0.9127920305530671,
+              "half_life_days": 7.596365643636644
             },
-            "note": "Parameters are per day. Long-run volatility 24.6% a year; a variance shock halves in 13 trading days (persistence 0.950)."
+            "note": "Parameters are per day. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's leverage: the model leaves it out."
           }
         },
         "rough_bergomi": {
           "file": "JPM/rough_bergomi.json",
-          "hash": "18c2d6df84778a2af58d5b73a65b3d6528c56cc1b86255edf0da661729f950f6",
+          "hash": "2e10517a44ed2b8f452d919ed053260ee93c1e3bc11507c3ea34c9eb4face2ea",
           "fit": {
             "parameters": {
-              "xi0": 0.06278035259835145,
-              "eta": 2.341315477356383,
-              "rho": -0.0893038782837878,
-              "H": 0.01000000000000477
+              "H": 0.05244663408967433,
+              "eta": 0.9936081362312268,
+              "rho": -0.3939169235901488,
+              "xi0": 0.06278035259835145
             },
             "std_errors": {
-              "H": 0.20901904401815677,
-              "eta": 0.5694241430501402,
-              "rho": 0.030363335102543392,
-              "xi0": 0.006810051725379533,
-              "mu": 0.029994401680007804
+              "H": 0.014275056329402024,
+              "eta": 0.0863114465324251,
+              "rho": 0.13579174092544707
             },
             "derived": {
               "vol_today": 0.25056007782236867,
-              "noise_floor": 0.14877781548056088
+              "window_vol": 0.27364225980547796
             },
-            "note": "H and eta come from how fast log|returns| decorrelate across lags, above a noise floor (pi^2/4 for Gaussian shocks; fitted here). Daily closes barely identify roughness: the bootstrap spread of H says how little. The rho proxy is strongly attenuated toward 0 (in simulations a true -0.7 reads as about -0.1). xi0 is the trailing 21-day realized variance."
+            "note": "xi0 is the trailing 21-day realized variance; the posterior's variance level is the window's average. No parameter is left mostly to the prior."
           }
         }
       }
@@ -853,7 +798,7 @@
     {
       "ticker": "XOM",
       "sector": "Energy",
-      "dividend_yield": 0.022487855466404673,
+      "dividend_yield": 0.022857142857142857,
       "state": {
         "as_of": "2026-07-06",
         "vol_today": 0.2414966713674256,
@@ -869,147 +814,141 @@
       "models": {
         "heston": {
           "file": "XOM/heston.json",
-          "hash": "067f8403d6fb8cd03b0bf6e133af94909179c75c8073399d62de78115d7555dd",
+          "hash": "9352c7c4719ce0fe7d92d780715dc0001487330af1cc5316f04566fee215bbfa",
           "fit": {
             "parameters": {
-              "kappa": 1.2209725020072324,
-              "theta": 0.07172011494231038,
-              "xi": 0.3464262327080304,
-              "rho": -0.006630703555315929,
+              "kappa": 12.688445268496054,
+              "theta": 0.07422108775484554,
+              "xi": 0.78377602539659,
+              "rho": -0.19015110107330677,
               "v0": 0.059874581065104106
             },
             "std_errors": {
-              "kappa": 0.2806831495140334,
-              "theta": 0.028357964618283923,
-              "xi": 0.06431013274730378,
-              "rho": 0.0027174726457693077,
-              "mu": 0.11277440465853994
+              "kappa": 2.8030217475250945,
+              "theta": 0.007769769172221914,
+              "xi": 0.13008112725331913,
+              "rho": 0.14848828844342077
             },
             "derived": {
-              "long_run_vol": 0.26780611446027586,
+              "long_run_vol": 0.27243547447945454,
               "vol_today": 0.24469283002389772,
-              "half_life_days": 143.0606252097818,
-              "feller_ratio": 1.4593360590784996,
-              "variance_proxy_r2": 0.9072847351001074
+              "half_life_days": 13.76631145935581,
+              "feller_ratio": 3.066067922146671
             },
-            "note": "Moments of a 10-day realized-variance proxy, so kappa and xi come out biased: the bootstrap (200 simulated histories from this fit) measures how much. Daily closes barely identify rho; equity option markets typically imply about -0.7. v0 is the trailing 21-day realized variance."
+            "note": "v0 is the trailing 21-day realized variance. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's skewness: the model leaves it out."
           }
         },
         "gbm": {
           "file": "XOM/gbm.json",
-          "hash": "66a94595fe80857bec120bccf09338860ba3a41d9d814486b9b8065aa862483b",
+          "hash": "824dc527d0539a50ba7577a6b456a1483d0cb2da4eda1723e4cdda391b83ad6a",
           "fit": {
             "parameters": {
-              "sigma": 0.2671197722706944
+              "sigma": 0.26727992135403617
             },
             "std_errors": {
-              "sigma": 0.005335996087422767,
-              "mu": 0.11979281505781347
+              "sigma": 0.00534613274326251
             },
             "derived": {},
-            "note": null
+            "note": "With constant volatility the posterior is available in closed form; no network is needed. Its 90% interval is exact. None of 64 histories simulated from this posterior matches the stock's skewness, fat tails, volatility clustering and volatility of volatility: the model leaves them out."
           }
         },
         "merton_jump": {
           "file": "XOM/merton_jump.json",
-          "hash": "71c8ec948f80d607cbfcb85d1b221853524153144e1ec9dd8e31ca84a4e3bbc3",
+          "hash": "6a22249665de81d23d81481f79dc31938f63dfbfc76ab9c0b6fc2302b9a4d812",
           "fit": {
             "parameters": {
-              "sigma": 0.19906149806929208,
-              "lambda": 99.9166522378093,
-              "mu_j": -0.003306587417772269,
-              "sigma_j": 0.017482807999303615
+              "sigma": 0.2066742265164648,
+              "lambda": 63.805037547466796,
+              "mu_j": -0.005750346246226902,
+              "sigma_j": 0.02147585973616945
             },
             "std_errors": {
-              "mu": 0.11947802421655511,
-              "sigma": 0.02077536996979983,
-              "lambda": 63.65181333275327,
-              "mu_j": 0.002311632096725646,
-              "sigma_j": 0.003522824161838383
+              "sigma": 0.015840745117430863,
+              "lambda": 30.889519573160246,
+              "mu_j": 0.0032189200384553085,
+              "sigma_j": 0.0034443638824427866
             },
             "derived": {
-              "jump_variance_share": 0.44390991185890405,
-              "total_vol": 0.26694063608513596
+              "jump_variance_share": 0.4012737620036473,
+              "total_vol": 0.2686795663805207
             },
-            "note": "Jumps carry 44% of the return variance, the share the data identify best. 100 jumps a year of about 1.7% each: the likelihood is describing fat daily tails with frequent small jumps, not rare crashes."
+            "note": "Jumps carry 40% of the return variance (90% interval 25-57%). No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's volatility clustering: the model leaves it out."
           }
         },
         "regime_switching_gbm": {
           "file": "XOM/regime_switching_gbm.json",
-          "hash": "5a1644b5075458af264518d13ec4be1b0ee223fcce0720c210e6edaa94f05567",
+          "hash": "99d86c90838a835e2e745cea9486cce498c75d39bfd33f6cfbe8af4cd3e7c137",
           "fit": {
             "parameters": {
-              "mu_regime0": -4.844254923670141,
-              "sigma_regime0": 0.022856026772948828,
-              "p_00": 0.0,
-              "p_01": 1.0,
-              "p_02": 0.0,
-              "mu_regime1": 0.038212669994637884,
-              "sigma_regime1": 0.2597604880966627,
-              "p_10": 0.001976284584980237,
-              "p_11": 0.9822134387351779,
-              "p_12": 0.015810276679841896,
-              "mu_regime2": 0.920008239293761,
-              "sigma_regime2": 0.2921734134228018,
-              "p_20": 0.0,
-              "p_21": 0.06694560669456066,
-              "p_22": 0.9330543933054394
+              "sigma_regime0": 0.20761034195574987,
+              "sigma_regime1": 0.3838291382897479,
+              "p_00": 0.9826486236246866,
+              "p_01": 0.017351376375313424,
+              "p_10": 0.04688440626064576,
+              "p_11": 0.9531155937393543
             },
             "std_errors": {
-              "mu_regime0": 0.25655826422192085,
-              "sigma_regime0": 0.011428013386474414,
-              "mu_regime1": 0.12962330958494117,
-              "sigma_regime1": 0.005773881116745007,
-              "mu_regime2": 0.30001434055547005,
-              "sigma_regime2": 0.013363700874731993
+              "sigma_regime0": 0.008441434888996997,
+              "sigma_regime1": 0.02722006147599258,
+              "p_00": 0.0065960024431118485,
+              "p_01": 0.006596002443111848,
+              "p_10": 0.015109202983841647,
+              "p_11": 0.015109202983841647
             },
             "derived": {
-              "regime_today": 1.0
+              "regime_today": 0.0,
+              "turbulent_probability_today": 0.04702287080043326,
+              "calm_duration_days": 57.632315637089434,
+              "turbulent_duration_days": 21.329053298460746
             },
-            "note": "Regimes 0 = Bear (2 days, too few for a reliable estimate), 1 = Sideways (1012 days), 2 = Bull (239 days). Days are labelled bear after a 20% drawdown from the 60-day high and bull after a 20% rally off the 60-day low; regimes that never occur are omitted. A regime's drift over a few weeks is mostly noise: read it with its error."
+            "note": "Regime 0 is calm and regime 1 turbulent, told apart by volatility alone; both drift at r - q in simulations. Today's regime is the filtered likelier one. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's skewness: the model leaves it out."
           }
         },
         "garch": {
           "file": "XOM/garch.json",
-          "hash": "f1c8822775e0634a18a3071f43b7cf733d449242da6cffa36a10d476c4a800a8",
+          "hash": "28efaca2cd9b0bdf2c05a2723de4f502bd7de119be4e063fd3a13c4dd382111d",
           "fit": {
             "parameters": {
-              "omega": 1.3052949312715391e-05,
-              "alpha": 0.049988572751114825,
-              "beta": 0.899978294507743
+              "omega": 3.3827795853763935e-06,
+              "alpha": 0.04074661139038242,
+              "beta": 0.949016633537553,
+              "nu": 8.527619125707941
             },
-            "std_errors": {},
+            "std_errors": {
+              "omega": 2.52053810577011e-06,
+              "alpha": 0.013453261825272303,
+              "beta": 0.019398822509287802,
+              "nu": 2.2325398444600517
+            },
             "derived": {
-              "long_run_vol": 0.2564045620141228,
-              "vol_today": 0.23924624370700223,
-              "persistence": 0.9499668672588578,
-              "half_life_days": 13.504225056548114
+              "long_run_vol": 0.2885731796271568,
+              "vol_today": 0.2668707475123272,
+              "persistence": 0.9897632449279353,
+              "half_life_days": 67.3644433796676
             },
-            "note": "Parameters are per day. Long-run volatility 25.6% a year; a variance shock halves in 14 trading days (persistence 0.950)."
+            "note": "Parameters are per day. The history says little about persistence: its interval is mostly the prior's."
           }
         },
         "rough_bergomi": {
           "file": "XOM/rough_bergomi.json",
-          "hash": "877a4f8976c04906dd6130031a4167a558036757c1bcd5753cbf7d5a7d6958b0",
+          "hash": "411afac932818d747e8612f442e60991f06b28459366982618a6219d204a534e",
           "fit": {
             "parameters": {
-              "xi0": 0.059874581065104106,
-              "eta": 6.510228214079732e-07,
-              "rho": -0.022376768535919828,
-              "H": 0.02893627449936742
+              "H": 0.06913754322862176,
+              "eta": 0.752875448472154,
+              "rho": -0.10964687114040844,
+              "xi0": 0.059874581065104106
             },
             "std_errors": {
-              "H": 0.23095344008356705,
-              "eta": 0.6114330560563588,
-              "rho": 0.030001128338061865,
-              "xi0": 0.016587364494556785,
-              "mu": 0.09633442995513432
+              "H": 0.024239062711170354,
+              "eta": 0.08160620945203284,
+              "rho": 0.1237454351644975
             },
             "derived": {
               "vol_today": 0.24469283002389772,
-              "noise_floor": 2.439783929543092
+              "window_vol": 0.2934346069083301
             },
-            "note": "H and eta come from how fast log|returns| decorrelate across lags, above a noise floor (pi^2/4 for Gaussian shocks; fitted here). Daily closes barely identify roughness: the bootstrap spread of H says how little. The rho proxy is strongly attenuated toward 0 (in simulations a true -0.7 reads as about -0.1). xi0 is the trailing 21-day realized variance."
+            "note": "xi0 is the trailing 21-day realized variance; the posterior's variance level is the window's average. No parameter is left mostly to the prior."
           }
         }
       }
@@ -1017,7 +956,7 @@
     {
       "ticker": "JNJ",
       "sector": "Health Care",
-      "dividend_yield": 0.020317652856222283,
+      "dividend_yield": 0.01997317036816217,
       "state": {
         "as_of": "2026-07-06",
         "vol_today": 0.27868826251253864,
@@ -1033,138 +972,141 @@
       "models": {
         "heston": {
           "file": "JNJ/heston.json",
-          "hash": "70d90afc919723ba6aaa736d89e8a70c2cc716dabb5473773b646d5d5b36a010",
+          "hash": "ae90ec472da11dbb37260bec1a5e1b9b293f5c8599854e67e850fdedd5fc0227",
           "fit": {
             "parameters": {
-              "kappa": 1.9238139724987697,
-              "theta": 0.02914898461586081,
-              "xi": 0.3126810087885742,
-              "rho": -0.0011149496030968989,
+              "kappa": 17.63012066309791,
+              "theta": 0.03285236278003183,
+              "xi": 0.6788059654257732,
+              "rho": -0.06325140709123339,
               "v0": 0.08964445976470217
             },
             "std_errors": {
-              "kappa": 0.21820322650311352,
-              "theta": 0.01106491733712627,
-              "xi": 0.0448175939048162,
-              "rho": 0.001899096340377451,
-              "mu": 0.07228299951570495
+              "kappa": 1.580089573845399,
+              "theta": 0.0028560492943676625,
+              "xi": 0.0802506025279797,
+              "rho": 0.14404138813571443
             },
             "derived": {
-              "long_run_vol": 0.17073073717365836,
+              "long_run_vol": 0.1812522076556085,
               "vol_today": 0.29940684655615707,
-              "half_life_days": 90.79520785173938,
-              "feller_ratio": 1.1471322578302692,
-              "variance_proxy_r2": 0.8474692046408336
+              "half_life_days": 9.90765139042521,
+              "feller_ratio": 2.5139728881616357
             },
-            "note": "Moments of a 10-day realized-variance proxy, so kappa and xi come out biased: the bootstrap (200 simulated histories from this fit) measures how much. Daily closes barely identify rho; equity option markets typically imply about -0.7. v0 is the trailing 21-day realized variance."
+            "note": "v0 is the trailing 21-day realized variance. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's fat tails, volatility clustering and roughness: the model leaves them out."
           }
         },
         "gbm": {
           "file": "JNJ/gbm.json",
-          "hash": "9f026e1947c13bfb7ee147e8f6fedf178cae3fb7c5d9ea6b7c7a53a09bffaf72",
+          "hash": "2301ae24be038347767748ca1211d8258c0376c2fc448abd0bbf79843820f8af",
           "fit": {
             "parameters": {
-              "sigma": 0.17163113376995418
+              "sigma": 0.17173403356098244
             },
             "std_errors": {
-              "sigma": 0.003428510927855727,
-              "mu": 0.07696987943307937
+              "sigma": 0.0034350239827285766
             },
             "derived": {},
-            "note": null
+            "note": "With constant volatility the posterior is available in closed form; no network is needed. Its 90% interval is exact. None of 64 histories simulated from this posterior matches the stock's fat tails, volatility clustering, volatility of volatility and roughness: the model leaves them out."
           }
         },
         "merton_jump": {
           "file": "JNJ/merton_jump.json",
-          "hash": "066863dc02d0d4381d7bda616ae31b9d04ce2b7f95017c6df55d135eb027b619",
+          "hash": "273b840ac2aebe654e26c23d7760fa9bf921354abb035ba118114b63e24a987f",
           "fit": {
             "parameters": {
-              "sigma": 0.1379445742894953,
-              "lambda": 26.023333188492675,
-              "mu_j": 0.0016606170303541863,
-              "sigma_j": 0.019802385925029815
+              "sigma": 0.13827462721047193,
+              "lambda": 24.508804175894575,
+              "mu_j": 0.0002203824702552251,
+              "sigma_j": 0.023234002095616303
             },
             "std_errors": {
-              "mu": 0.0768485599316995,
-              "sigma": 0.006653318011223826,
-              "lambda": 13.354661179306666,
-              "mu_j": 0.0025304068890091664,
-              "sigma_j": 0.003976160707038548
+              "sigma": 0.007532156727331769,
+              "lambda": 12.679679897876591,
+              "mu_j": 0.003948740378706199,
+              "sigma_j": 0.004579400276894715
             },
             "derived": {
-              "jump_variance_share": 0.3506694847625051,
-              "total_vol": 0.17118736880085828
+              "jump_variance_share": 0.38645190709568106,
+              "total_vol": 0.17738582057838786
             },
-            "note": "Jumps carry 35% of the return variance, the share the data identify best."
+            "note": "Jumps carry 39% of the return variance (90% interval 26-51%). No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's volatility clustering: the model leaves it out."
           }
         },
         "regime_switching_gbm": {
           "file": "JNJ/regime_switching_gbm.json",
-          "hash": "d2041edd2c11b9b8fdbe33c0b854b193fef0620a54439a78e176510bf2713f4c",
+          "hash": "902d6d7e37ebc579ac90aeb19102fd8cc73fd96f7464e6e06466c24d628e1e0f",
           "fit": {
             "parameters": {
-              "mu_regime0": 0.08542859245559326,
-              "sigma_regime0": 0.17160640810501163,
-              "p_00": 0.9950372208436724,
-              "p_01": 0.004962779156327543,
-              "mu_regime1": 1.0269281096183405,
-              "sigma_regime1": 0.16403585847120639,
-              "p_10": 0.13636363636363635,
-              "p_11": 0.8636363636363636
+              "sigma_regime0": 0.13846918525313906,
+              "sigma_regime1": 0.3290398799418493,
+              "p_00": 0.9784887633391673,
+              "p_01": 0.021511236660832607,
+              "p_10": 0.0859323614721221,
+              "p_11": 0.9140676385278779
             },
             "std_errors": {
-              "mu_regime0": 0.07834668424114029,
-              "sigma_regime0": 0.0034898386883346205,
-              "mu_regime1": 0.3925660408200356,
-              "sigma_regime1": 0.017486281267034363
+              "sigma_regime0": 0.0060618419492657945,
+              "sigma_regime1": 0.039551651652786055,
+              "p_00": 0.007514364141206335,
+              "p_01": 0.007514364141206335,
+              "p_10": 0.009134369273635404,
+              "p_11": 0.009134369273635404
             },
             "derived": {
-              "regime_today": 0.0
+              "regime_today": 1.0,
+              "turbulent_probability_today": 0.9981145644190028,
+              "calm_duration_days": 46.48733198220945,
+              "turbulent_duration_days": 11.637059460124538
             },
-            "note": "Regimes 0 = Sideways (1209 days), 1 = Bull (44 days). Days are labelled bear after a 20% drawdown from the 60-day high and bull after a 20% rally off the 60-day low; regimes that never occur are omitted. A regime's drift over a few weeks is mostly noise: read it with its error."
+            "note": "Regime 0 is calm and regime 1 turbulent, told apart by volatility alone; both drift at r - q in simulations. Today's regime is the filtered likelier one. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's fat tails, volatility clustering and roughness: the model leaves them out."
           }
         },
         "garch": {
           "file": "JNJ/garch.json",
-          "hash": "071a464b0829bb14ac2c39e603c3812cfa0277e277c3082284c0af8b083e5a80",
+          "hash": "7587aa738b25c1f5b81f18a9e7a81a782489c82bec978e673e1cc8131ae62873",
           "fit": {
             "parameters": {
-              "omega": 6.7919114563891085e-06,
-              "alpha": 0.0499983552491329,
-              "beta": 0.8999973397119968
+              "omega": 1.0490581157281217e-05,
+              "alpha": 0.040773003083441034,
+              "beta": 0.878171482125687,
+              "nu": 4.619931395265593
             },
-            "std_errors": {},
+            "std_errors": {
+              "omega": 6.1562760275471395e-06,
+              "alpha": 0.017966206342598615,
+              "beta": 0.05795044596967654,
+              "nu": 0.6444257401639273
+            },
             "derived": {
-              "long_run_vol": 0.18500888264651122,
-              "vol_today": 0.26334635894495356,
-              "persistence": 0.9499956949611297,
-              "half_life_days": 13.512213564781952
+              "long_run_vol": 0.18059626331386844,
+              "vol_today": 0.24345785317705226,
+              "persistence": 0.918944485209128,
+              "half_life_days": 8.200056040732646
             },
-            "note": "Parameters are per day. Long-run volatility 18.5% a year; a variance shock halves in 14 trading days (persistence 0.950)."
+            "note": "Parameters are per day. The history says little about persistence: its interval is mostly the prior's."
           }
         },
         "rough_bergomi": {
           "file": "JNJ/rough_bergomi.json",
-          "hash": "a30ea7eeb71f4114dbea2e09d54fb97c47407cda3258261dfb87b43319b30dce",
+          "hash": "57caae1d8ae916c3b18ef0aebb6ac0d82b2edd9f7ca377f6346259848c5809d1",
           "fit": {
             "parameters": {
-              "xi0": 0.08964445976470217,
-              "eta": 0.9935303994751978,
-              "rho": -0.04034726523423054,
-              "H": 0.010000000000590472
+              "H": 0.038025746601012565,
+              "eta": 0.8934355124447227,
+              "rho": 0.0005277439388864359,
+              "xi0": 0.08964445976470217
             },
             "std_errors": {
-              "H": 0.2257655043296054,
-              "eta": 0.6892539393898696,
-              "rho": 0.03179823211758154,
-              "xi0": 0.028066162605257364,
-              "mu": 0.09557308258284698
+              "H": 0.0077373060078027005,
+              "eta": 0.07415491571983214,
+              "rho": 0.11983444301171277
             },
             "derived": {
               "vol_today": 0.29940684655615707,
-              "noise_floor": 2.1606251342862945
+              "window_vol": 0.2128889199051509
             },
-            "note": "H and eta come from how fast log|returns| decorrelate across lags, above a noise floor (pi^2/4 for Gaussian shocks; fitted here). Daily closes barely identify roughness: the bootstrap spread of H says how little. The rho proxy is strongly attenuated toward 0 (in simulations a true -0.7 reads as about -0.1). xi0 is the trailing 21-day realized variance."
+            "note": "xi0 is the trailing 21-day realized variance; the posterior's variance level is the window's average. No parameter is left mostly to the prior."
           }
         }
       }
@@ -1172,7 +1114,7 @@
     {
       "ticker": "KO",
       "sector": "Consumer Staples",
-      "dividend_yield": 0.022867004638118867,
+      "dividend_yield": 0.023212780168402152,
       "state": {
         "as_of": "2026-07-06",
         "vol_today": 0.265312651069902,
@@ -1188,143 +1130,141 @@
       "models": {
         "heston": {
           "file": "KO/heston.json",
-          "hash": "185aedccbb3cb552653795c030c17eb31893b6c0f317ca18c1d769e9eec777db",
+          "hash": "4ca6e566b5d560177a959bdd1acd84567c7b84125ac01e1570bd93140ecc1c82",
           "fit": {
             "parameters": {
-              "kappa": 1.6556024475405853,
-              "theta": 0.026404746029660447,
-              "xi": 0.26561971643801324,
-              "rho": -0.001036921105967684,
+              "kappa": 15.838960138653851,
+              "theta": 0.02885488727445358,
+              "xi": 0.6254790474001265,
+              "rho": -0.181615341338339,
               "v0": 0.07042387703567217
             },
             "std_errors": {
-              "kappa": 0.2360886183132127,
-              "theta": 0.010210303790472101,
-              "xi": 0.041498017502721904,
-              "rho": 0.001750500035122182,
-              "mu": 0.06868581884418469
+              "kappa": 2.3532727464221126,
+              "theta": 0.0029713934665735603,
+              "xi": 0.08936074513209541,
+              "rho": 0.14513735994691593
             },
             "derived": {
-              "long_run_vol": 0.162495372333062,
+              "long_run_vol": 0.16986726369272445,
               "vol_today": 0.26537497439598967,
-              "half_life_days": 105.50424696495521,
-              "feller_ratio": 1.2392171997831087,
-              "variance_proxy_r2": 0.8755003281882716
+              "half_life_days": 11.028065477280231,
+              "feller_ratio": 2.3364178276026752
             },
-            "note": "Moments of a 10-day realized-variance proxy, so kappa and xi come out biased: the bootstrap (200 simulated histories from this fit) measures how much. Daily closes barely identify rho; equity option markets typically imply about -0.7. v0 is the trailing 21-day realized variance."
+            "note": "v0 is the trailing 21-day realized variance. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's fat tails and volatility clustering: the model leaves them out."
           }
         },
         "gbm": {
           "file": "KO/gbm.json",
-          "hash": "e0daf8b4767847ec0af26cb9ad645bf3315776beb0986c0a7e57436524932c58",
+          "hash": "438714fc15538c59c9fc3eebcd882dd57a777460d1f665fcd31c4326b598f219",
           "fit": {
             "parameters": {
-              "sigma": 0.16305215092101144
+              "sigma": 0.16314990726560896
             },
             "std_errors": {
-              "sigma": 0.003257136796592859,
-              "mu": 0.0731225397282293
+              "sigma": 0.003263324296392969
             },
             "derived": {},
-            "note": null
+            "note": "With constant volatility the posterior is available in closed form; no network is needed. Its 90% interval is exact. None of 64 histories simulated from this posterior matches the stock's skewness, fat tails, volatility clustering and volatility of volatility: the model leaves them out."
           }
         },
         "merton_jump": {
           "file": "KO/merton_jump.json",
-          "hash": "037da70b6b0a5be7f0f8db3f845b92046b57b6ea26ac7bdafbb6b88ab31c0794",
+          "hash": "0fe9154d284ec618def8b37aea11b8a25ef7b0e7c17652fe3b3505afb2de3ce1",
           "fit": {
             "parameters": {
-              "sigma": 0.11849313512934312,
-              "lambda": 67.97280117898903,
-              "mu_j": 0.0008790479749164277,
-              "sigma_j": 0.013397021461579516
+              "sigma": 0.11999388351059222,
+              "lambda": 48.19517047440283,
+              "mu_j": -0.002531215031949562,
+              "sigma_j": 0.016728887094334267
             },
             "std_errors": {
-              "mu": 0.07277017989771911,
-              "sigma": 0.009792428844831995,
-              "lambda": 35.0965019983911,
-              "mu_j": 0.001193863154641403,
-              "sigma_j": 0.002466839966265047
+              "sigma": 0.008500270842149906,
+              "lambda": 21.346724603372646,
+              "mu_j": 0.002524914233918762,
+              "sigma_j": 0.002798213592407798
             },
             "derived": {
-              "jump_variance_share": 0.4659922134801295,
-              "total_vol": 0.16215091194405643
+              "jump_variance_share": 0.4672726480062498,
+              "total_vol": 0.16535948447142335
             },
-            "note": "Jumps carry 47% of the return variance, the share the data identify best. 68 jumps a year of about 1.3% each: the likelihood is describing fat daily tails with frequent small jumps, not rare crashes."
+            "note": "Jumps carry 47% of the return variance (90% interval 34-60%). No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's volatility clustering: the model leaves it out."
           }
         },
         "regime_switching_gbm": {
           "file": "KO/regime_switching_gbm.json",
-          "hash": "aca79b3f99e1f5841e362711cd078e3712be96924c56218a69100a2c4db88b49",
+          "hash": "cefb5f6216b363863ecda58443d1ebaf35fdbe1d0595ca8807f4efc96e6d26a0",
           "fit": {
             "parameters": {
-              "mu_regime0": 0.10120250190963365,
-              "sigma_regime0": 0.16180775846708131,
-              "p_00": 0.9967974379503602,
-              "p_01": 0.0032025620496397116,
-              "mu_regime1": 5.798412696804952,
-              "sigma_regime1": 0.18008069486521983,
-              "p_10": 1.0,
-              "p_11": 0.0
+              "sigma_regime0": 0.12069440429081528,
+              "sigma_regime1": 0.25437011415354926,
+              "p_00": 0.973443597670193,
+              "p_01": 0.026556402329807122,
+              "p_10": 0.0749974212026476,
+              "p_11": 0.9250025787973524
             },
             "std_errors": {
-              "mu_regime0": 0.07268058141402169,
-              "sigma_regime0": 0.0032374504086047514,
-              "mu_regime1": 1.4293462036112334,
-              "sigma_regime1": 0.0636681402499912
+              "sigma_regime0": 0.005238738445346307,
+              "sigma_regime1": 0.01865656649075913,
+              "p_00": 0.008301267094115163,
+              "p_01": 0.008301267094115163,
+              "p_10": 0.013404244500312874,
+              "p_11": 0.013404244500312874
             },
             "derived": {
-              "regime_today": 0.0
+              "regime_today": 1.0,
+              "turbulent_probability_today": 0.9993799105004557,
+              "calm_duration_days": 37.65570304218474,
+              "turbulent_duration_days": 13.33379180195995
             },
-            "note": "Regimes 0 = Sideways (1249 days), 1 = Bull (4 days, too few for a reliable estimate). Days are labelled bear after a 20% drawdown from the 60-day high and bull after a 20% rally off the 60-day low; regimes that never occur are omitted. A regime's drift over a few weeks is mostly noise: read it with its error."
+            "note": "Regime 0 is calm and regime 1 turbulent, told apart by volatility alone; both drift at r - q in simulations. Today's regime is the filtered likelier one. No parameter is left mostly to the prior. None of 64 histories simulated from this posterior matches the stock's fat tails and volatility clustering: the model leaves them out."
           }
         },
         "garch": {
           "file": "KO/garch.json",
-          "hash": "46325ecb6deb7341e94b358873ffde14019ed3767c255b8e02cbde1644217b1e",
+          "hash": "dd50e46e8525c6c3dc81a7fcced98f835f9f5a90c4ed35a7f02924cb692ec742",
           "fit": {
             "parameters": {
-              "omega": 5.230844772814972e-06,
-              "alpha": 0.04999632590820727,
-              "beta": 0.8999931460069417
+              "omega": 3.0802239339223414e-06,
+              "alpha": 0.041370192234586954,
+              "beta": 0.9353074909940893,
+              "nu": 5.031587893121433
             },
             "std_errors": {
-              "mu": 0.0002742550386224127,
-              "omega": 2.36985080709163e-06,
-              "alpha": 0.01254985656096678,
-              "beta": 0.030837067476200047
+              "omega": 2.3124485767624462e-06,
+              "alpha": 0.01432378062177686,
+              "beta": 0.028524955466847322,
+              "nu": 0.7267450097855898
             },
             "derived": {
-              "long_run_vol": 0.1623511862882883,
-              "vol_today": 0.21682749556992073,
-              "persistence": 0.9499894719151489,
-              "half_life_days": 13.510488303481655
+              "long_run_vol": 0.18243391202870402,
+              "vol_today": 0.22341795642132453,
+              "persistence": 0.9766776832286762,
+              "half_life_days": 29.372403165746604
             },
-            "note": "Parameters are per day. Long-run volatility 16.2% a year; a variance shock halves in 14 trading days (persistence 0.950)."
+            "note": "Parameters are per day. No parameter is left mostly to the prior."
           }
         },
         "rough_bergomi": {
           "file": "KO/rough_bergomi.json",
-          "hash": "3c74c24e06d182dbb094c05d84029a5d77766f20702ef9f03adef9cfe8a1e902",
+          "hash": "8151c18b6e9a4b09fa94fad6d831214ccdddd5690761479e0cefceaf755376eb",
           "fit": {
             "parameters": {
-              "xi0": 0.07042387703567217,
-              "eta": 1.4584530476327375,
-              "rho": -0.07985710186971541,
-              "H": 0.4999999999999894
+              "H": 0.043454125090046494,
+              "eta": 0.864100618283783,
+              "rho": -0.11294457513055267,
+              "xi0": 0.07042387703567217
             },
             "std_errors": {
-              "H": 0.21575961282607056,
-              "eta": 0.6557639126775952,
-              "rho": 0.031009525191323196,
-              "xi0": 0.06289877802013685,
-              "mu": 0.09987701727461112
+              "H": 0.010422159097417442,
+              "eta": 0.07344249319233666,
+              "rho": 0.13219332724368352
             },
             "derived": {
               "vol_today": 0.26537497439598967,
-              "noise_floor": 2.1758050875407062
+              "window_vol": 0.19633763265643286
             },
-            "note": "H and eta come from how fast log|returns| decorrelate across lags, above a noise floor (pi^2/4 for Gaussian shocks; fitted here). Daily closes barely identify roughness: the bootstrap spread of H says how little. The rho proxy is strongly attenuated toward 0 (in simulations a true -0.7 reads as about -0.1). xi0 is the trailing 21-day realized variance."
+            "note": "xi0 is the trailing 21-day realized variance; the posterior's variance level is the window's average. No parameter is left mostly to the prior."
           }
         }
       }

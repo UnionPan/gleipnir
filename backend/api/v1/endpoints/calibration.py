@@ -60,13 +60,14 @@ def calibrate_pmeasure(request: CalibrationRequest):
             dates = data['dates']
 
             # Run calibration
-            parameters, diagnostics = CalibrationService.calibrate_model(
+            parameters, diagnostics, method = CalibrationService.calibrate_model(
                 ticker=ticker,
                 prices=prices,
                 dates=dates,
                 model=request.model,
                 method=request.method,
                 include_drift=request.include_drift,
+                prior=request.prior,
             )
 
             # Format result
@@ -77,7 +78,7 @@ def calibrate_pmeasure(request: CalibrationRequest):
                 parameters=parameters,
                 diagnostics=diagnostics,
                 timestamp=datetime.now().isoformat(),
-                method=request.method,
+                method=method,
                 measure="P-measure",
                 lab_bundle=lab_bundle.make_bundle(ticker, request.model, parameters, diagnostics,
                                                   window=f"{dates[0]}..{dates[-1]}", as_of=dates[-1]),

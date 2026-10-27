@@ -4,7 +4,7 @@ Schemas for calibration endpoints
 Every size a request controls is capped here (see backend/core/compute_guard.py).
 """
 from datetime import date
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -65,17 +65,20 @@ class CalibrationRequest(BaseModel):
     )
     start_date: str = Field(..., description="Start date (YYYY-MM-DD)")
     end_date: str = Field(..., description="End date (YYYY-MM-DD)")
-    method: str = Field(
-        default="mle",
+    method: str | None = Field(
+        default=None,
         description=(
-            "Calibration method:\n"
-            "- 'mle': Maximum Likelihood (for gbm, ou)\n"
-            "- 'particle_filter': Particle Filter (for heston, rough_bergomi)\n"
-            "- 'moment_matching': Moment Matching (for rough_bergomi)\n"
-            "- 'em': EM Algorithm (for regime_switching_gbm)\n"
-            "- 'mle': Maximum Likelihood (for merton_jump)\n"
-            "- 'mle': Quasi-MLE (for garch)"
+            "Calibration method; the model's default when omitted:\n"
+            "- 'bayesian' (default for every model but ou): a posterior, from a neural network trained "
+            "offline on simulated histories (exact for gbm)\n"
+            "- the classical estimator: 'mle' (gbm, ou, merton_jump, garch), 'moments' (heston), "
+            "'variogram' (rough_bergomi), 'threshold' (regime_switching_gbm)"
         )
+    )
+    prior: Literal["sector", "broad"] = Field(
+        default="sector",
+        description=("Bayesian fits: the ticker's S&P 500 sector prior (empirical Bayes) when it has one, "
+                     "or the broad training prior"),
     )
     include_drift: bool = Field(default=True, description="Whether to include drift parameter")
 
@@ -93,6 +96,62 @@ class HistoricalDrift(BaseModel):
     ci_high: float = Field(..., description="95% interval, upper end")
 
 
+class PosteriorParameter(BaseModel):
+    """A parameter's posterior summary, in natural units."""
+    mean: float
+    sd: float
+    q05: float = Field(..., description="5% quantile: with q95, the 90% credible interval")
+    q95: float
+
+
+class Identification(BaseModel):
+    """How well the history pins down one of the network's coordinates, and how far to trust the network."""
+    contraction: float | None = Field(..., description="1 - posterior variance / prior variance")
+    coverage_50: float = Field(..., description="Offline: share of 50% intervals containing the truth")
+    coverage_90: float = Field(..., description="Offline: share of 90% intervals containing the truth")
+
+
+class PosteriorNetwork(BaseModel):
+    components: int
+    hidden: list[int]
+    trained_on: int | None = None
+    validated_on: int | None = None
+    sha256: str
+    created_at: str
+
+
+class PosteriorDiagnostics(BaseModel):
+    """A Bayesian fit's posterior and what produced it."""
+    kind: Literal["neural", "exact"]
+    parameters: dict[str, PosteriorParameter]
+    identification: dict[str, Identification]
+    prior: str
+    prior_kind: Literal["sector", "broad", "jeffreys"]
+    draws: int | None = None
+    effective_samples: float | None = None
+    in_prior_share: float | None = Field(None, description="Share of the network's draws inside its training range")
+    n_days: int
+    network: PosteriorNetwork | None = None
+
+
+class CheckedAspect(BaseModel):
+    """One aspect of the history against histories simulated from the posterior."""
+    aspect: str
+    verdict: Literal["fits", "more", "less"] = Field(
+        ..., description="'more' / 'less': the history has more / less of it than every simulated one")
+    summary: str = Field(..., description="The aspect's most extreme summary statistic")
+    observed: float
+    q05: float
+    q50: float
+    q95: float
+    p_value: float = Field(..., description="Share of simulated histories below the observed summary")
+
+
+class PredictiveCheck(BaseModel):
+    n_replicates: int
+    aspects: list[CheckedAspect]
+
+
 class CalibrationDiagnostics(BaseModel):
     """Calibration diagnostics. Non-finite values are reported as null."""
     method_label: str | None = Field(None, description="The estimator, in words")
@@ -107,6 +166,8 @@ class CalibrationDiagnostics(BaseModel):
     drift: HistoricalDrift | None = None
     errorMetrics: dict[str, float] | None = None
     note: str | None = None
+    posterior: PosteriorDiagnostics | None = None
+    predictive_check: PredictiveCheck | None = None
 
 
 class CalibrationResult(BaseModel):

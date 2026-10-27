@@ -1,7 +1,9 @@
 """Real-world (P-measure) model fits from daily closes, each with its uncertainty.
 
-Every fit returns ``(parameters, diagnostics)`` in the API's names. Diagnostics
-carry, besides the model's own fit statistics:
+Every model but OU is fitted by default as a posterior (``bayesian``: see
+backend.services.bayesian_fits); the classical estimator stays available as
+the second method. Every fit returns ``(parameters, diagnostics)`` in the
+API's names. Diagnostics carry, besides the model's own fit statistics:
 
 - ``std_errors`` per parameter: observed information for likelihood fits, a
   parametric bootstrap for moment estimators (with its ``bias``), the
@@ -32,6 +34,8 @@ from mjollnir.calibration.physical import (
 )
 from mjollnir.calibration.physical.garch_calibrator import garch_variances
 
+from backend.services import bayesian_fits
+
 DT = 1.0 / 252
 CI_Z = 1.959964
 STATE_WINDOW = 21  # trailing days for "variance today", as in the lab
@@ -40,26 +44,29 @@ ROUGH_BOOTSTRAP = 50
 MIN_REGIME_DAYS = 20  # below this, per-regime drift and vol are mostly noise
 ANNUAL_DRIFT_FROM_BOOTSTRAP = {"heston", "rough_bergomi"}
 
-# Canonical method per model; older names the frontend once sent map onto it.
+# Methods per model, the default first; older names the frontend once sent map onto them.
 METHODS = {
-    "gbm": ("mle", {}),
-    "ou": ("mle", {}),
-    "heston": ("moments", {"particle_filter": "moments", "qmle": "moments"}),
-    "rough_bergomi": ("variogram", {"moment_matching": "variogram", "particle_filter": "variogram"}),
-    "regime_switching_gbm": ("threshold", {}),
-    "merton_jump": ("mle", {}),
-    "garch": ("mle", {}),
+    "gbm": (("bayesian", "mle"), {}),
+    "ou": (("mle",), {}),
+    "heston": (("bayesian", "moments"), {"particle_filter": "moments", "qmle": "moments"}),
+    "rough_bergomi": (("bayesian", "variogram"), {"moment_matching": "variogram", "particle_filter": "variogram"}),
+    "regime_switching_gbm": (("bayesian", "threshold"), {}),
+    "merton_jump": (("bayesian", "mle"), {}),
+    "garch": (("bayesian", "mle"), {}),
 }
+PRIORS = ("sector", "broad")
 
 
-def canonical_method(model: str, method: str) -> str:
+def canonical_method(model: str, method: str | None) -> str:
     if model not in METHODS:
         raise ValueError(f"Unsupported model: {model}")
-    canonical, aliases = METHODS[model]
+    methods, aliases = METHODS[model]
+    if method is None:
+        return methods[0]
     resolved = aliases.get(method, method)
-    if resolved != canonical:
-        raise ValueError(f"{model} is fitted by '{canonical}', not '{method}'")
-    return canonical
+    if resolved not in methods:
+        raise ValueError(f"{model} is fitted by {' or '.join(repr(m) for m in methods)}, not '{method}'")
+    return resolved
 
 
 def finite(x) -> float | None:
@@ -82,17 +89,31 @@ def historical_drift(returns: np.ndarray) -> dict:
             "ci_low": estimate - CI_Z * std_error, "ci_high": estimate + CI_Z * std_error}
 
 
-def fit(model: str, method: str, prices, dates: list[str], include_drift: bool) -> tuple[dict, dict]:
+def fit(model: str, method: str | None, prices, dates: list[str], include_drift: bool, *, ticker: str = "",
+        prior: str = "sector") -> tuple[dict, dict, str]:
+    """(parameters, diagnostics, method) of a fit; ``prior`` applies to Bayesian fits."""
     method = canonical_method(model, method)
+    if prior not in PRIORS:
+        raise ValueError(f"prior must be one of {PRIORS}, not '{prior}'")
     prices = np.asarray(prices, dtype=float)
     if prices.size < 60 or np.any(~np.isfinite(prices)) or np.any(prices <= 0):
         raise ValueError("need at least 60 positive daily closes")
     returns = np.diff(np.log(prices))
-    parameters, diagnostics = _FITTERS[model](prices, dates, returns)
+    drift = historical_drift(returns)
+    if method == "bayesian":
+        parameters, diagnostics = bayesian_fits.fit(model, ticker, prices, returns, prior)
+        if model != "regime_switching_gbm":  # the posterior is over dynamics; the drift is the window's
+            daily = model == "garch"
+            parameters["mu"] = float(np.mean(returns)) if daily else drift["estimate"]
+            diagnostics["std_errors"]["mu"] = (float(np.std(returns, ddof=1)) / math.sqrt(returns.size) if daily
+                                               else drift["std_error"])
+    else:
+        parameters, diagnostics = _FITTERS[model](prices, dates, returns)
     if not include_drift:
         parameters.pop("mu", None)
-    diagnostics["drift"] = historical_drift(returns)
-    if model in ANNUAL_DRIFT_FROM_BOOTSTRAP and "mu" in parameters:
+        diagnostics["std_errors"].pop("mu", None)
+    diagnostics["drift"] = drift
+    if method != "bayesian" and model in ANNUAL_DRIFT_FROM_BOOTSTRAP and "mu" in parameters:
         # A bootstrap simulates from today's variance, which can sit far from
         # the window's average; the drift's error is the window's, analytically.
         diagnostics["std_errors"]["mu"] = diagnostics["drift"]["std_error"]
@@ -104,7 +125,7 @@ def fit(model: str, method: str, prices, dates: list[str], include_drift: bool) 
     for key in ("logLikelihood", "aic", "bic"):
         if diagnostics.get(key) is not None:
             diagnostics[key] = finite(diagnostics[key])
-    return {k: float(v) for k, v in parameters.items()}, diagnostics
+    return {k: float(v) for k, v in parameters.items()}, diagnostics, method
 
 
 def _gbm(prices, dates, returns):

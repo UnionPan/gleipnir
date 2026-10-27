@@ -13,7 +13,9 @@ from backend.services.calibration_service import CalibrationService
 
 client = TestClient(app)
 MODELS = [("gbm", "mle"), ("ou", "mle"), ("heston", "moments"), ("rough_bergomi", "variogram"),
-          ("regime_switching_gbm", "threshold"), ("merton_jump", "mle"), ("garch", "mle")]
+          ("regime_switching_gbm", "threshold"), ("merton_jump", "mle"), ("garch", "mle"),
+          *((m, "bayesian") for m in ("gbm", "heston", "rough_bergomi", "regime_switching_gbm", "merton_jump",
+                                      "garch"))]
 
 
 def _history(n=1260, seed=0):
@@ -63,8 +65,10 @@ def test_drift_can_be_left_out_of_the_parameters(offline_history):
 def test_older_method_names_map_to_the_real_estimator():
     assert physical_fits.canonical_method("heston", "particle_filter") == "moments"
     assert physical_fits.canonical_method("rough_bergomi", "moment_matching") == "variogram"
-    with pytest.raises(ValueError, match="fitted by 'mle'"):
+    with pytest.raises(ValueError, match="fitted by 'bayesian' or 'mle'"):
         physical_fits.canonical_method("garch", "particle_filter")
+    assert physical_fits.canonical_method("garch", None) == "bayesian"
+    assert physical_fits.canonical_method("ou", None) == "mle"
     with pytest.raises(ValueError, match="Unsupported model"):
         physical_fits.canonical_method("sabr", "mle")
 

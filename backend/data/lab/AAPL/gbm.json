@@ -1,16 +1,16 @@
 {
   "asset": "AAPL",
-  "content_hash": "d88ce5ef9261937e0a16395fdbe413dd761d9e7555aee097c480deb348304ad0",
-  "created_at": "2026-10-26T13:29:35+00:00",
+  "content_hash": "b4d019870956b7929af16c4c8ece999ddce6ee76d84268eb97170eec68b12d52",
+  "created_at": "2026-10-27T19:35:26+00:00",
   "measure": "P",
   "mjollnir_version": "0.3.0",
   "model": "gbm",
   "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
   "params": {
-    "sigma": 0.2770654726263386
+    "sigma": 0.27723158455841157
   },
   "parent_hash": null,
   "schema_version": 1,
-  "source": "Maximum likelihood (closed form) on daily closes; drift per the policy (r - q)",
+  "source": "Exact posterior (Jeffreys prior) on daily closes; drift per the policy (r - q)",
   "window": "2021-07-06..2026-07-06"
 }

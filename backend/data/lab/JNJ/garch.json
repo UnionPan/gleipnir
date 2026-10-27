@@ -1,19 +1,20 @@
 {
   "asset": "JNJ",
-  "content_hash": "071a464b0829bb14ac2c39e603c3812cfa0277e277c3082284c0af8b083e5a80",
-  "created_at": "2026-10-26T13:29:52+00:00",
+  "content_hash": "7587aa738b25c1f5b81f18a9e7a81a782489c82bec978e673e1cc8131ae62873",
+  "created_at": "2026-10-27T19:35:50+00:00",
   "measure": "P",
   "mjollnir_version": "0.3.0",
   "model": "garch",
   "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
   "params": {
-    "alpha": 0.0499983552491329,
-    "beta": 0.8999973397119968,
-    "h0": 0.00027520359035541393,
-    "omega": 6.7919114563891085e-06
+    "alpha": 0.040773003083441034,
+    "beta": 0.878171482125687,
+    "h0": 0.00023520526299039337,
+    "nu": 4.619931395265593,
+    "omega": 1.0490581157281217e-05
   },
   "parent_hash": null,
   "schema_version": 1,
-  "source": "Gaussian quasi-maximum likelihood, observed information on daily closes; drift per the policy (r - q)",
+  "source": "Amortized neural posterior (mixture density network), Health Care sector prior (59 S&P 500 stocks) on daily closes; drift per the policy (r - q)",
   "window": "2021-07-06..2026-07-06"
 }

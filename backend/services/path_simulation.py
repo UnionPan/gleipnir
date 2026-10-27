@@ -83,18 +83,24 @@ def _simulate(model, parameters, s0, n_steps, n_paths, dt, rng, random_seed, dri
 
     if model == "garch":
         omega, alpha, beta = parameters["omega"], parameters["alpha"], parameters["beta"]
+        nu = parameters.get("nu")  # Student-t innovations when fitted (the Bayesian fit's)
         sigma2 = np.full(n_paths, omega / max(1.0 - alpha - beta, 1e-6))
         log_s = np.zeros((n_steps + 1, n_paths))
         log_s[0] = np.log(s0)
         for t in range(n_steps):
-            # E[S_{t+1} / S_t] = exp(drift dt): the log step's mean offsets its variance
-            eps = np.sqrt(sigma2) * rng.standard_normal(n_paths)
-            log_s[t + 1] = log_s[t] + drift * dt - 0.5 * sigma2 + eps
+            # E[S_{t+1} / S_t] = exp(drift dt), as in mjollnir's GARCH world: the Gaussian log step's
+            # mean offsets its variance; Student-t shocks compound as simple returns (floored at -99%)
+            if nu is None:
+                eps = np.sqrt(sigma2) * rng.standard_normal(n_paths)
+                log_s[t + 1] = log_s[t] + drift * dt - 0.5 * sigma2 + eps
+            else:
+                eps = np.sqrt(sigma2 * (nu - 2.0) / nu) * rng.standard_t(nu, n_paths)
+                log_s[t + 1] = log_s[t] + drift * dt + np.log(np.maximum(1.0 + eps, 0.01))
             sigma2 = np.maximum(omega + alpha * eps**2 + beta * sigma2, 1e-12)
         return np.exp(log_s)
 
     if model == "regime_switching_gbm":
-        n_regimes = sum(1 for key in parameters if key.startswith("mu_regime"))
+        n_regimes = sum(1 for key in parameters if key.startswith("sigma_regime"))
         sigma = np.array([parameters[f"sigma_regime{k}"] for k in range(n_regimes)])
         transition = np.array([[parameters[f"p_{i}{j}"] for j in range(n_regimes)] for i in range(n_regimes)])
         if not np.allclose(transition.sum(axis=1), 1.0, atol=1e-6):

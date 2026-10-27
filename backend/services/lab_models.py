@@ -63,7 +63,10 @@ def world_params(model: str, parameters: dict[str, float], derived: dict[str, fl
         vol_today = derived.get("vol_today")
         if vol_today is None:
             raise ValueError("a GARCH world needs today's conditional variance (vol_today)")
-        return {"omega": p["omega"], "alpha": p["alpha"], "beta": p["beta"], "h0": vol_today**2 * DT}
+        world = {"omega": p["omega"], "alpha": p["alpha"], "beta": p["beta"], "h0": vol_today**2 * DT}
+        if "nu" in p:  # Student-t innovations (the Bayesian fit's)
+            world["nu"] = p["nu"]
+        return world
     if model == "rough_bergomi":
         return {"xi0": p["xi0"], "eta": p["eta"], "rho": p["rho"], "H": p["H"]}
     raise ValueError(NOT_IN_LAB.get(model, f"{model} cannot run in the lab"))

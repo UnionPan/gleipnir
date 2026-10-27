@@ -1,0 +1,3954 @@
+{
+ "universe": "S&P 500",
+ "window": "2021-07-06..2026-07-02",
+ "n_stocks": 500,
+ "created_at": "2026-10-27T19:06:55+00:00",
+ "method": "Monte Carlo EM for a Gaussian hyperprior in each network's unconstrained coordinates; sectors shrunk toward the universe with 10 pseudo-stocks; sd floor 5% of the training box",
+ "tickers": {
+  "A": "Health Care",
+  "AAPL": "Information Technology",
+  "ABBV": "Health Care",
+  "ABNB": "Consumer Discretionary",
+  "ABT": "Health Care",
+  "ACGL": "Financials",
+  "ACN": "Information Technology",
+  "ADBE": "Information Technology",
+  "ADI": "Information Technology",
+  "ADM": "Consumer Staples",
+  "ADP": "Industrials",
+  "ADSK": "Information Technology",
+  "AEE": "Utilities",
+  "AEP": "Utilities",
+  "AES": "Utilities",
+  "AFL": "Financials",
+  "AIG": "Financials",
+  "AIZ": "Financials",
+  "AJG": "Financials",
+  "AKAM": "Information Technology",
+  "ALB": "Materials",
+  "ALGN": "Health Care",
+  "ALL": "Financials",
+  "ALLE": "Industrials",
+  "AMAT": "Information Technology",
+  "AMCR": "Materials",
+  "AMD": "Information Technology",
+  "AME": "Industrials",
+  "AMGN": "Health Care",
+  "AMP": "Financials",
+  "AMT": "Real Estate",
+  "AMZN": "Consumer Discretionary",
+  "ANET": "Information Technology",
+  "AON": "Financials",
+  "AOS": "Industrials",
+  "APA": "Energy",
+  "APD": "Materials",
+  "APH": "Information Technology",
+  "APO": "Financials",
+  "APP": "Information Technology",
+  "APTV": "Consumer Discretionary",
+  "ARE": "Real Estate",
+  "ARES": "Financials",
+  "ATO": "Utilities",
+  "AVB": "Real Estate",
+  "AVGO": "Information Technology",
+  "AVY": "Materials",
+  "AWK": "Utilities",
+  "AXON": "Industrials",
+  "AXP": "Financials",
+  "AZO": "Consumer Discretionary",
+  "BA": "Industrials",
+  "BAC": "Financials",
+  "BALL": "Materials",
+  "BAX": "Health Care",
+  "BBY": "Consumer Discretionary",
+  "BDX": "Health Care",
+  "BEN": "Financials",
+  "BF-B": "Consumer Staples",
+  "BG": "Consumer Staples",
+  "BIIB": "Health Care",
+  "BKNG": "Consumer Discretionary",
+  "BKR": "Energy",
+  "BLDR": "Industrials",
+  "BLK": "Financials",
+  "BMY": "Health Care",
+  "BNY": "Financials",
+  "BR": "Industrials",
+  "BRK-B": "Financials",
+  "BRO": "Financials",
+  "BSX": "Health Care",
+  "BX": "Financials",
+  "BXP": "Real Estate",
+  "C": "Financials",
+  "CAH": "Health Care",
+  "CARR": "Industrials",
+  "CASY": "Consumer Staples",
+  "CAT": "Industrials",
+  "CB": "Financials",
+  "CBOE": "Financials",
+  "CBRE": "Real Estate",
+  "CCI": "Real Estate",
+  "CCL": "Consumer Discretionary",
+  "CDNS": "Information Technology",
+  "CDW": "Information Technology",
+  "CEG": "Utilities",
+  "CF": "Materials",
+  "CFG": "Financials",
+  "CHD": "Consumer Staples",
+  "CHRW": "Industrials",
+  "CHTR": "Communication Services",
+  "CI": "Health Care",
+  "CIEN": "Information Technology",
+  "CINF": "Financials",
+  "CL": "Consumer Staples",
+  "CLX": "Consumer Staples",
+  "CMCSA": "Communication Services",
+  "CME": "Financials",
+  "CMG": "Consumer Discretionary",
+  "CMI": "Industrials",
+  "CMS": "Utilities",
+  "CNC": "Health Care",
+  "CNP": "Utilities",
+  "COF": "Financials",
+  "COHR": "Information Technology",
+  "COIN": "Financials",
+  "COO": "Health Care",
+  "COP": "Energy",
+  "COR": "Health Care",
+  "COST": "Consumer Staples",
+  "CPAY": "Financials",
+  "CPRT": "Industrials",
+  "CPT": "Real Estate",
+  "CRH": "Materials",
+  "CRL": "Health Care",
+  "CRM": "Information Technology",
+  "CRWD": "Information Technology",
+  "CSCO": "Information Technology",
+  "CSGP": "Real Estate",
+  "CSX": "Industrials",
+  "CTAS": "Industrials",
+  "CTSH": "Information Technology",
+  "CTVA": "Materials",
+  "CVNA": "Consumer Discretionary",
+  "CVS": "Health Care",
+  "CVX": "Energy",
+  "D": "Utilities",
+  "DAL": "Industrials",
+  "DASH": "Consumer Discretionary",
+  "DD": "Materials",
+  "DDOG": "Information Technology",
+  "DE": "Industrials",
+  "DECK": "Consumer Discretionary",
+  "DELL": "Information Technology",
+  "DG": "Consumer Staples",
+  "DGX": "Health Care",
+  "DHI": "Consumer Discretionary",
+  "DHR": "Health Care",
+  "DIS": "Communication Services",
+  "DLR": "Real Estate",
+  "DLTR": "Consumer Staples",
+  "DOC": "Real Estate",
+  "DOV": "Industrials",
+  "DOW": "Materials",
+  "DPZ": "Consumer Discretionary",
+  "DRI": "Consumer Discretionary",
+  "DTE": "Utilities",
+  "DUK": "Utilities",
+  "DVA": "Health Care",
+  "DVN": "Energy",
+  "DXCM": "Health Care",
+  "EA": "Communication Services",
+  "EBAY": "Consumer Discretionary",
+  "ECHO": "Communication Services",
+  "ECL": "Materials",
+  "ED": "Utilities",
+  "EFX": "Industrials",
+  "EG": "Financials",
+  "EIX": "Utilities",
+  "EL": "Consumer Staples",
+  "ELV": "Health Care",
+  "EME": "Industrials",
+  "EMR": "Industrials",
+  "EOG": "Energy",
+  "EQIX": "Real Estate",
+  "EQR": "Real Estate",
+  "EQT": "Energy",
+  "ERIE": "Financials",
+  "ES": "Utilities",
+  "ESS": "Real Estate",
+  "ETN": "Industrials",
+  "ETR": "Utilities",
+  "EVRG": "Utilities",
+  "EW": "Health Care",
+  "EXC": "Utilities",
+  "EXE": "Energy",
+  "EXPD": "Industrials",
+  "EXPE": "Consumer Discretionary",
+  "EXR": "Real Estate",
+  "F": "Consumer Discretionary",
+  "FANG": "Energy",
+  "FAST": "Industrials",
+  "FCX": "Materials",
+  "FDS": "Financials",
+  "FDX": "Industrials",
+  "FE": "Utilities",
+  "FFIV": "Information Technology",
+  "FICO": "Information Technology",
+  "FIS": "Financials",
+  "FISV": "Financials",
+  "FITB": "Financials",
+  "FIX": "Industrials",
+  "FLEX": "Information Technology",
+  "FOX": "Communication Services",
+  "FOXA": "Communication Services",
+  "FRT": "Real Estate",
+  "FSLR": "Information Technology",
+  "FTNT": "Information Technology",
+  "FTV": "Industrials",
+  "GD": "Industrials",
+  "GDDY": "Information Technology",
+  "GE": "Industrials",
+  "GEHC": "Health Care",
+  "GEN": "Information Technology",
+  "GEV": "Industrials",
+  "GILD": "Health Care",
+  "GIS": "Consumer Staples",
+  "GL": "Financials",
+  "GLW": "Information Technology",
+  "GM": "Consumer Discretionary",
+  "GNRC": "Industrials",
+  "GOOG": "Communication Services",
+  "GOOGL": "Communication Services",
+  "GPC": "Consumer Discretionary",
+  "GPN": "Financials",
+  "GRMN": "Consumer Discretionary",
+  "GS": "Financials",
+  "GWW": "Industrials",
+  "HAL": "Energy",
+  "HAS": "Consumer Discretionary",
+  "HBAN": "Financials",
+  "HCA": "Health Care",
+  "HD": "Consumer Discretionary",
+  "HIG": "Financials",
+  "HII": "Industrials",
+  "HLT": "Consumer Discretionary",
+  "HON": "Industrials",
+  "HOOD": "Financials",
+  "HPE": "Information Technology",
+  "HPQ": "Information Technology",
+  "HRL": "Consumer Staples",
+  "HSIC": "Health Care",
+  "HST": "Real Estate",
+  "HSY": "Consumer Staples",
+  "HUBB": "Industrials",
+  "HUM": "Health Care",
+  "HWM": "Industrials",
+  "IBKR": "Financials",
+  "IBM": "Information Technology",
+  "ICE": "Financials",
+  "IDXX": "Health Care",
+  "IEX": "Industrials",
+  "IFF": "Materials",
+  "INCY": "Health Care",
+  "INTC": "Information Technology",
+  "INTU": "Information Technology",
+  "INVH": "Real Estate",
+  "IP": "Materials",
+  "IQV": "Health Care",
+  "IR": "Industrials",
+  "IRM": "Real Estate",
+  "ISRG": "Health Care",
+  "IT": "Information Technology",
+  "ITW": "Industrials",
+  "IVZ": "Financials",
+  "J": "Industrials",
+  "JBHT": "Industrials",
+  "JBL": "Information Technology",
+  "JCI": "Industrials",
+  "JKHY": "Financials",
+  "JNJ": "Health Care",
+  "JPM": "Financials",
+  "KDP": "Consumer Staples",
+  "KEY": "Financials",
+  "KEYS": "Information Technology",
+  "KHC": "Consumer Staples",
+  "KIM": "Real Estate",
+  "KKR": "Financials",
+  "KLAC": "Information Technology",
+  "KMB": "Consumer Staples",
+  "KMI": "Energy",
+  "KO": "Consumer Staples",
+  "KR": "Consumer Staples",
+  "KVUE": "Consumer Staples",
+  "L": "Financials",
+  "LDOS": "Industrials",
+  "LEN": "Consumer Discretionary",
+  "LH": "Health Care",
+  "LHX": "Industrials",
+  "LII": "Industrials",
+  "LIN": "Materials",
+  "LITE": "Information Technology",
+  "LLY": "Health Care",
+  "LMT": "Industrials",
+  "LNT": "Utilities",
+  "LOW": "Consumer Discretionary",
+  "LRCX": "Information Technology",
+  "LULU": "Consumer Discretionary",
+  "LUV": "Industrials",
+  "LVS": "Consumer Discretionary",
+  "LYB": "Materials",
+  "LYV": "Communication Services",
+  "MA": "Financials",
+  "MAA": "Real Estate",
+  "MAR": "Consumer Discretionary",
+  "MAS": "Industrials",
+  "MCD": "Consumer Discretionary",
+  "MCHP": "Information Technology",
+  "MCK": "Health Care",
+  "MCO": "Financials",
+  "MDLZ": "Consumer Staples",
+  "MDT": "Health Care",
+  "MET": "Financials",
+  "META": "Communication Services",
+  "MGM": "Consumer Discretionary",
+  "MKC": "Consumer Staples",
+  "MLM": "Materials",
+  "MMM": "Industrials",
+  "MNST": "Consumer Staples",
+  "MO": "Consumer Staples",
+  "MOS": "Materials",
+  "MPC": "Energy",
+  "MPWR": "Information Technology",
+  "MRK": "Health Care",
+  "MRNA": "Health Care",
+  "MRSH": "Financials",
+  "MRVL": "Information Technology",
+  "MS": "Financials",
+  "MSCI": "Financials",
+  "MSFT": "Information Technology",
+  "MSI": "Information Technology",
+  "MTB": "Financials",
+  "MTD": "Health Care",
+  "MU": "Information Technology",
+  "NCLH": "Consumer Discretionary",
+  "NDAQ": "Financials",
+  "NDSN": "Industrials",
+  "NEE": "Utilities",
+  "NEM": "Materials",
+  "NFLX": "Communication Services",
+  "NI": "Utilities",
+  "NKE": "Consumer Discretionary",
+  "NOC": "Industrials",
+  "NOW": "Information Technology",
+  "NRG": "Utilities",
+  "NSC": "Industrials",
+  "NTAP": "Information Technology",
+  "NTRS": "Financials",
+  "NUE": "Materials",
+  "NVDA": "Information Technology",
+  "NVR": "Consumer Discretionary",
+  "NWS": "Communication Services",
+  "NWSA": "Communication Services",
+  "NXPI": "Information Technology",
+  "O": "Real Estate",
+  "ODFL": "Industrials",
+  "OKE": "Energy",
+  "OMC": "Communication Services",
+  "ON": "Information Technology",
+  "ORCL": "Information Technology",
+  "ORLY": "Consumer Discretionary",
+  "OTIS": "Industrials",
+  "OXY": "Energy",
+  "PANW": "Information Technology",
+  "PAYX": "Industrials",
+  "PCAR": "Industrials",
+  "PCG": "Utilities",
+  "PEG": "Utilities",
+  "PEP": "Consumer Staples",
+  "PFE": "Health Care",
+  "PFG": "Financials",
+  "PG": "Consumer Staples",
+  "PGR": "Financials",
+  "PH": "Industrials",
+  "PHM": "Consumer Discretionary",
+  "PKG": "Materials",
+  "PLD": "Real Estate",
+  "PLTR": "Information Technology",
+  "PM": "Consumer Staples",
+  "PNC": "Financials",
+  "PNR": "Industrials",
+  "PNW": "Utilities",
+  "PODD": "Health Care",
+  "PPG": "Materials",
+  "PPL": "Utilities",
+  "PRU": "Financials",
+  "PSA": "Real Estate",
+  "PSKY": "Communication Services",
+  "PSX": "Energy",
+  "PTC": "Information Technology",
+  "PWR": "Industrials",
+  "PYPL": "Financials",
+  "QCOM": "Information Technology",
+  "RCL": "Consumer Discretionary",
+  "REG": "Real Estate",
+  "REGN": "Health Care",
+  "RF": "Financials",
+  "RJF": "Financials",
+  "RL": "Consumer Discretionary",
+  "RMD": "Health Care",
+  "ROK": "Industrials",
+  "ROL": "Industrials",
+  "ROP": "Information Technology",
+  "ROST": "Consumer Discretionary",
+  "RSG": "Industrials",
+  "RTX": "Industrials",
+  "RVTY": "Health Care",
+  "SBAC": "Real Estate",
+  "SBUX": "Consumer Discretionary",
+  "SCHW": "Financials",
+  "SHW": "Materials",
+  "SJM": "Consumer Staples",
+  "SLB": "Energy",
+  "SMCI": "Information Technology",
+  "SNA": "Industrials",
+  "SNDK": "Information Technology",
+  "SNPS": "Information Technology",
+  "SO": "Utilities",
+  "SOLV": "Health Care",
+  "SPG": "Real Estate",
+  "SPGI": "Financials",
+  "SRE": "Utilities",
+  "STE": "Health Care",
+  "STLD": "Materials",
+  "STT": "Financials",
+  "STX": "Information Technology",
+  "STZ": "Consumer Staples",
+  "SW": "Materials",
+  "SWK": "Industrials",
+  "SWKS": "Information Technology",
+  "SYF": "Financials",
+  "SYK": "Health Care",
+  "SYY": "Consumer Staples",
+  "T": "Communication Services",
+  "TAP": "Consumer Staples",
+  "TDG": "Industrials",
+  "TDY": "Information Technology",
+  "TECH": "Health Care",
+  "TEL": "Information Technology",
+  "TER": "Information Technology",
+  "TFC": "Financials",
+  "TGT": "Consumer Staples",
+  "TJX": "Consumer Discretionary",
+  "TKO": "Communication Services",
+  "TMO": "Health Care",
+  "TMUS": "Communication Services",
+  "TPL": "Energy",
+  "TPR": "Consumer Discretionary",
+  "TRGP": "Energy",
+  "TRMB": "Information Technology",
+  "TROW": "Financials",
+  "TRV": "Financials",
+  "TSCO": "Consumer Discretionary",
+  "TSLA": "Consumer Discretionary",
+  "TSN": "Consumer Staples",
+  "TT": "Industrials",
+  "TTD": "Communication Services",
+  "TTWO": "Communication Services",
+  "TXN": "Information Technology",
+  "TXT": "Industrials",
+  "TYL": "Information Technology",
+  "UAL": "Industrials",
+  "UBER": "Industrials",
+  "UDR": "Real Estate",
+  "UHS": "Health Care",
+  "ULTA": "Consumer Discretionary",
+  "UNH": "Health Care",
+  "UNP": "Industrials",
+  "UPS": "Industrials",
+  "URI": "Industrials",
+  "USB": "Financials",
+  "V": "Financials",
+  "VEEV": "Health Care",
+  "VICI": "Real Estate",
+  "VLO": "Energy",
+  "VLTO": "Industrials",
+  "VMC": "Materials",
+  "VRSK": "Industrials",
+  "VRSN": "Information Technology",
+  "VRT": "Industrials",
+  "VRTX": "Health Care",
+  "VST": "Utilities",
+  "VTR": "Real Estate",
+  "VTRS": "Health Care",
+  "VZ": "Communication Services",
+  "WAB": "Industrials",
+  "WAT": "Health Care",
+  "WBD": "Communication Services",
+  "WDAY": "Information Technology",
+  "WDC": "Information Technology",
+  "WEC": "Utilities",
+  "WELL": "Real Estate",
+  "WFC": "Financials",
+  "WM": "Industrials",
+  "WMB": "Energy",
+  "WMT": "Consumer Staples",
+  "WRB": "Financials",
+  "WSM": "Consumer Discretionary",
+  "WST": "Health Care",
+  "WTW": "Financials",
+  "WY": "Real Estate",
+  "WYNN": "Consumer Discretionary",
+  "XEL": "Utilities",
+  "XOM": "Energy",
+  "XYL": "Industrials",
+  "XYZ": "Financials",
+  "YUM": "Consumer Discretionary",
+  "ZBH": "Health Care",
+  "ZBRA": "Information Technology",
+  "ZTS": "Health Care"
+ },
+ "models": {
+  "heston": {
+   "_universe": {
+    "n": 500,
+    "mean": [
+     2.730619330220793,
+     -2.2841058323538572,
+     0.23904553627684297,
+     -0.2826983367012678
+    ],
+    "cov": [
+     [
+      0.0943502217025225,
+      -0.037902406829213496,
+      -0.006517386244910441,
+      -0.00859664888764022
+     ],
+     [
+      -0.037902406829213496,
+      0.38059208758486446,
+      0.17114776684027908,
+      0.03350926123462944
+     ],
+     [
+      -0.006517386244910438,
+      0.17114776684027908,
+      0.1655274008225338,
+      0.015107775381557519
+     ],
+     [
+      -0.00859664888764022,
+      0.03350926123462944,
+      0.015107775381557519,
+      0.06240654846056668
+     ]
+    ],
+    "natural": {
+     "kappa": {
+      "q05": 8.973505411682021,
+      "median": 14.284457365397659,
+      "q95": 19.15081447524221
+     },
+     "theta": {
+      "q05": 0.03876767940554141,
+      "median": 0.10391485846621928,
+      "q95": 0.26910471186244167
+     },
+     "sigma_v": {
+      "q05": 0.6546219945297012,
+      "median": 1.264461501328583,
+      "q95": 2.3194313053649895
+     },
+     "rho": {
+      "q05": -0.5862567646484297,
+      "median": -0.2639452433009582,
+      "q95": 0.12683037545590922
+     }
+    },
+    "left_out": []
+   },
+   "Communication Services": {
+    "n": 23,
+    "mean": [
+     2.6739094519109576,
+     -2.162901708384242,
+     0.36752120907404995,
+     -0.25942811461197285
+    ],
+    "cov": [
+     [
+      0.11744097018170813,
+      -0.0653129037712622,
+      -0.013368093466444813,
+      -0.016819711847958746
+     ],
+     [
+      -0.0653129037712622,
+      0.36260387801625604,
+      0.1296058101283881,
+      0.034336267484591246
+     ],
+     [
+      -0.013368093466444811,
+      0.1296058101283881,
+      0.1268683037499635,
+      0.011129320999081663
+     ],
+     [
+      -0.016819711847958746,
+      0.034336267484591246,
+      0.011129320999081664,
+      0.05918671525571315
+     ]
+    ],
+    "natural": {
+     "kappa": {
+      "q05": 8.097926714716866,
+      "median": 13.577940874556646,
+      "q95": 19.035622505836702
+     },
+     "theta": {
+      "q05": 0.04468741050417587,
+      "median": 0.1178280993769404,
+      "q95": 0.29631773593822025
+     },
+     "sigma_v": {
+      "q05": 0.8074590477455521,
+      "median": 1.439810266939372,
+      "q95": 2.4474206786671164
+     },
+     "rho": {
+      "q05": -0.5652317388666105,
+      "median": -0.2413896439780816,
+      "q95": 0.14280728515849675
+     }
+    }
+   },
+   "Consumer Discretionary": {
+    "n": 47,
+    "mean": [
+     2.6677196237030882,
+     -2.088097684686454,
+     0.29563400347524704,
+     -0.3101104851222766
+    ],
+    "cov": [
+     [
+      0.11189194483471884,
+      -0.03228973802389453,
+      0.0006019707379152279,
+      -0.0014039558527159295
+     ],
+     [
+      -0.032289738023894524,
+      0.36563715339935426,
+      0.17489448380501987,
+      0.00106632725199158
+     ],
+     [
+      0.0006019707379152313,
+      0.17489448380501987,
+      0.17612336299887232,
+      0.00024713885878956436
+     ],
+     [
+      -0.0014039558527159295,
+      0.00106632725199158,
+      0.00024713885878956387,
+      0.04944404048058777
+     ]
+    ],
+    "natural": {
+     "kappa": {
+      "q05": 8.044698724872745,
+      "median": 13.444301677188031,
+      "q95": 18.97368360478833
+     },
+     "theta": {
+      "q05": 0.04691301343708908,
+      "median": 0.12415269037527672,
+      "q95": 0.3048207125196716
+     },
+     "sigma_v": {
+      "q05": 0.6723989785841356,
+      "median": 1.3232880241128704,
+      "q95": 2.439360781382682
+     },
+     "rho": {
+      "q05": -0.5818170067306977,
+      "median": -0.2974761784401551,
+      "q95": 0.054993065161212315
+     }
+    }
+   },
+   "Consumer Staples": {
+    "n": 34,
+    "mean": [
+     2.7504790340216747,
+     -2.593305891799271,
+     0.10551944175749303,
+     -0.23505734451508278
+    ],
+    "cov": [
+     [
+      0.08362328110035482,
+      -0.02193516808615919,
+      -0.0012555141237158408,
+      -0.0009532534319003246
+     ],
+     [
+      -0.02193516808615919,
+      0.27452803901185746,
+      0.12423738938907429,
+      0.0016689961178860643
+     ],
+     [
+      -0.00125551412371584,
+      0.12423738938907426,
+      0.1403778898254571,
+      -0.0007121407809786107
+     ],
+     [
+      -0.0009532534319003246,
+      0.0016689961178860643,
+      -0.0007121407809786107,
+      0.05174170785445309
+     ]
+    ],
+    "natural": {
+     "kappa": {
+      "q05": 9.468302060340736,
+      "median": 14.5862129200275,
+      "q95": 19.233303706370368
+     },
+     "theta": {
+      "q05": 0.032442182337285484,
+      "median": 0.07598703728571461,
+      "q95": 0.17874247402797477
+     },
+     "sigma_v": {
+      "q05": 0.5956409245992397,
+      "median": 1.1082599648058367,
+      "q95": 2.0148835888358145
+     },
+     "rho": {
+      "q05": -0.5397984819824705,
+      "median": -0.22906515200891933,
+      "q95": 0.1388557060108894
+     }
+    }
+   },
+   "Energy": {
+    "n": 21,
+    "mean": [
+     2.5991957201439146,
+     -2.1578915081217254,
+     0.1594478309554924,
+     -0.27266523081200705
+    ],
+    "cov": [
+     [
+      0.13677124587559672,
+      -0.022807379740078022,
+      0.024492292801702443,
+      -0.01861858549206904
+     ],
+     [
+      -0.022807379740078022,
+      0.2699733070357191,
+      0.11163887586018786,
+      0.024139265776936786
+     ],
+     [
+      0.024492292801702443,
+      0.11163887586018788,
+      0.14309370495784068,
+      0.003564518661590698
+     ],
+     [
+      -0.01861858549206904,
+      0.024139265776936786,
+      0.003564518661590698,
+      0.05576845483841207
+     ]
+    ],
+    "natural": {
+     "kappa": {
+      "q05": 7.153226446381044,
+      "median": 12.62415919234703,
+      "q95": 18.70815506545086
+     },
+     "theta": {
+      "q05": 0.050207126994043394,
+      "median": 0.11726150207249225,
+      "q95": 0.2659309923547245
+     },
+     "sigma_v": {
+      "q05": 0.6203158559683272,
+      "median": 1.155340555898111,
+      "q95": 2.1009143995759563
+     },
+     "rho": {
+      "q05": -0.560701933901475,
+      "median": -0.2532267843552606,
+      "q95": 0.1245756093957527
+     }
+    }
+   },
+   "Financials": {
+    "n": 76,
+    "mean": [
+     2.8041874404479104,
+     -2.3814587750846217,
+     0.2433291626425072,
+     -0.4481406671670542
+    ],
+    "cov": [
+     [
+      0.0765880435623918,
+      -0.022221135846197566,
+      -0.004790846868040216,
+      -0.004475574562848401
+     ],
+     [
+      -0.022221135846197573,
+      0.3019656286475423,
+      0.1281926546741309,
+      0.017635147811447635
+     ],
+     [
+      -0.004790846868040217,
+      0.1281926546741309,
+      0.1340970592543405,
+      0.0033550110242590477
+     ],
+     [
+      -0.0044755745628484,
+      0.017635147811447635,
+      0.0033550110242590477,
+      0.061395392045659414
+     ]
+    ],
+    "natural": {
+     "kappa": {
+      "q05": 10.090820875455371,
+      "median": 15.176810071737762,
+      "q95": 19.37450571370358
+     },
+     "theta": {
+      "q05": 0.03823767864969323,
+      "median": 0.09396349338735821,
+      "q95": 0.22634996445698338
+     },
+     "sigma_v": {
+      "q05": 0.7032113093259694,
+      "median": 1.2755719270165264,
+      "q95": 2.245601854686045
+     },
+     "rho": {
+      "q05": -0.6822220856693111,
+      "median": -0.4088458952256091,
+      "q95": -0.029753279882813996
+     }
+    }
+   },
+   "Health Care": {
+    "n": 59,
+    "mean": [
+     2.748630903256139,
+     -2.2693354664112353,
+     0.2868016400222995,
+     -0.1827682309693781
+    ],
+    "cov": [
+     [
+      0.08555183026465839,
+      -0.019307790762327432,
+      0.0017565052958063091,
+      5.983459099245501e-05
+     ],
+     [
+      -0.01930779076232744,
+      0.2705511344243058,
+      0.11686013822593047,
+      -0.003007144019422212
+     ],
+     [
+      0.0017565052958063096,
+      0.11686013822593047,
+      0.1344841377583447,
+      -0.0071351337890785795
+     ],
+     [
+      5.9834590992454603e-05,
+      -0.0030071440194222136,
+      -0.0071351337890785795,
+      0.0578220612382327
+     ]
+    ],
+    "natural": {
+     "kappa": {
+      "q05": 9.34455021287139,
+      "median": 14.498090504351989,
+      "q95": 19.229451393667958
+     },
+     "theta": {
+      "q05": 0.0446952922822883,
+      "median": 0.10396270690035368,
+      "q95": 0.23744395685661399
+     },
+     "sigma_v": {
+      "q05": 0.7250594187623159,
+      "median": 1.3127291449029905,
+      "q95": 2.331532079864597
+     },
+     "rho": {
+      "q05": -0.5117133746456982,
+      "median": -0.18221242700757143,
+      "q95": 0.19842665250652816
+     }
+    }
+   },
+   "Industrials": {
+    "n": 79,
+    "mean": [
+     2.7939612339246374,
+     -2.357183963762385,
+     0.23891342560951084,
+     -0.2518882283113629
+    ],
+    "cov": [
+     [
+      0.07479224086234361,
+      -0.010845711804234425,
+      0.0015833120791690087,
+      -0.0025083314714242693
+     ],
+     [
+      -0.010845711804234427,
+      0.2931802433896573,
+      0.11681186084119895,
+      0.0003211540022182713
+     ],
+     [
+      0.0015833120791690094,
+      0.11681186084119895,
+      0.1257472980698945,
+      -0.0022792274982310875
+     ],
+     [
+      -0.0025083314714242693,
+      0.0003211540022182713,
+      -0.002279227498231085,
+      0.051906621904418984
+     ]
+    ],
+    "natural": {
+     "kappa": {
+      "q05": 10.206245245763032,
+      "median": 15.091523696363446,
+      "q95": 19.341873317232427
+     },
+     "theta": {
+      "q05": 0.0388823076495639,
+      "median": 0.09534210164941721,
+      "q95": 0.22706681636424209
+     },
+     "sigma_v": {
+      "q05": 0.7072643937159603,
+      "median": 1.2608813456347623,
+      "q95": 2.218806823347007
+     },
+     "rho": {
+      "q05": -0.5489718833982768,
+      "median": -0.2383063743638106,
+      "q95": 0.12758254024357174
+     }
+    }
+   },
+   "Information Technology": {
+    "n": 73,
+    "mean": [
+     2.613072329940704,
+     -1.8235523856618834,
+     0.4684598528474203,
+     -0.15677283109836163
+    ],
+    "cov": [
+     [
+      0.11588658079842169,
+      -0.03429235476643215,
+      0.004027621871179979,
+      -0.014090015186386933
+     ],
+     [
+      -0.03429235476643214,
+      0.3362785073424508,
+      0.12278232063532306,
+      0.04407966537507157
+     ],
+     [
+      0.004027621871179979,
+      0.12278232063532306,
+      0.12497901418849551,
+      0.016989026526018403
+     ],
+     [
+      -0.014090015186386933,
+      0.044079665375071575,
+      0.016989026526018403,
+      0.06675567698333473
+     ]
+    ],
+    "natural": {
+     "kappa": {
+      "q05": 7.655204070021137,
+      "median": 12.96137259200885,
+      "q95": 18.768703259081516
+     },
+     "theta": {
+      "q05": 0.0625136124669015,
+      "median": 0.15973306074799626,
+      "q95": 0.3652555991152037
+     },
+     "sigma_v": {
+      "q05": 0.8847874881864911,
+      "median": 1.559966534250273,
+      "q95": 2.5721091354402885
+     },
+     "rho": {
+      "q05": -0.5086330894918665,
+      "median": -0.15543754886765113,
+      "q95": 0.24844644867225305
+     }
+    }
+   },
+   "Materials": {
+    "n": 26,
+    "mean": [
+     2.6572299141120665,
+     -2.2462739473867455,
+     0.19619171048218567,
+     -0.2582797507438618
+    ],
+    "cov": [
+     [
+      0.11121825100119898,
+      -0.017803130449399678,
+      0.013511284314136599,
+      -0.007374411654112712
+     ],
+     [
+      -0.017803130449399678,
+      0.29686400154856823,
+      0.11315791222160938,
+      0.027825698941891693
+     ],
+     [
+      0.013511284314136599,
+      0.11315791222160937,
+      0.14353082518932098,
+      0.00503036605066322
+     ],
+     [
+      -0.00737441165411271,
+      0.0278256989418917,
+      0.00503036605066322,
+      0.05491150635105815
+     ]
+    ],
+    "natural": {
+     "kappa": {
+      "q05": 8.01872896820623,
+      "median": 13.326542404520412,
+      "q95": 18.935335722011132
+     },
+     "theta": {
+      "q05": 0.044739322208391934,
+      "median": 0.10694818377378174,
+      "q95": 0.25640742865209787
+     },
+     "sigma_v": {
+      "q05": 0.6510832328846123,
+      "median": 1.2032843537751892,
+      "q95": 2.168126328269266
+     },
+     "rho": {
+      "q05": -0.5592267739379392,
+      "median": -0.24666991557849288,
+      "q95": 0.13958573438007907
+     }
+    }
+   },
+   "Real Estate": {
+    "n": 31,
+    "mean": [
+     2.795410116931494,
+     -2.5548393361474004,
+     0.0498854641671651,
+     -0.38498667368259626
+    ],
+    "cov": [
+     [
+      0.07766728738357503,
+      -0.011065307811891164,
+      0.003501799235131682,
+      -0.003685530112984644
+     ],
+     [
+      -0.011065307811891165,
+      0.20279062596372766,
+      0.08618420696978167,
+      0.020755861375951378
+     ],
+     [
+      0.003501799235131682,
+      0.08618420696978167,
+      0.12156123160381137,
+      0.01179672724937105
+     ],
+     [
+      -0.003685530112984644,
+      0.020755861375951378,
+      0.011796727249371051,
+      0.048329522096616326
+     ]
+    ],
+    "natural": {
+     "kappa": {
+      "q05": 9.941636541663042,
+      "median": 15.031106013155549,
+      "q95": 19.34403398420312
+     },
+     "theta": {
+      "q05": 0.037283387153417225,
+      "median": 0.07873229506966714,
+      "q95": 0.16606169959672729
+     },
+     "sigma_v": {
+      "q05": 0.587711152692861,
+      "median": 1.0463222047293148,
+      "q95": 1.8301409874483212
+     },
+     "rho": {
+      "q05": -0.6206887870712557,
+      "median": -0.35898527423680116,
+      "q95": -0.018194167410827914
+     }
+    }
+   },
+   "Utilities": {
+    "n": 31,
+    "mean": [
+     2.742252590171902,
+     -2.758064485005542,
+     -0.12098900280367361,
+     -0.37526085306965173
+    ],
+    "cov": [
+     [
+      0.09470620172747585,
+      -0.04419830479556854,
+      -0.014547970775306625,
+      -0.014346926302674637
+     ],
+     [
+      -0.04419830479556854,
+      0.35458842961901016,
+      0.20128678807239694,
+      0.06770722828798514
+     ],
+     [
+      -0.014547970775306621,
+      0.20128678807239694,
+      0.2147983108844972,
+      0.047327676162239145
+     ],
+     [
+      -0.014346926302674635,
+      0.06770722828798514,
+      0.047327676162239145,
+      0.07283703044054513
+     ]
+    ],
+    "natural": {
+     "kappa": {
+      "q05": 8.993862978454183,
+      "median": 14.349611979349136,
+      "q95": 19.23922366908005
+     },
+     "theta": {
+      "q05": 0.025074561335175473,
+      "median": 0.06613990191292757,
+      "q95": 0.17036785557060688
+     },
+     "sigma_v": {
+      "q05": 0.41787520262820527,
+      "median": 0.8960962320935986,
+      "q95": 1.883476118337547
+     },
+     "rho": {
+      "q05": -0.6561870741872236,
+      "median": -0.34204831943907166,
+      "q95": 0.07818967653105906
+     }
+    }
+   }
+  },
+  "merton": {
+   "_universe": {
+    "n": 499,
+    "mean": [
+     -1.5351948835907885,
+     3.4830601220665565,
+     -0.003563197580228529,
+     -3.312387173523902
+    ],
+    "cov": [
+     [
+      0.09681306106059125,
+      -0.03528570278157474,
+      8.336961328989724e-05,
+      0.09159907649562468
+     ],
+     [
+      -0.03528570278157474,
+      0.5651728027003634,
+      0.0011751810452014743,
+      -0.17392583589059868
+     ],
+     [
+      8.336961328989724e-05,
+      0.0011751810452014743,
+      0.00015176141530717123,
+      -0.0002604877056904288
+     ],
+     [
+      0.09159907649562468,
+      -0.1739258358905987,
+      -0.0002604877056904288,
+      0.24332869357583647
+     ]
+    ],
+    "natural": {
+     "sigma": {
+      "q05": 0.12886770766880204,
+      "median": 0.21646569750847838,
+      "q95": 0.35936999231402317
+     },
+     "lambda_j": {
+      "q05": 9.411052103731214,
+      "median": 32.088539611136596,
+      "q95": 105.20885519809303
+     },
+     "mu_j": {
+      "q05": -0.023883034675729442,
+      "median": -0.003564210240685535,
+      "q95": 0.016415415103018496
+     },
+     "sigma_j": {
+      "q05": 0.016410378083272847,
+      "median": 0.03689193768185703,
+      "q95": 0.08204261251748902
+     }
+    },
+    "left_out": [
+     "SW"
+    ]
+   },
+   "Communication Services": {
+    "n": 23,
+    "mean": [
+     -1.5600838587889285,
+     3.509505978984446,
+     -0.00339958731550936,
+     -3.1875310639438807
+    ],
+    "cov": [
+     [
+      0.14079414467229295,
+      -0.08387932132680488,
+      -8.793629397987108e-05,
+      0.1191975229618271
+     ],
+     [
+      -0.08387932132680488,
+      0.4260313144166706,
+      0.0011235730267109595,
+      -0.16235294310353013
+     ],
+     [
+      -8.79362939798711e-05,
+      0.0011235730267109597,
+      0.0001540535545963107,
+      -0.00024345414079806097
+     ],
+     [
+      0.1191975229618271,
+      -0.16235294310353016,
+      -0.00024345414079806097,
+      0.2493412882770453
+     ]
+    ],
+    "natural": {
+     "sigma": {
+      "q05": 0.11442167787972353,
+      "median": 0.21239741718234306,
+      "q95": 0.3911334468127951
+     },
+     "lambda_j": {
+      "q05": 11.16661581333605,
+      "median": 32.715881002893056,
+      "q95": 94.83541139424935
+     },
+     "mu_j": {
+      "q05": -0.023642573461092914,
+      "median": -0.003455612092479322,
+      "q95": 0.016959092841077415
+     },
+     "sigma_j": {
+      "q05": 0.018467666334523215,
+      "median": 0.04182083425488908,
+      "q95": 0.0940050256174505
+     }
+    }
+   },
+   "Consumer Discretionary": {
+    "n": 47,
+    "mean": [
+     -1.4425297907154526,
+     3.5684736196271003,
+     -0.0026938616218400557,
+     -3.2181732579562734
+    ],
+    "cov": [
+     [
+      0.08427166882587861,
+      -0.016126402090477183,
+      -1.943952753120475e-08,
+      0.0785061190070234
+     ],
+     [
+      -0.01612640209047718,
+      0.7100240394091942,
+      0.0010170750493661898,
+      -0.1799623910036251
+     ],
+     [
+      -1.9439527531172415e-08,
+      0.0010170750493661896,
+      0.00014822425001316143,
+      -0.00027125544155000796
+     ],
+     [
+      0.0785061190070234,
+      -0.1799623910036251,
+      -0.00027125544155000785,
+      0.228789177637301
+     ]
+    ],
+    "natural": {
+     "sigma": {
+      "q05": 0.14604559403390185,
+      "median": 0.2362579803334983,
+      "q95": 0.38038436305345463
+     },
+     "lambda_j": {
+      "q05": 8.783196278415197,
+      "median": 34.76410294117247,
+      "q95": 121.98336420093075
+     },
+     "mu_j": {
+      "q05": -0.02251932535209292,
+      "median": -0.0025315571607627914,
+      "q95": 0.016980379505857117
+     },
+     "sigma_j": {
+      "q05": 0.0187429558665564,
+      "median": 0.04033380260958169,
+      "q95": 0.0882915569554794
+     }
+    }
+   },
+   "Consumer Staples": {
+    "n": 34,
+    "mean": [
+     -1.6702632600058414,
+     3.1391151336750998,
+     -0.005507096802015085,
+     -3.3310871138546103
+    ],
+    "cov": [
+     [
+      0.07081301130903776,
+      -0.07804048364967658,
+      -0.00036861377046787776,
+      0.08886929679403846
+     ],
+     [
+      -0.07804048364967658,
+      0.513568867831557,
+      0.0014988743030289956,
+      -0.23882005212784704
+     ],
+     [
+      -0.00036861377046787765,
+      0.0014988743030289956,
+      0.00016683325519321847,
+      -0.0010806962910758272
+     ],
+     [
+      0.08886929679403846,
+      -0.23882005212784704,
+      -0.0010806962910758272,
+      0.2676314610420056
+     ]
+    ],
+    "natural": {
+     "sigma": {
+      "q05": 0.12239020500769832,
+      "median": 0.18771740743732615,
+      "q95": 0.2915267619485131
+     },
+     "lambda_j": {
+      "q05": 7.1613522229534015,
+      "median": 22.813453568428677,
+      "q95": 74.20783991190085
+     },
+     "mu_j": {
+      "q05": -0.026910805890969166,
+      "median": -0.005539900861691508,
+      "q95": 0.015545998524601852
+     },
+     "sigma_j": {
+      "q05": 0.01546211169863474,
+      "median": 0.03587382387041889,
+      "q95": 0.08371135996124325
+     }
+    }
+   },
+   "Energy": {
+    "n": 21,
+    "mean": [
+     -1.4843762020798765,
+     3.952587411589402,
+     -0.005183216757844385,
+     -3.4813475097890834
+    ],
+    "cov": [
+     [
+      0.06508304257212995,
+      -0.022020885388107772,
+      1.4046589693444968e-05,
+      0.05062356785689227
+     ],
+     [
+      -0.022020885388107772,
+      0.4559154593601521,
+      0.0015380251231654875,
+      -0.07727976134524009
+     ],
+     [
+      1.4046589693444954e-05,
+      0.0015380251231654875,
+      0.0001354823334094846,
+      -7.356639357712919e-05
+     ],
+     [
+      0.05062356785689227,
+      -0.07727976134524012,
+      -7.35663935771292e-05,
+      0.14329769721961977
+     ]
+    ],
+    "natural": {
+     "sigma": {
+      "q05": 0.14968582158985172,
+      "median": 0.22666288362099346,
+      "q95": 0.34534793004124764
+     },
+     "lambda_j": {
+      "q05": 17.111248843110687,
+      "median": 51.48248638213427,
+      "q95": 139.48887296859127
+     },
+     "mu_j": {
+      "q05": -0.02429098245962231,
+      "median": -0.0052321520608093865,
+      "q95": 0.013705531969117392
+     },
+     "sigma_j": {
+      "q05": 0.016820786752576027,
+      "median": 0.030845927840015594,
+      "q95": 0.056947988998587794
+     }
+    }
+   },
+   "Financials": {
+    "n": 76,
+    "mean": [
+     -1.5592496538334333,
+     3.435919362995327,
+     -0.0053557948056064154,
+     -3.3593992460945903
+    ],
+    "cov": [
+     [
+      0.09249646143295236,
+      -0.03146508279745328,
+      0.00013323766872724583,
+      0.0764017656022782
+     ],
+     [
+      -0.03146508279745328,
+      0.5420058154677466,
+      0.0015596715356720966,
+      -0.19394901831392225
+     ],
+     [
+      0.00013323766872724583,
+      0.0015596715356720966,
+      0.00014403272715253102,
+      -0.000599082573051555
+     ],
+     [
+      0.0764017656022782,
+      -0.19394901831392225,
+      -0.000599082573051555,
+      0.22442965750482752
+     ]
+    ],
+    "natural": {
+     "sigma": {
+      "q05": 0.12779457845865902,
+      "median": 0.21066441789612464,
+      "q95": 0.3481507681988839
+     },
+     "lambda_j": {
+      "q05": 9.221159185034011,
+      "median": 30.388870150580054,
+      "q95": 98.93509108386412
+     },
+     "mu_j": {
+      "q05": -0.025069552154576714,
+      "median": -0.005432311424401086,
+      "q95": 0.014319131111213287
+     },
+     "sigma_j": {
+      "q05": 0.016321710192016732,
+      "median": 0.03523271652000313,
+      "q95": 0.07622133003924891
+     }
+    }
+   },
+   "Health Care": {
+    "n": 59,
+    "mean": [
+     -1.5342055658332636,
+     3.139645202886023,
+     -0.004718279856893482,
+     -3.148134234660135
+    ],
+    "cov": [
+     [
+      0.06975660115489282,
+      -0.048202840114756146,
+      -0.0002319507356997663,
+      0.07359330624875655
+     ],
+     [
+      -0.048202840114756146,
+      0.5512778159416433,
+      0.002539120025911992,
+      -0.21445900075156904
+     ],
+     [
+      -0.0002319507356997663,
+      0.002539120025911992,
+      0.0001932434011344948,
+      -0.0015358915441083313
+     ],
+     [
+      0.07359330624875655,
+      -0.21445900075156904,
+      -0.001535891544108331,
+      0.2376921985586468
+     ]
+    ],
+    "natural": {
+     "sigma": {
+      "q05": 0.1393863625392656,
+      "median": 0.21543250894140029,
+      "q95": 0.33350637795585075
+     },
+     "lambda_j": {
+      "q05": 6.873682836012991,
+      "median": 22.98654886128177,
+      "q95": 76.1387330459687
+     },
+     "mu_j": {
+      "q05": -0.02733519031001843,
+      "median": -0.0047214554406295635,
+      "q95": 0.01867710988782947
+     },
+     "sigma_j": {
+      "q05": 0.01937480422080867,
+      "median": 0.04276859918157821,
+      "q95": 0.09563462715876157
+     }
+    }
+   },
+   "Industrials": {
+    "n": 79,
+    "mean": [
+     -1.573153317048443,
+     3.472415931190249,
+     -0.0027337732606198383,
+     -3.355916741621531
+    ],
+    "cov": [
+     [
+      0.08913624082486357,
+      -0.05422258706716111,
+      4.6467323366954694e-05,
+      0.0764260276427691
+     ],
+     [
+      -0.05422258706716111,
+      0.4315343370931075,
+      0.0007983931283365199,
+      -0.14132422988359022
+     ],
+     [
+      4.646732336695472e-05,
+      0.0007983931283365202,
+      0.00014427406407947473,
+      -0.00023831397247286477
+     ],
+     [
+      0.0764260276427691,
+      -0.14132422988359022,
+      -0.00023831397247286477,
+      0.1802197950812484
+     ]
+    ],
+    "natural": {
+     "sigma": {
+      "q05": 0.12817679381176386,
+      "median": 0.2081914831125385,
+      "q95": 0.33786197750479097
+     },
+     "lambda_j": {
+      "q05": 10.635192207149085,
+      "median": 31.959971597247456,
+      "q95": 92.05188543321184
+     },
+     "mu_j": {
+      "q05": -0.02249686665333979,
+      "median": -0.0026925243578735424,
+      "q95": 0.017290262176088346
+     },
+     "sigma_j": {
+      "q05": 0.017617060539798016,
+      "median": 0.03514550758063918,
+      "q95": 0.07077461891944338
+     }
+    }
+   },
+   "Information Technology": {
+    "n": 73,
+    "mean": [
+     -1.3536763247503787,
+     3.589352911413051,
+     -0.0011724177429839832,
+     -3.049910760430746
+    ],
+    "cov": [
+     [
+      0.10058502811483991,
+      0.0008062120381163464,
+      0.00044169995012514353,
+      0.07146680587632054
+     ],
+     [
+      0.0008062120381163456,
+      0.4579160078009249,
+      7.496329379169522e-05,
+      -0.09306648715234994
+     ],
+     [
+      0.00044169995012514353,
+      7.496329379169526e-05,
+      0.0001643811910893394,
+      0.00038078444318126193
+     ],
+     [
+      0.07146680587632054,
+      -0.09306648715234993,
+      0.00038078444318126193,
+      0.16195038730413006
+     ]
+    ],
+    "natural": {
+     "sigma": {
+      "q05": 0.15336241382734295,
+      "median": 0.25916216371633083,
+      "q95": 0.4340251514767643
+     },
+     "lambda_j": {
+      "q05": 11.78372899142328,
+      "median": 36.037668035273406,
+      "q95": 106.52674349375324
+     },
+     "mu_j": {
+      "q05": -0.021946131200033227,
+      "median": -0.000943284770179679,
+      "q95": 0.02008565221196372
+     },
+     "sigma_j": {
+      "q05": 0.024429960123428584,
+      "median": 0.047385429223450466,
+      "q95": 0.09202123343660214
+     }
+    }
+   },
+   "Materials": {
+    "n": 25,
+    "mean": [
+     -1.502718487010775,
+     3.514070130722338,
+     -0.003772356429514621,
+     -3.3374524436821806
+    ],
+    "cov": [
+     [
+      0.09866813629666707,
+      -0.0658287073436185,
+      -0.0004415256914373213,
+      0.07660354289492521
+     ],
+     [
+      -0.06582870734361848,
+      0.5672368446224256,
+      0.0012594009829224237,
+      -0.20378875390466605
+     ],
+     [
+      -0.0004415256914373213,
+      0.0012594009829224237,
+      0.00014528760030106246,
+      -0.0007943686585929724
+     ],
+     [
+      0.07660354289492521,
+      -0.20378875390466608,
+      -0.0007943686585929722,
+      0.19899826167888152
+     ]
+    ],
+    "natural": {
+     "sigma": {
+      "q05": 0.13346818435620011,
+      "median": 0.22340902696278708,
+      "q95": 0.3733956270914552
+     },
+     "lambda_j": {
+      "q05": 9.956528309023595,
+      "median": 33.516089336185026,
+      "q95": 108.55783073529045
+     },
+     "mu_j": {
+      "q05": -0.023623394187702807,
+      "median": -0.003675022922828802,
+      "q95": 0.01582539464254776
+     },
+     "sigma_j": {
+      "q05": 0.017294978288185395,
+      "median": 0.035608978754596024,
+      "q95": 0.073657412163744
+     }
+    }
+   },
+   "Real Estate": {
+    "n": 31,
+    "mean": [
+     -1.6034501345569843,
+     3.610832924852219,
+     -0.002230445672991486,
+     -3.585699791961262
+    ],
+    "cov": [
+     [
+      0.05323706360486235,
+      -0.04739639531318527,
+      -8.057468518009473e-06,
+      0.04767318134656806
+     ],
+     [
+      -0.04739639531318528,
+      0.5078259499696267,
+      0.0005096717804000901,
+      -0.1296899963925193
+     ],
+     [
+      -8.057468518009468e-06,
+      0.0005096717804000901,
+      0.00012943315857216308,
+      -0.00019844312307163415
+     ],
+     [
+      0.047673181346568054,
+      -0.1296899963925193,
+      -0.00019844312307163418,
+      0.16004721646364273
+     ]
+    ],
+    "natural": {
+     "sigma": {
+      "q05": 0.13809819105500631,
+      "median": 0.2017878478059196,
+      "q95": 0.2935216888115513
+     },
+     "lambda_j": {
+      "q05": 11.286926329938076,
+      "median": 36.57411974045329,
+      "q95": 114.18211675966944
+     },
+     "mu_j": {
+      "q05": -0.020813989548265265,
+      "median": -0.002203247360475182,
+      "q95": 0.01622970034631184
+     },
+     "sigma_j": {
+      "q05": 0.014532910483352375,
+      "median": 0.027880316880189385,
+      "q95": 0.053898425411128846
+     }
+    }
+   },
+   "Utilities": {
+    "n": 31,
+    "mean": [
+     -1.72064898950269,
+     3.6284612837089463,
+     -0.004395607960016144,
+     -3.71754858430178
+    ],
+    "cov": [
+     [
+      0.06407570084284347,
+      -0.044845921829095324,
+      1.2407141134785659e-06,
+      0.070874254117951
+     ],
+     [
+      -0.044845921829095324,
+      0.578674997928321,
+      0.0016158522295093407,
+      -0.11636367877363606
+     ],
+     [
+      1.2407141134785606e-06,
+      0.0016158522295093407,
+      0.0001363311121645679,
+      -7.781592205169103e-05
+     ],
+     [
+      0.070874254117951,
+      -0.11636367877363606,
+      -7.781592205169109e-05,
+      0.24326881998012895
+     ]
+    ],
+    "natural": {
+     "sigma": {
+      "q05": 0.11818283678144874,
+      "median": 0.1794781204043624,
+      "q95": 0.2728845339187865
+     },
+     "lambda_j": {
+      "q05": 10.556524266742143,
+      "median": 36.817561046056,
+      "q95": 119.75820511089508
+     },
+     "mu_j": {
+      "q05": -0.023815270226130215,
+      "median": -0.004463405171281418,
+      "q95": 0.014685196606404063
+     },
+     "sigma_j": {
+      "q05": 0.010980252740099785,
+      "median": 0.02458731861494242,
+      "q95": 0.05508835519470133
+     }
+    }
+   }
+  },
+  "regime_switching_gbm": {
+   "_universe": {
+    "n": 499,
+    "mean": [
+     -1.500657947847958,
+     0.4565634170225515,
+     3.9443762609275868,
+     2.492493601209453
+    ],
+    "cov": [
+     [
+      0.09363502849901455,
+      0.02052259527819337,
+      0.033355692420153585,
+      0.00582914419207021
+     ],
+     [
+      0.020522595278193362,
+      0.18554234190334948,
+      0.10765975077121508,
+      -0.01661904075898651
+     ],
+     [
+      0.03335569242015359,
+      0.10765975077121508,
+      0.3258671156551824,
+      0.012574824505118487
+     ],
+     [
+      0.005829144192070212,
+      -0.01661904075898651,
+      0.012574824505118487,
+      0.10123471707833684
+     ]
+    ],
+    "natural": {
+     "sigma_0": {
+      "q05": 0.135198661007499,
+      "median": 0.2250689373251526,
+      "q95": 0.36972785723925006
+     },
+     "sigma_1": {
+      "q05": 0.2916748161981112,
+      "median": 0.5796467430859095,
+      "q95": 1.1984985971187956
+     },
+     "p_00": {
+      "q05": 0.9538762068110369,
+      "median": 0.9812524617146341,
+      "q95": 0.9924216111087576
+     },
+     "p_11": {
+      "q05": 0.9041364936162017,
+      "median": 0.9284993132444284,
+      "q95": 0.9547954090844128
+     }
+    },
+    "left_out": [
+     "SW"
+    ]
+   },
+   "Communication Services": {
+    "n": 23,
+    "mean": [
+     -1.5161087395692032,
+     0.6394729099613435,
+     3.8392513088113267,
+     2.4662849343765614
+    ],
+    "cov": [
+     [
+      0.11554553702666794,
+      0.015736681455627084,
+      0.059518707582309115,
+      -0.003779013168554106
+     ],
+     [
+      0.015736681455627084,
+      0.17132143380711726,
+      0.07362608501438016,
+      -0.0035499953203470616
+     ],
+     [
+      0.05951870758230912,
+      0.07362608501438016,
+      0.2679946060844111,
+      0.005060721772681087
+     ],
+     [
+      -0.0037790131685541055,
+      -0.003549995320347063,
+      0.005060721772681086,
+      0.0931307873229141
+     ]
+    ],
+    "natural": {
+     "sigma_0": {
+      "q05": 0.12563871061178955,
+      "median": 0.22040256439436784,
+      "q95": 0.38065904481416163
+     },
+     "sigma_1": {
+      "q05": 0.3066017616043311,
+      "median": 0.6380507927044953,
+      "q95": 1.3451591347460714
+     },
+     "p_00": {
+      "q05": 0.9521360206645647,
+      "median": 0.978811763889986,
+      "q95": 0.9909479672909738
+     },
+     "p_11": {
+      "q05": 0.9037223399943374,
+      "median": 0.9269872794596195,
+      "q95": 0.9523912040947617
+     }
+    }
+   },
+   "Consumer Discretionary": {
+    "n": 47,
+    "mean": [
+     -1.3947517823394973,
+     0.41306061651547515,
+     3.9827135118686616,
+     2.586768020609986
+    ],
+    "cov": [
+     [
+      0.07934781022257871,
+      0.011889696483856247,
+      -0.015976018981817202,
+      -0.00017257673327003881
+     ],
+     [
+      0.011889696483856236,
+      0.18187977048166692,
+      0.07555468738682285,
+      -0.030108706823625833
+     ],
+     [
+      -0.015976018981817195,
+      0.07555468738682285,
+      0.32809271781688126,
+      0.03661648332360032
+     ],
+     [
+      -0.00017257673327003746,
+      -0.030108706823625833,
+      0.03661648332360032,
+      0.1346269439906188
+     ]
+    ],
+    "natural": {
+     "sigma_0": {
+      "q05": 0.15489437537935563,
+      "median": 0.2474297325833047,
+      "q95": 0.39256855531746315
+     },
+     "sigma_1": {
+      "q05": 0.33222619045013047,
+      "median": 0.6185195239197703,
+      "q95": 1.215451926590374
+     },
+     "p_00": {
+      "q05": 0.9557471509152222,
+      "median": 0.9822337806539382,
+      "q95": 0.9928040229829601
+     },
+     "p_11": {
+      "q05": 0.9055734850390538,
+      "median": 0.9340834793386197,
+      "q95": 0.9614108106344474
+     }
+    }
+   },
+   "Consumer Staples": {
+    "n": 34,
+    "mean": [
+     -1.6492672857537938,
+     0.5977990474728192,
+     4.076967592136172,
+     2.4286254199105333
+    ],
+    "cov": [
+     [
+      0.06672469085523854,
+      0.053290952266497334,
+      0.0646305933625132,
+      -0.003285918979702861
+     ],
+     [
+      0.053290952266497334,
+      0.2167802890287332,
+      0.18400272875168017,
+      -0.015069295959097563
+     ],
+     [
+      0.0646305933625132,
+      0.18400272875168017,
+      0.40235159583945124,
+      0.0002874450096082802
+     ],
+     [
+      -0.0032859189797028606,
+      -0.01506929595909756,
+      0.0002874450096082811,
+      0.08439413933779667
+     ]
+    ],
+    "natural": {
+     "sigma_0": {
+      "q05": 0.12535618857254432,
+      "median": 0.19070116851083074,
+      "q95": 0.290573604936588
+     },
+     "sigma_1": {
+      "q05": 0.25948876646355223,
+      "median": 0.5316339653637281,
+      "q95": 1.1645316199327487
+     },
+     "p_00": {
+      "q05": 0.954370873562189,
+      "median": 0.9831505127143677,
+      "q95": 0.9938351901536305
+     },
+     "p_11": {
+      "q05": 0.903308350204493,
+      "median": 0.9248384863102885,
+      "q95": 0.9497403921326182
+     }
+    }
+   },
+   "Energy": {
+    "n": 21,
+    "mean": [
+     -1.4104037219506016,
+     0.19531585685891048,
+     4.117570561588632,
+     2.8765940373076146
+    ],
+    "cov": [
+     [
+      0.06231796065722318,
+      0.01101659368639819,
+      0.0074920185833817895,
+      0.0002527929931101482
+     ],
+     [
+      0.011016593686398188,
+      0.1054241521016854,
+      0.027010154781914084,
+      -0.0175924976274973
+     ],
+     [
+      0.007492018583381794,
+      0.027010154781914084,
+      0.2804236472162515,
+      0.0885541809813372
+     ],
+     [
+      0.000252792993110148,
+      -0.017592497627497296,
+      0.08855418098133719,
+      0.23612868541697168
+     ]
+    ],
+    "natural": {
+     "sigma_0": {
+      "q05": 0.16214261398251592,
+      "median": 0.24343743359941722,
+      "q95": 0.3681065662726722
+     },
+     "sigma_1": {
+      "q05": 0.3214219141279479,
+      "median": 0.544543137539776,
+      "q95": 0.9430402118612141
+     },
+     "p_00": {
+      "q05": 0.9642886758159556,
+      "median": 0.9845001266789132,
+      "q95": 0.9933616020473878
+     },
+     "p_11": {
+      "q05": 0.9105873468049163,
+      "median": 0.9491225672076914,
+      "q95": 0.9758329589749207
+     }
+    }
+   },
+   "Financials": {
+    "n": 76,
+    "mean": [
+     -1.527255152721053,
+     0.4447126262640289,
+     4.026048649130105,
+     2.463723412853204
+    ],
+    "cov": [
+     [
+      0.08619233511595134,
+      0.0168197601561742,
+      0.043006044808248566,
+      0.006877779539332858
+     ],
+     [
+      0.0168197601561742,
+      0.1304330864940021,
+      0.08206088075602161,
+      -0.0036459722094022663
+     ],
+     [
+      0.04300604480824855,
+      0.08206088075602161,
+      0.28602997159451704,
+      0.01796869575812429
+     ],
+     [
+      0.006877779539332858,
+      -0.0036459722094022654,
+      0.017968695758124285,
+      0.09320291538669946
+     ]
+    ],
+    "natural": {
+     "sigma_0": {
+      "q05": 0.13513282460638762,
+      "median": 0.21919519854024389,
+      "q95": 0.3550134822825752
+     },
+     "sigma_1": {
+      "q05": 0.30042197411167115,
+      "median": 0.5629265216266657,
+      "q95": 1.0813555559941241
+     },
+     "p_00": {
+      "q05": 0.9597860550909075,
+      "median": 0.9827783702643407,
+      "q95": 0.9927666713310442
+     },
+     "p_11": {
+      "q05": 0.9038615057989735,
+      "median": 0.9269174335054158,
+      "q95": 0.9526088284630182
+     }
+    }
+   },
+   "Health Care": {
+    "n": 59,
+    "mean": [
+     -1.5016282460562056,
+     0.694981843576147,
+     4.1261720998870945,
+     2.407096126560038
+    ],
+    "cov": [
+     [
+      0.06678635219701957,
+      0.03227901438962227,
+      0.041523696046082886,
+      0.0005300858021133302
+     ],
+     [
+      0.03227901438962227,
+      0.22263591589237897,
+      0.20527744481860216,
+      -0.004460891765706775
+     ],
+     [
+      0.041523696046082886,
+      0.20527744481860216,
+      0.4456666343293438,
+      0.008337167495939398
+     ],
+     [
+      0.0005300858021133307,
+      -0.0044608917657067764,
+      0.008337167495939398,
+      0.07936865354850887
+     ]
+    ],
+    "natural": {
+     "sigma_0": {
+      "q05": 0.1454326890740857,
+      "median": 0.2220878457321092,
+      "q95": 0.34034844757156585
+     },
+     "sigma_1": {
+      "q05": 0.3323315014884746,
+      "median": 0.6657532766033991,
+      "q95": 1.3636792087178347
+     },
+     "p_00": {
+      "q05": 0.9544441477478012,
+      "median": 0.9838984491230727,
+      "q95": 0.9944611601713873
+     },
+     "p_11": {
+      "q05": 0.9030461260323708,
+      "median": 0.9232212151336658,
+      "q95": 0.9479977806480008
+     }
+    }
+   },
+   "Industrials": {
+    "n": 79,
+    "mean": [
+     -1.5486633999793025,
+     0.4203123611222075,
+     3.753967842033804,
+     2.425182773098142
+    ],
+    "cov": [
+     [
+      0.0858376428117319,
+      0.008195776006110015,
+      0.05046580879701631,
+      0.0033899832836094958
+     ],
+     [
+      0.008195776006110014,
+      0.12385108649923664,
+      0.06412999990525707,
+      -0.005662599651895491
+     ],
+     [
+      0.05046580879701631,
+      0.06412999990525707,
+      0.2757171798921786,
+      0.010481367718746203
+     ],
+     [
+      0.0033899832836094958,
+      -0.0056625996518954915,
+      0.010481367718746203,
+      0.08234833604452255
+     ]
+    ],
+    "natural": {
+     "sigma_0": {
+      "q05": 0.1328307473945869,
+      "median": 0.2142756213536816,
+      "q95": 0.34611625863159123
+     },
+     "sigma_1": {
+      "q05": 0.2969096652239831,
+      "median": 0.5442985429530485,
+      "q95": 1.0088467889981092
+     },
+     "p_00": {
+      "q05": 0.9486518871070213,
+      "median": 0.9774996635301755,
+      "q95": 0.9903984099038732
+     },
+     "p_11": {
+      "q05": 0.9032990076629781,
+      "median": 0.924572299314793,
+      "q95": 0.9493224346266657
+     }
+    }
+   },
+   "Information Technology": {
+    "n": 73,
+    "mean": [
+     -1.310172332662723,
+     0.5679393311035182,
+     3.9845809726556793,
+     2.5471230248979317
+    ],
+    "cov": [
+     [
+      0.0996488892067204,
+      -0.013315140214926982,
+      0.0008572482584400182,
+      0.006812488873977599
+     ],
+     [
+      -0.013315140214926984,
+      0.13051925873127365,
+      0.05950669993126168,
+      -0.01736522451847814
+     ],
+     [
+      0.0008572482584400196,
+      0.05950669993126168,
+      0.2752270836677316,
+      0.012946489993415059
+     ],
+     [
+      0.006812488873977597,
+      -0.01736522451847814,
+      0.012946489993415059,
+      0.1100246928882608
+     ]
+    ],
+    "natural": {
+     "sigma_0": {
+      "q05": 0.161701912963147,
+      "median": 0.2716056992449666,
+      "q95": 0.44741830976504837
+     },
+     "sigma_1": {
+      "q05": 0.415270430971987,
+      "median": 0.7511609916645465,
+      "q95": 1.3632076961195132
+     },
+     "p_00": {
+      "q05": 0.9584433113408255,
+      "median": 0.9820873917825298,
+      "q95": 0.9923963632762436
+     },
+     "p_11": {
+      "q05": 0.9048641280556959,
+      "median": 0.9311075481783919,
+      "q95": 0.9576367881006193
+     }
+    }
+   },
+   "Materials": {
+    "n": 25,
+    "mean": [
+     -1.484382796516732,
+     0.35433737139585475,
+     3.93323007589699,
+     2.5682184566225095
+    ],
+    "cov": [
+     [
+      0.0870100234365012,
+      -0.012967299668140744,
+      0.02012508980361072,
+      -3.758788763080838e-05
+     ],
+     [
+      -0.01296729966814075,
+      0.16464752831217128,
+      0.09303346377886472,
+      -0.024932911739446024
+     ],
+     [
+      0.020125089803610722,
+      0.09303346377886472,
+      0.3001643822999397,
+      0.017065638706219025
+     ],
+     [
+      -3.7587887630807585e-05,
+      -0.024932911739446024,
+      0.01706563870621903,
+      0.12295812425444151
+     ]
+    ],
+    "natural": {
+     "sigma_0": {
+      "q05": 0.1393493370545733,
+      "median": 0.22678942480937528,
+      "q95": 0.36624986834733614
+     },
+     "sigma_1": {
+      "q05": 0.31293608858105043,
+      "median": 0.5524172344313694,
+      "q95": 1.0104224052194002
+     },
+     "p_00": {
+      "q05": 0.9550367121142838,
+      "median": 0.981269940519144,
+      "q95": 0.9922005686050414
+     },
+     "p_11": {
+      "q05": 0.9051581572591024,
+      "median": 0.9326918265279756,
+      "q95": 0.9597723008272836
+     }
+    }
+   },
+   "Real Estate": {
+    "n": 31,
+    "mean": [
+     -1.6027928847310942,
+     0.1887483931503108,
+     3.6980198919397074,
+     2.500157365321328
+    ],
+    "cov": [
+     [
+      0.05000303329620859,
+      0.019643835952771093,
+      0.033566646496014235,
+      -0.0025178790237956293
+     ],
+     [
+      0.019643835952771093,
+      0.11819193022504454,
+      0.05966445788677969,
+      -0.011016475812955801
+     ],
+     [
+      0.03356664649601424,
+      0.05966445788677969,
+      0.2977447639664909,
+      0.019708140356554764
+     ],
+     [
+      -0.002517879023795629,
+      -0.011016475812955801,
+      0.019708140356554764,
+      0.09977044724847872
+     ]
+    ],
+    "natural": {
+     "sigma_0": {
+      "q05": 0.13935441783473804,
+      "median": 0.20112537156485014,
+      "q95": 0.2889167439000813
+     },
+     "sigma_1": {
+      "q05": 0.2645434300844565,
+      "median": 0.4431322069523884,
+      "q95": 0.7730506433996189
+     },
+     "p_00": {
+      "q05": 0.9448171929200755,
+      "median": 0.9761623515707611,
+      "q95": 0.9900942439814596
+     },
+     "p_11": {
+      "q05": 0.9040558289826779,
+      "median": 0.9285316555814571,
+      "q95": 0.9549731260848231
+     }
+    }
+   },
+   "Utilities": {
+    "n": 31,
+    "mean": [
+     -1.6798438652914192,
+     0.22635791291045407,
+     4.010614023300729,
+     2.5579308425501472
+    ],
+    "cov": [
+     [
+      0.05981280425392182,
+      0.03807729312677076,
+      0.018926812790080644,
+      -0.0003688072059088897
+     ],
+     [
+      0.03807729312677076,
+      0.20646038182391518,
+      0.06891443386875686,
+      -0.01642759794641443
+     ],
+     [
+      0.018926812790080644,
+      0.06891443386875686,
+      0.3939895729456514,
+      0.029773395474032238
+     ],
+     [
+      -0.00036880720590888914,
+      -0.01642759794641443,
+      0.029773395474032245,
+      0.10895725623681256
+     ]
+    ],
+    "natural": {
+     "sigma_0": {
+      "q05": 0.12433208617008247,
+      "median": 0.18676158619872624,
+      "q95": 0.2790367257668945
+     },
+     "sigma_1": {
+      "q05": 0.22586762624255763,
+      "median": 0.4192856463194378,
+      "q95": 0.8508712541964172
+     },
+     "p_00": {
+      "q05": 0.952555786039149,
+      "median": 0.9825714327466917,
+      "q95": 0.9937331868347026
+     },
+     "p_11": {
+      "q05": 0.9053641510505178,
+      "median": 0.9321193833370157,
+      "q95": 0.9580575057624582
+     }
+    }
+   }
+  },
+  "garch": {
+   "_universe": {
+    "n": 499,
+    "mean": [
+     -1.1396181731625148,
+     3.8095694502183863,
+     -3.108927659438637,
+     0.27041355406555195
+    ],
+    "cov": [
+     [
+      0.10041181960507639,
+      0.1318913771434466,
+      -0.026278050292861017,
+      0.043288063325075406
+     ],
+     [
+      0.1318913771434466,
+      1.5652922684756778,
+      -0.47600166449804004,
+      0.016085459849653722
+     ],
+     [
+      -0.026278050292861024,
+      -0.47600166449804004,
+      0.37950913955607213,
+      -0.044644930501218136
+     ],
+     [
+      0.0432880633250754,
+      0.016085459849653722,
+      -0.044644930501218136,
+      0.47198734298569617
+     ]
+    ],
+    "natural": {
+     "long_run_vol": {
+      "q05": 0.1911364316609163,
+      "median": 0.3223334784657643,
+      "q95": 0.5358389969120991
+     },
+     "persistence": {
+      "q05": 0.87999758642412,
+      "median": 0.9785479909476968,
+      "q95": 0.9968331529032651
+     },
+     "alpha_share": {
+      "q05": 0.016800783448434328,
+      "median": 0.04253989085641939,
+      "q95": 0.10553703571242071
+     },
+     "nu": {
+      "q05": 3.1174745324053283,
+      "median": 4.409346246678078,
+      "q95": 8.352255238737543
+     }
+    },
+    "left_out": [
+     "SW"
+    ]
+   },
+   "Communication Services": {
+    "n": 23,
+    "mean": [
+     -1.037344427367998,
+     4.037743493086601,
+     -3.0040581780120066,
+     0.6179881601768302
+    ],
+    "cov": [
+     [
+      0.09170889650680608,
+      0.16296256062315462,
+      -0.06051707943940313,
+      0.05692207083399499
+     ],
+     [
+      0.16296256062315462,
+      2.009643727448655,
+      -0.6426726008556701,
+      0.006427487841406392
+     ],
+     [
+      -0.06051707943940313,
+      -0.6426726008556701,
+      0.4420648437211233,
+      -0.01886082691324013
+     ],
+     [
+      0.05692207083399499,
+      0.006427487841406388,
+      -0.01886082691324013,
+      0.46321931459350046
+     ]
+    ],
+    "natural": {
+     "long_run_vol": {
+      "q05": 0.21858866524163503,
+      "median": 0.35752136369228166,
+      "q95": 0.5744712738477566
+     },
+     "persistence": {
+      "q05": 0.8812282214556627,
+      "median": 0.9826111350463798,
+      "q95": 0.9977839449142041
+     },
+     "alpha_share": {
+      "q05": 0.017633543234990605,
+      "median": 0.04734600236834736,
+      "q95": 0.11990909837135406
+     },
+     "nu": {
+      "q05": 2.94234004650962,
+      "median": 3.8411003023603416,
+      "q95": 6.624152166684434
+     }
+    }
+   },
+   "Consumer Discretionary": {
+    "n": 47,
+    "mean": [
+     -1.017632360562999,
+     4.601729896152986,
+     -3.4401439157903475,
+     0.26329373156388347
+    ],
+    "cov": [
+     [
+      0.09795706112448208,
+      0.07349612680046032,
+      0.020303650886147096,
+      0.03438411469699011
+     ],
+     [
+      0.07349612680046032,
+      1.0406833496675556,
+      -0.1563905173421688,
+      -0.08742573730414933
+     ],
+     [
+      0.020303650886147096,
+      -0.1563905173421688,
+      0.24022931022626587,
+      -0.012505922084131295
+     ],
+     [
+      0.03438411469699011,
+      -0.08742573730414933,
+      -0.012505922084131291,
+      0.4571329139454679
+     ]
+    ],
+    "natural": {
+     "long_run_vol": {
+      "q05": 0.21471222042824914,
+      "median": 0.3598842652348915,
+      "q95": 0.5926583916102217
+     },
+     "persistence": {
+      "q05": 0.9487290856123977,
+      "median": 0.9897266330588061,
+      "q95": 0.9978954946372338
+     },
+     "alpha_share": {
+      "q05": 0.01484622821832988,
+      "median": 0.03141580088958812,
+      "q95": 0.06691876481248446
+     },
+     "nu": {
+      "q05": 3.137316120365251,
+      "median": 4.424689431123399,
+      "q95": 8.33844841658166
+     }
+    }
+   },
+   "Consumer Staples": {
+    "n": 34,
+    "mean": [
+     -1.3269756257228094,
+     3.28841186172224,
+     -3.167718449787824,
+     0.4316134862760573
+    ],
+    "cov": [
+     [
+      0.06812354761705884,
+      0.014873759864422666,
+      -0.005158581640448539,
+      0.053408622085561984
+     ],
+     [
+      0.01487375986442267,
+      1.0773834327656127,
+      -0.3074170777226492,
+      -0.06646784019849043
+     ],
+     [
+      -0.00515858164044854,
+      -0.3074170777226492,
+      0.31326155727080907,
+      0.0004973026759629788
+     ],
+     [
+      0.053408622085561984,
+      -0.0664678401984904,
+      0.0004973026759629737,
+      0.3956079380169619
+     ]
+    ],
+    "natural": {
+     "long_run_vol": {
+      "q05": 0.1740602291196381,
+      "median": 0.26503525048884163,
+      "q95": 0.4078944176810657
+     },
+     "persistence": {
+      "q05": 0.862642288184867,
+      "median": 0.9651633678206432,
+      "q95": 0.9931479770253008
+     },
+     "alpha_share": {
+      "q05": 0.016829071245564518,
+      "median": 0.039677622124697026,
+      "q95": 0.09114922078826622
+     },
+     "nu": {
+      "q05": 3.0752829566022015,
+      "median": 4.12093638280517,
+      "q95": 7.090853106829983
+     }
+    }
+   },
+   "Energy": {
+    "n": 21,
+    "mean": [
+     -1.0575891221807288,
+     5.027856754657586,
+     -3.3652930293184062,
+     -0.22559024745938547
+    ],
+    "cov": [
+     [
+      0.07654678851430921,
+      0.06254178972653618,
+      -0.004346099335564606,
+      0.031990287060063176
+     ],
+     [
+      0.06254178972653619,
+      0.7881950621011052,
+      -0.1889174275579607,
+      0.005779426260724918
+     ],
+     [
+      -0.004346099335564607,
+      -0.1889174275579607,
+      0.22437561224368793,
+      -0.022229336039260236
+     ],
+     [
+      0.031990287060063176,
+      0.005779426260724918,
+      -0.022229336039260236,
+      0.37178558831980296
+     ]
+    ],
+    "natural": {
+     "long_run_vol": {
+      "q05": 0.22036649816621331,
+      "median": 0.3456189881649387,
+      "q95": 0.5445934226627741
+     },
+     "persistence": {
+      "q05": 0.9727974233502983,
+      "median": 0.9934211536540299,
+      "q95": 0.9982643100481762
+     },
+     "alpha_share": {
+      "q05": 0.016452906008577125,
+      "median": 0.03369622974742651,
+      "q95": 0.07030125792882243
+     },
+     "nu": {
+      "q05": 3.6665580882878372,
+      "median": 5.6480644371978075,
+      "q95": 10.951617334865244
+     }
+    }
+   },
+   "Financials": {
+    "n": 76,
+    "mean": [
+     -1.2081963645062945,
+     2.7529882663723546,
+     -2.513464967318705,
+     0.15347056838865816
+    ],
+    "cov": [
+     [
+      0.08345241532387576,
+      0.02600185056817354,
+      0.012119185153355454,
+      0.0016314243932799121
+     ],
+     [
+      0.02600185056817354,
+      0.7118629013539689,
+      -0.2407973768088925,
+      0.012742293307832327
+     ],
+     [
+      0.012119185153355454,
+      -0.2407973768088925,
+      0.3033452735350178,
+      -0.03358432704068271
+     ],
+     [
+      0.0016314243932799115,
+      0.012742293307832333,
+      -0.03358432704068271,
+      0.34837849733343573
+     ]
+    ],
+    "natural": {
+     "long_run_vol": {
+      "q05": 0.18632556693628877,
+      "median": 0.29998095846134376,
+      "q95": 0.48340811129572026
+     },
+     "persistence": {
+      "q05": 0.8408803943148019,
+      "median": 0.9421089952958478,
+      "q95": 0.9844784088773131
+     },
+     "alpha_share": {
+      "q05": 0.03123288482412442,
+      "median": 0.0734809664728914,
+      "q95": 0.15971742038965542
+     },
+     "nu": {
+      "q05": 3.292268514243563,
+      "median": 4.626566825607137,
+      "q95": 8.064014392923696
+     }
+    }
+   },
+   "Health Care": {
+    "n": 59,
+    "mean": [
+     -1.1645350665931704,
+     3.08381313919533,
+     -3.106236303454732,
+     0.6081136086447139
+    ],
+    "cov": [
+     [
+      0.07552934211538997,
+      0.027049156231983697,
+      0.014299291575236687,
+      0.03883274630691356
+     ],
+     [
+      0.027049156231983697,
+      0.8319659313346431,
+      -0.2803929658153289,
+      0.01925304263642562
+     ],
+     [
+      0.014299291575236685,
+      -0.2803929658153289,
+      0.3449460320166078,
+      -0.022947636934103392
+     ],
+     [
+      0.038832746306913565,
+      0.01925304263642562,
+      -0.022947636934103392,
+      0.4143400789329453
+     ]
+    ],
+    "natural": {
+     "long_run_vol": {
+      "q05": 0.19833386705481562,
+      "median": 0.31249493555267754,
+      "q95": 0.4919956432618313
+     },
+     "persistence": {
+      "q05": 0.8579646447275612,
+      "median": 0.9575869654226137,
+      "q95": 0.9898541461240706
+     },
+     "alpha_share": {
+      "q05": 0.017007308606572808,
+      "median": 0.04239359517589622,
+      "q95": 0.10106307060361307
+     },
+     "nu": {
+      "q05": 2.969795036473476,
+      "median": 3.8656673134589363,
+      "q95": 6.3973605338021855
+     }
+    }
+   },
+   "Industrials": {
+    "n": 79,
+    "mean": [
+     -1.17155988678834,
+     4.027076407721559,
+     -3.364141943566513,
+     0.3973476397063083
+    ],
+    "cov": [
+     [
+      0.07299992947878758,
+      0.060531489161990325,
+      -0.011617324914637007,
+      0.010729294572132704
+     ],
+     [
+      0.06053148916199032,
+      1.268169026534172,
+      -0.3574308480646484,
+      -0.006509157035802727
+     ],
+     [
+      -0.011617324914637003,
+      -0.3574308480646485,
+      0.3212839465155603,
+      -0.0003203262952178801
+     ],
+     [
+      0.010729294572132704,
+      -0.0065091570358027295,
+      -0.00032032629521787885,
+      0.36295982334076027
+     ]
+    ],
+    "natural": {
+     "long_run_vol": {
+      "q05": 0.2001967290095586,
+      "median": 0.31083363971654854,
+      "q95": 0.4815571269161879
+     },
+     "persistence": {
+      "q05": 0.9040361624792882,
+      "median": 0.9822768400988704,
+      "q95": 0.9968779836040836
+     },
+     "alpha_share": {
+      "q05": 0.014455274035474443,
+      "median": 0.03392046703472185,
+      "q95": 0.07963320565109003
+     },
+     "nu": {
+      "q05": 3.118836305323814,
+      "median": 4.157037196114194,
+      "q95": 6.986578574943608
+     }
+    }
+   },
+   "Information Technology": {
+    "n": 73,
+    "mean": [
+     -0.8471924977353114,
+     4.735652530905486,
+     -3.2721465689856615,
+     0.44771055590367914
+    ],
+    "cov": [
+     [
+      0.08541603064288067,
+      0.07178345534074998,
+      -0.011010427113803326,
+      0.005703198475234555
+     ],
+     [
+      0.07178345534074995,
+      0.9878013887659228,
+      -0.27359161435464285,
+      0.00704980186798172
+     ],
+     [
+      -0.011010427113803328,
+      -0.27359161435464285,
+      0.2764372079850164,
+      -0.02349932570096399
+     ],
+     [
+      0.005703198475234555,
+      0.007049801867981715,
+      -0.02349932570096399,
+      0.3887999047640019
+     ]
+    ],
+    "natural": {
+     "long_run_vol": {
+      "q05": 0.2639982346918156,
+      "median": 0.4262903079642952,
+      "q95": 0.6635986298066473
+     },
+     "persistence": {
+      "q05": 0.9566642557547238,
+      "median": 0.9910021675937362,
+      "q95": 0.9980218214269911
+     },
+     "alpha_share": {
+      "q05": 0.016554666412398736,
+      "median": 0.03717016684646327,
+      "q95": 0.08319696496844298
+     },
+     "nu": {
+      "q05": 3.0770370907899784,
+      "median": 4.1154583254210415,
+      "q95": 6.9215296844878
+     }
+    }
+   },
+   "Materials": {
+    "n": 25,
+    "mean": [
+     -1.125730593635415,
+     4.241945784245219,
+     -3.2445142675955303,
+     0.06955331822470909
+    ],
+    "cov": [
+     [
+      0.0751895252607563,
+      0.08959906796986734,
+      -0.02066699376561578,
+      -0.010317956655086159
+     ],
+     [
+      0.08959906796986734,
+      1.2599263735766146,
+      -0.2921433790534268,
+      -0.1614398895666943
+     ],
+     [
+      -0.02066699376561578,
+      -0.2921433790534268,
+      0.3020297019299612,
+      -0.015252556851772285
+     ],
+     [
+      -0.01031795665508616,
+      -0.1614398895666943,
+      -0.015252556851772285,
+      0.47414123674272496
+     ]
+    ],
+    "natural": {
+     "long_run_vol": {
+      "q05": 0.20701646198880588,
+      "median": 0.3243107930188513,
+      "q95": 0.5062710399422181
+     },
+     "persistence": {
+      "q05": 0.921957570757929,
+      "median": 0.9858153868807525,
+      "q95": 0.9975040038724488
+     },
+     "alpha_share": {
+      "q05": 0.016225633094993586,
+      "median": 0.03774882151310429,
+      "q95": 0.08762473130078924
+     },
+     "nu": {
+      "q05": 3.245599520667591,
+      "median": 4.866981780184048,
+      "q95": 9.70467428279337
+     }
+    }
+   },
+   "Real Estate": {
+    "n": 31,
+    "mean": [
+     -1.2819252386768858,
+     3.0186761972233067,
+     -2.7268639210720234,
+     -0.13514371510649326
+    ],
+    "cov": [
+     [
+      0.05483239821967282,
+      0.048021999562722475,
+      -0.0179890309837291,
+      0.04120557256668827
+     ],
+     [
+      0.048021999562722475,
+      0.7780970753150938,
+      -0.2786970443905354,
+      0.04474312928657435
+     ],
+     [
+      -0.0179890309837291,
+      -0.27869704439053533,
+      0.3080965701447203,
+      -0.048327903993714845
+     ],
+     [
+      0.041205572566688276,
+      0.04474312928657437,
+      -0.048327903993714845,
+      0.3805752937359705
+     ]
+    ],
+    "natural": {
+     "long_run_vol": {
+      "q05": 0.18994414891069392,
+      "median": 0.2787830417541001,
+      "q95": 0.4083329953514031
+     },
+     "persistence": {
+      "q05": 0.8554633771571751,
+      "median": 0.9550764323271305,
+      "q95": 0.9888973952813658
+     },
+     "alpha_share": {
+      "q05": 0.025444665101202506,
+      "median": 0.060252072935668734,
+      "q95": 0.13344975661851177
+     },
+     "nu": {
+      "q05": 3.5321272477841115,
+      "median": 5.338862147988427,
+      "q95": 10.268336207385577
+     }
+    }
+   },
+   "Utilities": {
+    "n": 31,
+    "mean": [
+     -1.3880614284003692,
+     3.367612280123234,
+     -2.916678534405069,
+     -0.2204911623184876
+    ],
+    "cov": [
+     [
+      0.08848863924954475,
+      0.17033018171725164,
+      -0.0342210426172367,
+      0.10256032400228698
+     ],
+     [
+      0.17033018171725164,
+      1.2876386376410367,
+      -0.3548232350113615,
+      0.2770208079196855
+     ],
+     [
+      -0.0342210426172367,
+      -0.3548232350113615,
+      0.2904508530415083,
+      -0.0772399478788724
+     ],
+     [
+      0.10256032400228698,
+      0.2770208079196855,
+      -0.0772399478788724,
+      0.5287762823907648
+     ]
+    ],
+    "natural": {
+     "long_run_vol": {
+      "q05": 0.1565951941065714,
+      "median": 0.25270428989864335,
+      "q95": 0.41055618506838776
+     },
+     "persistence": {
+      "q05": 0.860262286695447,
+      "median": 0.9682541656257369,
+      "q95": 0.9947103615033016
+     },
+     "alpha_share": {
+      "q05": 0.022082708287375494,
+      "median": 0.050583365365155224,
+      "q95": 0.11008925815656065
+     },
+     "nu": {
+      "q05": 3.4286125878222418,
+      "median": 5.543041729435446,
+      "q95": 12.424363392247013
+     }
+    }
+   }
+  },
+  "rough_bergomi": {
+   "_universe": {
+    "n": 499,
+    "mean": [
+     -2.9761231469321054,
+     -0.04767493003697169,
+     -0.21855905794152455,
+     -2.335342360636749
+    ],
+    "cov": [
+     [
+      0.4457627752602596,
+      -0.00447347186640625,
+      -0.0030372384038771286,
+      0.03354538300675439
+     ],
+     [
+      -0.00447347186640625,
+      0.03890227326502431,
+      0.005165435701989235,
+      0.023394383095036202
+     ],
+     [
+      -0.0030372384038771295,
+      0.005165435701989235,
+      0.051312579140529405,
+      0.018565741662407372
+     ],
+     [
+      0.0335453830067544,
+      0.02339438309503621,
+      0.018565741662407376,
+      0.31857642788602175
+     ]
+    ],
+    "natural": {
+     "H": {
+      "q05": 0.030604042774621608,
+      "median": 0.04470302645958932,
+      "q95": 0.08508343528624672
+     },
+     "eta": {
+      "q05": 0.6867081949859438,
+      "median": 0.9510255111934749,
+      "q95": 1.315987667653744
+     },
+     "rho": {
+      "q05": -0.527794678512446,
+      "median": -0.21578326610539322,
+      "q95": 0.12945389816467823
+     },
+     "xi0": {
+      "q05": 0.03858273191440916,
+      "median": 0.09744116273060299,
+      "q95": 0.24343723383103114
+     }
+    },
+    "left_out": [
+     "SW"
+    ]
+   },
+   "Communication Services": {
+    "n": 23,
+    "mean": [
+     -2.917544885033948,
+     0.05594948759369839,
+     -0.18364580278938095,
+     -2.2084217892985336
+    ],
+    "cov": [
+     [
+      0.4705383631127575,
+      0.01208100055447646,
+      0.0074796844263364136,
+      0.0413705987076779
+     ],
+     [
+      0.012081000554476456,
+      0.036663142783381605,
+      0.0053469818824875915,
+      0.019596495031704162
+     ],
+     [
+      0.007479684426336412,
+      0.0053469818824875915,
+      0.05154734873163755,
+      0.0270671897972224
+     ],
+     [
+      0.0413705987076779,
+      0.019596495031704162,
+      0.027067189797222405,
+      0.2813042534332162
+     ]
+    ],
+    "natural": {
+     "H": {
+      "q05": 0.03088982036150656,
+      "median": 0.04614876078972998,
+      "q95": 0.09027134163820649
+     },
+     "eta": {
+      "q05": 0.7649350333996361,
+      "median": 1.0551146784791439,
+      "q95": 1.4488679574627799
+     },
+     "rho": {
+      "q05": -0.4990409913268178,
+      "median": -0.18429277186884685,
+      "q95": 0.1587212296065659
+     },
+     "xi0": {
+      "q05": 0.04567599424803511,
+      "median": 0.11009411837007732,
+      "q95": 0.25678963370774927
+     }
+    }
+   },
+   "Consumer Discretionary": {
+    "n": 47,
+    "mean": [
+     -3.002514508938868,
+     -0.05484487843204406,
+     -0.25378906554743036,
+     -2.1263825289592266
+    ],
+    "cov": [
+     [
+      0.4686052148150587,
+      0.006406202474022069,
+      -0.008514179905619564,
+      0.05787773264277924
+     ],
+     [
+      0.006406202474022069,
+      0.03945078138810003,
+      0.0027516917685504036,
+      0.02814404427713716
+     ],
+     [
+      -0.008514179905619567,
+      0.0027516917685504036,
+      0.04737750390084924,
+      0.0013278952722449596
+     ],
+     [
+      0.05787773264277925,
+      0.02814404427713716,
+      0.0013278952722449602,
+      0.3065973734853157
+     ]
+    ],
+    "natural": {
+     "H": {
+      "q05": 0.030378240217558392,
+      "median": 0.04399798065553627,
+      "q95": 0.08456975543501116
+     },
+     "eta": {
+      "q05": 0.6831067108690569,
+      "median": 0.9460939405265321,
+      "q95": 1.3105738907359532
+     },
+     "rho": {
+      "q05": -0.5387836532556955,
+      "median": -0.24518770195314937,
+      "q95": 0.08910553788760159
+     },
+     "xi0": {
+      "q05": 0.04852737442033462,
+      "median": 0.12024719287897412,
+      "q95": 0.29325766333570985
+     }
+    }
+   },
+   "Consumer Staples": {
+    "n": 34,
+    "mean": [
+     -3.2065109525322724,
+     -0.033072322021754925,
+     -0.16020658248435177,
+     -2.691178816591527
+    ],
+    "cov": [
+     [
+      0.35294624469293945,
+      -0.00047512505293665616,
+      0.0039409777479334825,
+      0.0045115832728147166
+     ],
+     [
+      -0.0004751250529366568,
+      0.032979085068218277,
+      -0.0013625555678470865,
+      0.01827580189623408
+     ],
+     [
+      0.0039409777479334825,
+      -0.0013625555678470867,
+      0.04194601315040741,
+      -0.0035001878455210534
+     ],
+     [
+      0.004511583272814721,
+      0.018275801896234085,
+      -0.0035001878455210526,
+      0.2172083282438991
+     ]
+    ],
+    "natural": {
+     "H": {
+      "q05": 0.0299276632706652,
+      "median": 0.039766503444851796,
+      "q95": 0.06766080717051529
+     },
+     "eta": {
+      "q05": 0.7190403732100571,
+      "median": 0.9670396577047018,
+      "q95": 1.2992323809698063
+     },
+     "rho": {
+      "q05": -0.4570195187988766,
+      "median": -0.15758104425000902,
+      "q95": 0.1554002965257484
+     },
+     "xi0": {
+      "q05": 0.031361687441805446,
+      "median": 0.06797817880160802,
+      "q95": 0.14621058843378176
+     }
+    }
+   },
+   "Energy": {
+    "n": 21,
+    "mean": [
+     -2.634668252864333,
+     -0.14161876649818064,
+     -0.17412906136952072,
+     -2.1789643527424154
+    ],
+    "cov": [
+     [
+      0.47440521864146495,
+      -0.0022847683387148686,
+      0.0030788922853446214,
+      0.014288332504896473
+     ],
+     [
+      -0.0022847683387148695,
+      0.03412392926677681,
+      0.0020513360079989816,
+      0.01807669775532515
+     ],
+     [
+      0.0030788922853446222,
+      0.0020513360079989816,
+      0.037881247584924345,
+      0.009487357678613653
+     ],
+     [
+      0.01428833250489648,
+      0.01807669775532515,
+      0.009487357678613653,
+      0.2505427239118104
+     ]
+    ],
+    "natural": {
+     "H": {
+      "q05": 0.032324807209242114,
+      "median": 0.05263779551758983,
+      "q95": 0.10791585370244595
+     },
+     "eta": {
+      "q05": 0.6428352878682884,
+      "median": 0.8696849925401181,
+      "q95": 1.1747893440126347
+     },
+     "rho": {
+      "q05": -0.45071880558723854,
+      "median": -0.17111898549212684,
+      "q95": 0.13531887693247455
+     },
+     "xi0": {
+      "q05": 0.049853750456974,
+      "median": 0.11298788666149495,
+      "q95": 0.25479477358401986
+     }
+    }
+   },
+   "Financials": {
+    "n": 76,
+    "mean": [
+     -2.872207263887358,
+     -0.05504970513439184,
+     -0.34563449310371086,
+     -2.4422056226121103
+    ],
+    "cov": [
+     [
+      0.47087090467236153,
+      0.001530728476804933,
+      0.001945348286640061,
+      0.07014524172333284
+     ],
+     [
+      0.001530728476804933,
+      0.031549821154718195,
+      0.0014939969678603978,
+      0.007048597531775461
+     ],
+     [
+      0.0019453482866400617,
+      0.0014939969678603978,
+      0.052208585103832535,
+      0.011498254672290816
+     ],
+     [
+      0.07014524172333284,
+      0.007048597531775462,
+      0.011498254672290813,
+      0.2622156496552675
+     ]
+    ],
+    "natural": {
+     "H": {
+      "q05": 0.030937509155202308,
+      "median": 0.0469040563849346,
+      "q95": 0.09292660941974916
+     },
+     "eta": {
+      "q05": 0.7056127041458883,
+      "median": 0.9427289456899305,
+      "q95": 1.2638409306512277
+     },
+     "rho": {
+      "q05": -0.6109046317466537,
+      "median": -0.32970518385624376,
+      "q95": 0.0294974732882824
+     },
+     "xi0": {
+      "q05": 0.038470752593054776,
+      "median": 0.08842090908889313,
+      "q95": 0.20563395480227484
+     }
+    }
+   },
+   "Health Care": {
+    "n": 59,
+    "mean": [
+     -3.251298660564641,
+     0.004826911747963006,
+     -0.12264245491663503,
+     -2.3698443670516998
+    ],
+    "cov": [
+     [
+      0.3430661974014591,
+      0.00035138395667554475,
+      -0.0010887977209495248,
+      0.02705270576592185
+     ],
+     [
+      0.0003513839566755443,
+      0.03135708573929466,
+      -0.00046523346891545384,
+      0.01397462553157547
+     ],
+     [
+      -0.0010887977209495256,
+      -0.00046523346891545384,
+      0.04183681540928998,
+      -0.003451735650174512
+     ],
+     [
+      0.027052705765921854,
+      0.013974625531575472,
+      -0.0034517356501745085,
+      0.2403881927693467
+     ]
+    ],
+    "natural": {
+     "H": {
+      "q05": 0.029820638662817166,
+      "median": 0.03918002417199531,
+      "q95": 0.06538715198190827
+     },
+     "eta": {
+      "q05": 0.7525607001549792,
+      "median": 1.0055743185120622,
+      "q95": 1.3436763145811812
+     },
+     "rho": {
+      "q05": -0.4248180877158623,
+      "median": -0.1283288967539395,
+      "q95": 0.18056109637169693
+     },
+     "xi0": {
+      "q05": 0.042440535297801715,
+      "median": 0.09445208278581134,
+      "q95": 0.20945045802127363
+     }
+    }
+   },
+   "Industrials": {
+    "n": 79,
+    "mean": [
+     -3.214265093815348,
+     -0.03298952634265991,
+     -0.2145042424441445,
+     -2.416052312249187
+    ],
+    "cov": [
+     [
+      0.35176035051599247,
+      0.0019093402428957869,
+      -0.0016299989154887758,
+      0.017361308961502966
+     ],
+     [
+      0.0019093402428957869,
+      0.03184954630664388,
+      0.0019190613012172195,
+      0.0031569161225629676
+     ],
+     [
+      -0.001629998915488776,
+      0.0019190613012172197,
+      0.04990965653737702,
+      -0.006606092941849562
+     ],
+     [
+      0.017361308961502966,
+      0.0031569161225629676,
+      -0.006606092941849562,
+      0.243573490756885
+     ]
+    ],
+    "natural": {
+     "H": {
+      "q05": 0.02993253293013587,
+      "median": 0.03993633866922609,
+      "q95": 0.06737416711315283
+     },
+     "eta": {
+      "q05": 0.7180244820175254,
+      "median": 0.9677334127579883,
+      "q95": 1.294622939266723
+     },
+     "rho": {
+      "q05": -0.5202807233266777,
+      "median": -0.21090304657324205,
+      "q95": 0.13616254699727898
+     },
+     "xi0": {
+      "q05": 0.04008237607994444,
+      "median": 0.09066776986205093,
+      "q95": 0.2030838020361842
+     }
+    }
+   },
+   "Information Technology": {
+    "n": 73,
+    "mean": [
+     -2.8281797900843126,
+     0.021395316262146892,
+     -0.12740086897960493,
+     -1.82305324371638
+    ],
+    "cov": [
+     [
+      0.4347289202689919,
+      0.002145894487802342,
+      -0.0013725757375821041,
+      0.022170935281130233
+     ],
+     [
+      0.002145894487802341,
+      0.03162030114086354,
+      0.003902180668445872,
+      0.003358273612987611
+     ],
+     [
+      -0.0013725757375821041,
+      0.003902180668445872,
+      0.04728323598119037,
+      0.019775422548583516
+     ],
+     [
+      0.022170935281130236,
+      0.003358273612987612,
+      0.019775422548583513,
+      0.2687174821469551
+     ]
+    ],
+    "natural": {
+     "H": {
+      "q05": 0.031192329301188215,
+      "median": 0.047694730071601035,
+      "q95": 0.09159075974758225
+     },
+     "eta": {
+      "q05": 0.7608612812479668,
+      "median": 1.0217151097312387,
+      "q95": 1.3682585998911991
+     },
+     "rho": {
+      "q05": -0.4460196928664705,
+      "median": -0.12822098552885944,
+      "q95": 0.18641665181236453
+     },
+     "xi0": {
+      "q05": 0.069107142623057,
+      "median": 0.1594711307052009,
+      "q95": 0.35568321621799454
+     }
+    }
+   },
+   "Materials": {
+    "n": 25,
+    "mean": [
+     -2.814303876325146,
+     -0.09316488314378508,
+     -0.22908114103693436,
+     -2.2827172933192914
+    ],
+    "cov": [
+     [
+      0.5563416665894518,
+      -0.011299778446924038,
+      0.0037485141056724396,
+      0.015908935051634345
+     ],
+     [
+      -0.011299778446924038,
+      0.03741921606783773,
+      -0.005120992101293788,
+      -0.00807704501687321
+     ],
+     [
+      0.0037485141056724353,
+      -0.005120992101293788,
+      0.053905767436675876,
+      0.031193412080847187
+     ],
+     [
+      0.01590893505163436,
+      -0.008077045016873207,
+      0.031193412080847187,
+      0.2635468757243916
+     ]
+    ],
+    "natural": {
+     "H": {
+      "q05": 0.03102097923789814,
+      "median": 0.048661835287999514,
+      "q95": 0.10277284753152172
+     },
+     "eta": {
+      "q05": 0.6669386389830645,
+      "median": 0.9110009600139417,
+      "q95": 1.249368308298168
+     },
+     "rho": {
+      "q05": -0.5408949073038188,
+      "median": -0.22279867599920974,
+      "q95": 0.1301920485592893
+     },
+     "xi0": {
+      "q05": 0.043650839274016896,
+      "median": 0.10084918964958745,
+      "q95": 0.23676791647845793
+     }
+    }
+   },
+   "Real Estate": {
+    "n": 31,
+    "mean": [
+     -2.8607099852025932,
+     -0.16892598857502925,
+     -0.38973131325269617,
+     -2.578242069201267
+    ],
+    "cov": [
+     [
+      0.44741143053891985,
+      -0.01006934340103356,
+      -0.007711209119224299,
+      -0.011557385153018714
+     ],
+     [
+      -0.01006934340103356,
+      0.035813769167188175,
+      0.005215333709333903,
+      0.017408265426103017
+     ],
+     [
+      -0.007711209119224299,
+      0.005215333709333903,
+      0.04747112044550525,
+      0.013663736283801875
+     ],
+     [
+      -0.011557385153018712,
+      0.017408265426103013,
+      0.013663736283801875,
+      0.18799802402837218
+     ]
+    ],
+    "natural": {
+     "H": {
+      "q05": 0.03108827551656051,
+      "median": 0.046927022692522226,
+      "q95": 0.09097186489740798
+     },
+     "eta": {
+      "q05": 0.6152320003069799,
+      "median": 0.8427320243604133,
+      "q95": 1.1542757574630653
+     },
+     "rho": {
+      "q05": -0.6271200822973279,
+      "median": -0.36895192051955833,
+      "q95": -0.03845125408899467
+     },
+     "xi0": {
+      "q05": 0.03737949334503203,
+      "median": 0.07585355633987731,
+      "q95": 0.15506531552177985
+     }
+    }
+   },
+   "Utilities": {
+    "n": 31,
+    "mean": [
+     -2.7514960348469586,
+     -0.18428018813979866,
+     -0.24425088717500648,
+     -2.7958523880552675
+    ],
+    "cov": [
+     [
+      0.46291101648831334,
+      -0.006709269171779039,
+      0.014444942200715325,
+      0.006524480295897557
+     ],
+     [
+      -0.006709269171779043,
+      0.05897469836968405,
+      0.010070272732720185,
+      0.057645959769676236
+     ],
+     [
+      0.014444942200715325,
+      0.010070272732720185,
+      0.04563073474308526,
+      0.02600723789297747
+     ],
+     [
+      0.006524480295897562,
+      0.057645959769676236,
+      0.02600723789297747,
+      0.27089072004358067
+     ]
+    ],
+    "natural": {
+     "H": {
+      "q05": 0.031592719555309026,
+      "median": 0.049632480094761885,
+      "q95": 0.09973045443552712
+     },
+     "eta": {
+      "q05": 0.5541707875990751,
+      "median": 0.82872955016613,
+      "q95": 1.2293836706525008
+     },
+     "rho": {
+      "q05": -0.5295839249063091,
+      "median": -0.23553958683886217,
+      "q95": 0.09708930776888344
+     },
+     "xi0": {
+      "q05": 0.025998378591983874,
+      "median": 0.06110354895297363,
+      "q95": 0.14318673826519934
+     }
+    }
+   }
+  }
+ }
+}

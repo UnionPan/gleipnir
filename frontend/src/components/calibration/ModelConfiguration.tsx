@@ -1,6 +1,7 @@
 import React from 'react';
 import './ModelConfiguration.css';
 import { CalibrationConfig } from '../../pages/CalibrationPage';
+import type { PriorChoice } from '../../services/calibrationApi';
 
 interface ModelConfigurationProps {
   config: CalibrationConfig;
@@ -8,6 +9,11 @@ interface ModelConfigurationProps {
   measureType: 'P' | 'Q';
   showDateRange?: boolean;
 }
+
+const BAYESIAN_LABEL = 'Bayesian (neural posterior)';
+// Bayesian fits read up to five years and need about one.
+const BAYESIAN_MIN_MONTHS = 12;
+const DEFAULT_WINDOW_YEARS = 5;
 
 // P-measure models
 const P_MEASURE_MODELS = [
@@ -28,14 +34,33 @@ const Q_MEASURE_MODELS = [
 ];
 
 // P-measure model-specific methods
+// The default first: every model but OU is fitted as a posterior unless the classical estimator is chosen.
 const P_MEASURE_METHODS: Record<string, Array<{ value: string; label: string }>> = {
-  'gbm': [{ value: 'mle', label: 'Maximum Likelihood (Closed-form)' }],
+  'gbm': [
+    { value: 'bayesian', label: 'Bayesian (exact posterior)' },
+    { value: 'mle', label: 'Maximum Likelihood (Closed-form)' },
+  ],
   'ou': [{ value: 'mle', label: 'Maximum Likelihood on log prices' }],
-  'heston': [{ value: 'moments', label: 'Method of moments + parametric bootstrap' }],
-  'rough_bergomi': [{ value: 'variogram', label: 'Log-|return| variogram + parametric bootstrap' }],
-  'regime_switching_gbm': [{ value: 'threshold', label: '20% drawdown / rally regimes' }],
-  'merton_jump': [{ value: 'mle', label: 'Maximum Likelihood (multi-start)' }],
-  'garch': [{ value: 'mle', label: 'Quasi-MLE (Gaussian)' }],
+  'heston': [
+    { value: 'bayesian', label: BAYESIAN_LABEL },
+    { value: 'moments', label: 'Method of moments + parametric bootstrap' },
+  ],
+  'rough_bergomi': [
+    { value: 'bayesian', label: BAYESIAN_LABEL },
+    { value: 'variogram', label: 'Log-|return| variogram + parametric bootstrap' },
+  ],
+  'regime_switching_gbm': [
+    { value: 'bayesian', label: 'Bayesian (neural posterior, 2 regimes)' },
+    { value: 'threshold', label: '20% drawdown / rally regimes' },
+  ],
+  'merton_jump': [
+    { value: 'bayesian', label: BAYESIAN_LABEL },
+    { value: 'mle', label: 'Maximum Likelihood (multi-start)' },
+  ],
+  'garch': [
+    { value: 'bayesian', label: 'Bayesian (neural posterior, Student-t)' },
+    { value: 'mle', label: 'Quasi-MLE (Gaussian)' },
+  ],
 };
 
 // Q-measure model-specific methods
@@ -58,12 +83,12 @@ const ModelConfiguration: React.FC<ModelConfigurationProps> = ({
   measureType,
   showDateRange = true,
 }) => {
-  // Set default dates for P-measure (1 year back)
+  // Default P-measure window: the five years a Bayesian fit reads
   React.useEffect(() => {
     if (measureType === 'P' && (!config.startDate || !config.endDate)) {
       const end = new Date();
       const start = new Date();
-      start.setFullYear(start.getFullYear() - 1);
+      start.setFullYear(start.getFullYear() - DEFAULT_WINDOW_YEARS);
 
       onConfigChange({
         startDate: start.toISOString().split('T')[0],
@@ -82,6 +107,8 @@ const ModelConfiguration: React.FC<ModelConfigurationProps> = ({
     }
     return P_MEASURE_METHODS[config.model] || [{ value: 'mle', label: 'Maximum Likelihood' }];
   }, [config.model, measureType]);
+
+  const isBayesian = config.calibrationMethod === 'bayesian';
 
   // Auto-select method when model changes
   React.useEffect(() => {
@@ -133,6 +160,25 @@ const ModelConfiguration: React.FC<ModelConfigurationProps> = ({
           </select>
         </div>
       </div>
+
+      {measureType === 'P' && isBayesian && config.model !== 'gbm' && (
+        <div className="config-group">
+          <label htmlFor="prior">Prior:</label>
+          <select
+            id="prior"
+            value={config.prior}
+            onChange={(e) => onConfigChange({ prior: e.target.value as PriorChoice })}
+            className="config-select"
+          >
+            <option value="sector">Sector prior (S&amp;P 500, empirical Bayes)</option>
+            <option value="broad">Broad prior (the network&apos;s training range)</option>
+          </select>
+          <p className="helper-text">
+            The sector prior is what the stock&apos;s S&amp;P 500 sector says before its own history; stocks outside the
+            S&amp;P 500 use the broad prior.
+          </p>
+        </div>
+      )}
 
       {/* Date Range - Only for P-measure */}
       {measureType === 'P' && showDateRange && (
@@ -191,10 +237,10 @@ const ModelConfiguration: React.FC<ModelConfigurationProps> = ({
               onChange={(e) => onConfigChange({ includeDrift: e.target.checked })}
               className="config-checkbox"
             />
-            <span>Include Drift Parameter (μ)</span>
+            <span>Report the historical drift (<span className="symbol">μ</span>)</span>
           </label>
           <p className="helper-text">
-            When unchecked, assumes zero drift (μ = 0)
+            An educational estimate with its error; simulations drift at r − q either way.
           </p>
         </div>
       )}
@@ -241,6 +287,9 @@ const ModelConfiguration: React.FC<ModelConfigurationProps> = ({
               <button
                 key={preset.label}
                 className="preset-btn"
+                disabled={isBayesian && preset.months < BAYESIAN_MIN_MONTHS}
+                title={isBayesian && preset.months < BAYESIAN_MIN_MONTHS
+                  ? 'A Bayesian fit needs at least a year of history' : undefined}
                 onClick={() => {
                   const end = new Date();
                   const start = new Date();

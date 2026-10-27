@@ -13,6 +13,8 @@ export interface OHLCVData {
   volume: number[];
 }
 
+export type PriorChoice = 'sector' | 'broad';
+
 export interface CalibrationRequest {
   tickers: string[];
   model: string;
@@ -20,6 +22,8 @@ export interface CalibrationRequest {
   endDate: string;
   method: string;
   includeDrift: boolean;
+  /** Bayesian fits: the ticker's S&P 500 sector prior when it has one, or the broad training prior. */
+  prior?: PriorChoice;
 }
 
 /** The window's drift: an educational estimate, never simulated as a forecast. */
@@ -28,6 +32,61 @@ export interface HistoricalDrift {
   std_error: number;
   ci_low: number;
   ci_high: number;
+}
+
+/** A parameter's posterior summary; q05 and q95 bound its 90% credible interval. */
+export interface PosteriorParameter {
+  mean: number;
+  sd: number;
+  q05: number;
+  q95: number;
+}
+
+/** How well the history pins down one of the network's coordinates, and how far to trust the network. */
+export interface Identification {
+  /** 1 - posterior variance / prior variance: near 0, the interval is the prior's. */
+  contraction: number | null;
+  /** Offline, on fresh simulations: share of 50% / 90% intervals that contained the truth. */
+  coverage_50: number;
+  coverage_90: number;
+}
+
+export interface PosteriorDiagnostics {
+  kind: 'neural' | 'exact';
+  parameters: Record<string, PosteriorParameter>;
+  identification: Record<string, Identification>;
+  prior: string;
+  prior_kind: 'sector' | 'broad' | 'jeffreys';
+  draws?: number | null;
+  effective_samples?: number | null;
+  in_prior_share?: number | null;
+  n_days: number;
+  network?: {
+    components: number;
+    hidden: number[];
+    trained_on?: number | null;
+    validated_on?: number | null;
+    sha256: string;
+    created_at: string;
+  } | null;
+}
+
+/** One aspect of the history against histories simulated from the posterior. */
+export interface CheckedAspect {
+  aspect: string;
+  /** 'more' / 'less': the history has more / less of it than every simulated history. */
+  verdict: 'fits' | 'more' | 'less';
+  summary: string;
+  observed: number;
+  q05: number;
+  q50: number;
+  q95: number;
+  p_value: number;
+}
+
+export interface PredictiveCheck {
+  n_replicates: number;
+  aspects: CheckedAspect[];
 }
 
 /** Diagnostics of a P or Q fit; the API reports non-finite numbers as null. */
@@ -47,6 +106,8 @@ export interface CalibrationDiagnostics {
   rmse_iv?: number | null;
   n_quotes?: number | null;
   n_expiries?: number | null;
+  posterior?: PosteriorDiagnostics | null;
+  predictive_check?: PredictiveCheck | null;
 }
 
 export interface CalibrationResponse {
@@ -211,6 +272,7 @@ class CalibrationApi {
         end_date: request.endDate,
         method: request.method,
         include_drift: request.includeDrift,
+        prior: request.prior,
       });
       return response.data;
     } catch (error) {

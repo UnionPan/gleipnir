@@ -1,19 +1,19 @@
 {
   "asset": "AAPL",
-  "content_hash": "d8cf39b471ce65d027a88ce1400a8779a6b2310204cd7da18076d47562534f60",
-  "created_at": "2026-10-26T13:29:38+00:00",
+  "content_hash": "16cd9a01faa3e7d1090e9fbd52df5d384adaa058ebabee4d3e9551ff8f5877be",
+  "created_at": "2026-10-27T19:35:33+00:00",
   "measure": "P",
   "mjollnir_version": "0.3.0",
   "model": "rough_bergomi",
   "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
   "params": {
-    "H": 0.3359997285334091,
-    "eta": 1.5639981802991665,
-    "rho": -0.08906488066280498,
+    "H": 0.0685280382813582,
+    "eta": 0.9908566103310961,
+    "rho": -0.38194441577734684,
     "xi0": 0.13833032298090142
   },
   "parent_hash": null,
   "schema_version": 1,
-  "source": "Noise-corrected log-|return| variogram, parametric bootstrap on daily closes; drift per the policy (r - q)",
+  "source": "Amortized neural posterior (mixture density network), Information Technology sector prior (73 S&P 500 stocks) on daily closes; drift per the policy (r - q)",
   "window": "2021-07-06..2026-07-06"
 }

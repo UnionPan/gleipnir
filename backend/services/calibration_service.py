@@ -100,11 +100,13 @@ class CalibrationService:
         prices: np.ndarray,
         dates: list[str],
         model: str,
-        method: str,
-        include_drift: bool
-    ) -> tuple[dict[str, float], dict]:
-        """Fit a P-measure model to daily closes (backend.services.physical_fits)."""
-        return physical_fits.fit(model, method, prices, dates, include_drift)
+        method: str | None,
+        include_drift: bool,
+        prior: str = "sector",
+    ) -> tuple[dict[str, float], dict, str]:
+        """Fit a P-measure model to daily closes (backend.services.physical_fits):
+        (parameters, diagnostics, the method used)."""
+        return physical_fits.fit(model, method, prices, dates, include_drift, ticker=ticker, prior=prior)
 
     # ========== Q-measure (Risk-Neutral) Calibration Methods ==========
 

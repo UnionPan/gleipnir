@@ -1,20 +1,20 @@
 {
   "asset": "AAPL",
-  "content_hash": "1b9c498f9ebfc99ff32b425138c87490e25a709fdae87870ee870f2c76ee069a",
-  "created_at": "2026-10-26T13:29:35+00:00",
+  "content_hash": "fbe85d5b38c154c8b4318383dd24958d86b32e879b86e56d6cbeeb5077eda227",
+  "created_at": "2026-10-27T19:35:25+00:00",
   "measure": "P",
   "mjollnir_version": "0.3.0",
   "model": "heston",
   "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
   "params": {
-    "kappa": 1.1247730180037867,
-    "rho": -0.006743087450118789,
-    "sigma_v": 0.5440070373033232,
-    "theta": 0.0762017400643017,
+    "kappa": 16.29859398826586,
+    "rho": -0.44210542550549187,
+    "sigma_v": 1.3199318149655974,
+    "theta": 0.08768089350946814,
     "v0": 0.13833032298090142
   },
   "parent_hash": null,
   "schema_version": 1,
-  "source": "Method of moments on a realized-variance proxy, parametric bootstrap on daily closes; drift per the policy (r - q)",
+  "source": "Amortized neural posterior (mixture density network), Information Technology sector prior (73 S&P 500 stocks) on daily closes; drift per the policy (r - q)",
   "window": "2021-07-06..2026-07-06"
 }

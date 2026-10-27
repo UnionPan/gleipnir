@@ -1,16 +1,16 @@
 {
   "asset": "TSLA",
-  "content_hash": "0f58146e064f7cf4f97c6f28b6dc100e9a0b03be486628d5512378f4663dbbe5",
-  "created_at": "2026-10-26T13:29:44+00:00",
+  "content_hash": "a83282388414120c1742fe4db9d69ae2f440d6ea9f2f6d50320350f0ea0f5b5a",
+  "created_at": "2026-10-27T19:35:39+00:00",
   "measure": "P",
   "mjollnir_version": "0.3.0",
   "model": "gbm",
   "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
   "params": {
-    "sigma": 0.5905274663088543
+    "sigma": 0.5908815113561887
   },
   "parent_hash": null,
   "schema_version": 1,
-  "source": "Maximum likelihood (closed form) on daily closes; drift per the policy (r - q)",
+  "source": "Exact posterior (Jeffreys prior) on daily closes; drift per the policy (r - q)",
   "window": "2021-07-06..2026-07-06"
 }

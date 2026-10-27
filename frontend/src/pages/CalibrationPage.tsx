@@ -6,7 +6,7 @@ import OHLCVChart from '../components/calibration/OHLCVChart';
 import CalibrationResults from '../components/calibration/CalibrationResults';
 import SimulationResults from '../components/calibration/SimulationResults';
 import VolatilitySurface3D from '../components/calibration/VolatilitySurface3D';
-import { calibrationApi, CalibrationResponse, OptionChainData, QMeasureCalibrationResponse, SimulationResponse, VolSurfaceResponse } from '../services/calibrationApi';
+import { calibrationApi, CalibrationResponse, OptionChainData, PriorChoice, QMeasureCalibrationResponse, SimulationResponse, VolSurfaceResponse } from '../services/calibrationApi';
 import type { CalibrationBundle } from '../services/labApi';
 import { saveBundle } from '../services/labBundles';
 import SavedToLab from '../components/calibration/SavedToLab';
@@ -22,6 +22,7 @@ export interface CalibrationConfig {
   endDate: string;
   calibrationMethod: string;
   includeDrift: boolean;
+  prior: PriorChoice;
   riskFreeRate?: number;
 }
 
@@ -47,8 +48,9 @@ const CalibrationPage: React.FC = () => {
     model: 'heston',
     startDate: '',
     endDate: '',
-    calibrationMethod: 'mle',
+    calibrationMethod: 'bayesian',
     includeDrift: true,
+    prior: 'sector',
     riskFreeRate: 0.05,
   });
   const [ohlcvData, setOhlcvData] = useState<any[]>([]);
@@ -127,7 +129,8 @@ const CalibrationPage: React.FC = () => {
 
   const handleConfigChange = (newConfig: Partial<CalibrationConfig>) => {
     const fitChanged = (newConfig.model !== undefined && newConfig.model !== config.model)
-      || (newConfig.calibrationMethod !== undefined && newConfig.calibrationMethod !== config.calibrationMethod);
+      || (newConfig.calibrationMethod !== undefined && newConfig.calibrationMethod !== config.calibrationMethod)
+      || (newConfig.prior !== undefined && newConfig.prior !== config.prior);
     if (fitChanged) {
       // A result on screen must belong to the model shown in the picker.
       setCalibrationResults([]);
@@ -210,6 +213,7 @@ const CalibrationPage: React.FC = () => {
         endDate: config.endDate,
         method: config.calibrationMethod,
         includeDrift: config.includeDrift,
+        prior: config.prior,
       });
       setCalibrationResults(results);
       const bundles = results.map((r) => r.lab_bundle).filter((b): b is CalibrationBundle => !!b);

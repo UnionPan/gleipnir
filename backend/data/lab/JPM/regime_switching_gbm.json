@@ -1,28 +1,22 @@
 {
   "asset": "JPM",
-  "content_hash": "c8f2e60d214d4004db16093e5ef88e2e30e25e8bab7e1a69c656fda671717a3e",
-  "created_at": "2026-10-26T13:29:47+00:00",
+  "content_hash": "aeffb76cb80562b014974109c2ac4f860f1e841866e23fe694fcfe8b06b88b3f",
+  "created_at": "2026-10-27T19:35:43+00:00",
   "measure": "P",
   "mjollnir_version": "0.3.0",
   "model": "regime_switching_gbm",
   "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
   "params": {
-    "p_00": 0.78125,
-    "p_01": 0.21875,
-    "p_02": 0.0,
-    "p_10": 0.006815968841285297,
-    "p_11": 0.9805258033106135,
-    "p_12": 0.012658227848101266,
-    "p_20": 0.0,
-    "p_21": 0.06701030927835051,
-    "p_22": 0.9329896907216495,
-    "regime0": 1.0,
-    "sigma_0": 0.3554030543745039,
-    "sigma_1": 0.24643135201642316,
-    "sigma_2": 0.20116046423564124
+    "p_00": 0.9735131959919702,
+    "p_01": 0.02648680400802983,
+    "p_10": 0.08196889441960592,
+    "p_11": 0.918031105580394,
+    "regime0": 0.0,
+    "sigma_0": 0.17158684624192921,
+    "sigma_1": 0.4160467638662452
   },
   "parent_hash": null,
   "schema_version": 1,
-  "source": "Drawdown/rally thresholds, per-regime maximum likelihood on daily closes; drift per the policy (r - q)",
+  "source": "Amortized neural posterior (mixture density network), Financials sector prior (76 S&P 500 stocks) on daily closes; drift per the policy (r - q)",
   "window": "2021-07-06..2026-07-06"
 }

@@ -1,28 +1,22 @@
 {
   "asset": "NVDA",
-  "content_hash": "d096edc9e22955a3dfd21668dea37b779d4c1386e8b46e47dd5cc43572095a28",
-  "created_at": "2026-10-26T13:29:42+00:00",
+  "content_hash": "3628803c211ad816bc2fdd954705c08e5cb42712cdec769f4af4bc63b52a9021",
+  "created_at": "2026-10-27T19:35:37+00:00",
   "measure": "P",
   "mjollnir_version": "0.3.0",
   "model": "regime_switching_gbm",
   "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
   "params": {
-    "p_00": 0.926605504587156,
-    "p_01": 0.03669724770642202,
-    "p_02": 0.03669724770642202,
-    "p_10": 0.01907356948228883,
-    "p_11": 0.9237057220708447,
-    "p_12": 0.05722070844686648,
-    "p_20": 0.01347305389221557,
-    "p_21": 0.029940119760479042,
-    "p_22": 0.9565868263473054,
-    "regime0": 1.0,
-    "sigma_0": 0.6911524543402945,
-    "sigma_1": 0.4032673467992823,
-    "sigma_2": 0.49137958282900085
+    "p_00": 0.9733023868029214,
+    "p_01": 0.02669761319707864,
+    "p_10": 0.06117604110739591,
+    "p_11": 0.9388239588926041,
+    "regime0": 0.0,
+    "sigma_0": 0.3520658812602502,
+    "sigma_1": 0.7529571362579455
   },
   "parent_hash": null,
   "schema_version": 1,
-  "source": "Drawdown/rally thresholds, per-regime maximum likelihood on daily closes; drift per the policy (r - q)",
+  "source": "Amortized neural posterior (mixture density network), Information Technology sector prior (73 S&P 500 stocks) on daily closes; drift per the policy (r - q)",
   "window": "2021-07-06..2026-07-06"
 }

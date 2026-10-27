@@ -1,20 +1,20 @@
 {
   "asset": "TSLA",
-  "content_hash": "acf573badfa7c189fb4c5eeae6476233fcce1e29559952012896ab1d25e13f4d",
-  "created_at": "2026-10-26T13:29:44+00:00",
+  "content_hash": "47c9c48e0154f3fc8f3f046e659dc9b76d1fb9c445d971ec2fbb3a6eee24165a",
+  "created_at": "2026-10-27T19:35:39+00:00",
   "measure": "P",
   "mjollnir_version": "0.3.0",
   "model": "heston",
   "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
   "params": {
-    "kappa": 1.932782229728237,
-    "rho": 0.0009593910895567849,
-    "sigma_v": 0.9024490212046231,
-    "theta": 0.34839049196085625,
+    "kappa": 12.628259627364637,
+    "rho": -0.25974850246941417,
+    "sigma_v": 1.9607261890678256,
+    "theta": 0.3477554826575414,
     "v0": 0.3574713817532063
   },
   "parent_hash": null,
   "schema_version": 1,
-  "source": "Method of moments on a realized-variance proxy, parametric bootstrap on daily closes; drift per the policy (r - q)",
+  "source": "Amortized neural posterior (mixture density network), Consumer Discretionary sector prior (47 S&P 500 stocks) on daily closes; drift per the policy (r - q)",
   "window": "2021-07-06..2026-07-06"
 }

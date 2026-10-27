@@ -273,9 +273,13 @@
     font-size: 0.75rem;
   }
 
-  .description-column {
+  .description-column,
+  .param-description,
+  .sd-column,
+  .wide-only {
     display: none;
   }
+
 
   .method-info {
     flex-direction: column;
@@ -305,4 +309,102 @@
 .diagnostic-warning {
   border-left-color: var(--error-border);
   background: var(--error-bg);
+}
+
+/* ── Posterior ── */
+.interval-column {
+  width: 150px;
+}
+
+.contraction-column {
+  min-width: 220px;
+}
+
+.contraction {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.contraction-track {
+  flex: 0 0 96px;
+  height: 6px;
+  background: var(--well-bg);
+  border: 1px solid var(--border-color);
+}
+
+.contraction-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.contraction-label {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* Values that sit in their own column when there is room and under their row's value when not */
+.narrow-only {
+  display: none;
+}
+
+.stacked {
+  margin-top: 0.125rem;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+/* ── Predictive check ── */
+.verdict {
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.verdict-fits {
+  color: var(--text-secondary);
+}
+
+.verdict-misfit {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.verdict-misfit span {
+  color: var(--error-border);
+}
+
+@media (max-width: 768px) {
+  .narrow-only {
+    display: block;
+  }
+
+  .param-name .stacked {
+    white-space: normal;
+  }
+
+  .contraction-column {
+    min-width: 0;
+  }
+
+  .contraction {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .contraction-track {
+    flex-basis: auto;
+    width: 72px;
+  }
+
+  .contraction-label {
+    white-space: normal;
+  }
+
+  .verdict {
+    white-space: normal;
+  }
 }

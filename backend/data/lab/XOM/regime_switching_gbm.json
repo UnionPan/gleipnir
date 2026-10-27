@@ -1,28 +1,22 @@
 {
   "asset": "XOM",
-  "content_hash": "5a1644b5075458af264518d13ec4be1b0ee223fcce0720c210e6edaa94f05567",
-  "created_at": "2026-10-26T13:29:50+00:00",
+  "content_hash": "99d86c90838a835e2e745cea9486cce498c75d39bfd33f6cfbe8af4cd3e7c137",
+  "created_at": "2026-10-27T19:35:46+00:00",
   "measure": "P",
   "mjollnir_version": "0.3.0",
   "model": "regime_switching_gbm",
   "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
   "params": {
-    "p_00": 0.0,
-    "p_01": 1.0,
-    "p_02": 0.0,
-    "p_10": 0.001976284584980237,
-    "p_11": 0.9822134387351779,
-    "p_12": 0.015810276679841896,
-    "p_20": 0.0,
-    "p_21": 0.06694560669456066,
-    "p_22": 0.9330543933054394,
-    "regime0": 1.0,
-    "sigma_0": 0.022856026772948828,
-    "sigma_1": 0.2597604880966627,
-    "sigma_2": 0.2921734134228018
+    "p_00": 0.9826486236246866,
+    "p_01": 0.017351376375313424,
+    "p_10": 0.04688440626064576,
+    "p_11": 0.9531155937393543,
+    "regime0": 0.0,
+    "sigma_0": 0.20761034195574987,
+    "sigma_1": 0.3838291382897479
   },
   "parent_hash": null,
   "schema_version": 1,
-  "source": "Drawdown/rally thresholds, per-regime maximum likelihood on daily closes; drift per the policy (r - q)",
+  "source": "Amortized neural posterior (mixture density network), Energy sector prior (21 S&P 500 stocks) on daily closes; drift per the policy (r - q)",
   "window": "2021-07-06..2026-07-06"
 }

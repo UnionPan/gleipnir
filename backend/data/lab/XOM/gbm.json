@@ -1,16 +1,16 @@
 {
   "asset": "XOM",
-  "content_hash": "66a94595fe80857bec120bccf09338860ba3a41d9d814486b9b8065aa862483b",
-  "created_at": "2026-10-26T13:29:50+00:00",
+  "content_hash": "824dc527d0539a50ba7577a6b456a1483d0cb2da4eda1723e4cdda391b83ad6a",
+  "created_at": "2026-10-27T19:35:46+00:00",
   "measure": "P",
   "mjollnir_version": "0.3.0",
   "model": "gbm",
   "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
   "params": {
-    "sigma": 0.2671197722706944
+    "sigma": 0.26727992135403617
   },
   "parent_hash": null,
   "schema_version": 1,
-  "source": "Maximum likelihood (closed form) on daily closes; drift per the policy (r - q)",
+  "source": "Exact posterior (Jeffreys prior) on daily closes; drift per the policy (r - q)",
   "window": "2021-07-06..2026-07-06"
 }

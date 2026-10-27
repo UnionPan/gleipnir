@@ -1,19 +1,19 @@
 {
   "asset": "XOM",
-  "content_hash": "877a4f8976c04906dd6130031a4167a558036757c1bcd5753cbf7d5a7d6958b0",
-  "created_at": "2026-10-26T13:29:52+00:00",
+  "content_hash": "411afac932818d747e8612f442e60991f06b28459366982618a6219d204a534e",
+  "created_at": "2026-10-27T19:35:48+00:00",
   "measure": "P",
   "mjollnir_version": "0.3.0",
   "model": "rough_bergomi",
   "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
   "params": {
-    "H": 0.02893627449936742,
-    "eta": 6.510228214079732e-07,
-    "rho": -0.022376768535919828,
+    "H": 0.06913754322862176,
+    "eta": 0.752875448472154,
+    "rho": -0.10964687114040844,
     "xi0": 0.059874581065104106
   },
   "parent_hash": null,
   "schema_version": 1,
-  "source": "Noise-corrected log-|return| variogram, parametric bootstrap on daily closes; drift per the policy (r - q)",
+  "source": "Amortized neural posterior (mixture density network), Energy sector prior (21 S&P 500 stocks) on daily closes; drift per the policy (r - q)",
   "window": "2021-07-06..2026-07-06"
 }

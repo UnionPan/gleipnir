@@ -1,19 +1,19 @@
 {
   "asset": "MSFT",
-  "content_hash": "5fc385a1c703cd1acb47a56082da388c4e0bc733b252fbff4b939a11fbb10bb7",
-  "created_at": "2026-10-26T13:29:39+00:00",
+  "content_hash": "4247acbfbf2684fb427a3b73f34b3707a077ea64de3b3d647befaa5ca971bd2e",
+  "created_at": "2026-10-27T19:35:34+00:00",
   "measure": "P",
   "mjollnir_version": "0.3.0",
   "model": "merton",
   "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
   "params": {
-    "lambda_j": 181.95356330149778,
-    "mu_j": -0.0013120230069377304,
-    "sigma": 0.14660007401318131,
-    "sigma_j": 0.01649943141818467
+    "lambda_j": 74.01070268343123,
+    "mu_j": -0.0013024584031018059,
+    "sigma": 0.17399554155007552,
+    "sigma_j": 0.02533600713761628
   },
   "parent_hash": null,
   "schema_version": 1,
-  "source": "Maximum likelihood (multi-start), observed information on daily closes; drift per the policy (r - q)",
+  "source": "Amortized neural posterior (mixture density network), Information Technology sector prior (73 S&P 500 stocks) on daily closes; drift per the policy (r - q)",
   "window": "2021-07-06..2026-07-06"
 }

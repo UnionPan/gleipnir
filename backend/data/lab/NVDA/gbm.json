@@ -1,16 +1,16 @@
 {
   "asset": "NVDA",
-  "content_hash": "ee04beb35de93718a02beea21028412d52f60460281c98c2eceda7db218a1e23",
-  "created_at": "2026-10-26T13:29:41+00:00",
+  "content_hash": "303fca06b20aec302ef7965ad6cc63d99ec1815a9f09ccac60e35b4a6472e700",
+  "created_at": "2026-10-27T19:35:36+00:00",
   "measure": "P",
   "mjollnir_version": "0.3.0",
   "model": "gbm",
   "note": "Exported for the gleipnir Counterfactual Hedging Lab.",
   "params": {
-    "sigma": 0.5143051669306025
+    "sigma": 0.5146135136334382
   },
   "parent_hash": null,
   "schema_version": 1,
-  "source": "Maximum likelihood (closed form) on daily closes; drift per the policy (r - q)",
+  "source": "Exact posterior (Jeffreys prior) on daily closes; drift per the policy (r - q)",
   "window": "2021-07-06..2026-07-06"
 }

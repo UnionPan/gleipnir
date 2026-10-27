@@ -38,8 +38,9 @@ class TestPMeasureOffline:
         log_returns = (0.05 - 0.5 * sigma**2) * DT + sigma * np.sqrt(DT) * rng.standard_normal(2000)
         prices = 100.0 * np.exp(np.concatenate([[0.0], np.cumsum(log_returns)]))
         dates = [str(i) for i in range(len(prices))]
-        params, _ = CalibrationService.calibrate_model(
+        params, _, method = CalibrationService.calibrate_model(
             ticker="SYN", prices=prices, dates=dates, model="gbm", method="mle", include_drift=True)
+        assert method == "mle"
         assert params["sigma"] == pytest.approx(sigma, rel=0.05)
 
     def test_ou_calibration_recovers_mean_reversion_of_the_log_price(self):
@@ -51,7 +52,7 @@ class TestPMeasureOffline:
         sd = sigma * np.sqrt((1 - a**2) / (2 * kappa))
         for i in range(1, n):
             x[i] = theta + (x[i - 1] - theta) * a + sd * rng.standard_normal()
-        params, diagnostics = CalibrationService.calibrate_model(
+        params, diagnostics, _ = CalibrationService.calibrate_model(
             ticker="SYN", prices=np.exp(x), dates=[str(i) for i in range(n)], model="ou", method="mle",
             include_drift=False)
         assert params["kappa"] == pytest.approx(kappa, rel=0.3)
@@ -63,7 +64,7 @@ class TestPMeasureOffline:
         drifts = np.concatenate([np.zeros(200), np.full(40, np.log(0.65) / 40), np.full(60, np.log(1.45) / 60)])
         prices = 100.0 * np.exp(np.concatenate([[0.0], np.cumsum(drifts + 0.004 * rng.standard_normal(300))]))
         dates = [str(d) for d in np.arange("2024-01-01", prices.size, dtype="datetime64[D]")]
-        params, _ = CalibrationService.calibrate_model(
+        params, _, _ = CalibrationService.calibrate_model(
             ticker="SYN", prices=prices, dates=dates, model="regime_switching_gbm", method="threshold",
             include_drift=True)
         n = sum(1 for key in params if key.startswith("mu_regime"))
