@@ -37,8 +37,10 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
+      # Compiled programs for every lab model, the surface fit and the Bayesian fits
+      # hold ~2 GiB once warm; concurrent rough-Bergomi checks peak near 2.5 GiB.
       - '--memory'
-      - '2Gi'
+      - '4Gi'
       - '--cpu'
       - '2'
       - '--timeout'
