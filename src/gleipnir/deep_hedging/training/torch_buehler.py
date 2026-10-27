@@ -90,6 +90,21 @@ class TrainerConfig:
     position_scale: float | None = None
     price_clip: float = 10.0
 
+    # Instruments the policy may trade, one 0/1 entry per grid instrument
+    # (index 0 is the underlying); None trades the whole grid. Applied on top
+    # of the simulator's per-step action masks, so a masked instrument is
+    # never held: e.g. (1, 0, 0, ...) is an underlying-only hedger.
+    instrument_mask: tuple[int, ...] | None = None
+
+    # What the policy's variance feature is. 'oracle': the simulator's true
+    # variance (an MDP). 'ewma': a RiskMetrics EWMA of squared returns,
+    # started at today's variance (what a desk can compute). With
+    # observe_variance=False the feature is zero (a POMDP: the policy must
+    # infer volatility from prices).
+    observe_variance: bool = True
+    variance_proxy: str = "oracle"
+    ewma_decay: float = 0.94
+
     # --- LSTM policy options (used when policy_kind == 'lstm') ---
     policy_kind: str = "mlp"            # 'mlp' (default) or 'lstm'
     lstm_hidden_size: int = 32          # paper: 32
@@ -212,6 +227,16 @@ def _build_batch_obs_tensor(
     )
     mask = trajectory["action_masks"][:, time_index].float()
     return obs, mask
+
+
+def ewma_variance(spots: torch.Tensor, v0: torch.Tensor, dt: float, decay: float) -> torch.Tensor:
+    """(B, T+1) RiskMetrics variance estimates (annualized), v_hat_0 = ``v0`` and
+    v_hat_t = decay v_hat_{t-1} + (1 - decay) r_t^2 / dt, using returns up to t."""
+    returns = torch.log(spots[:, 1:] / spots[:, :-1])
+    estimates = [v0]
+    for t in range(returns.shape[1]):
+        estimates.append(decay * estimates[-1] + (1.0 - decay) * returns[:, t] ** 2 / dt)
+    return torch.stack(estimates, dim=1)
 
 
 def _enforce_trade_mask(
@@ -618,6 +643,23 @@ class BuehlerTrainer(BaseTrainer):
             np.asarray(transaction_cost_rates, dtype=np.float32)
         ).to(device)
 
+        if config.variance_proxy not in ("oracle", "ewma"):
+            raise ValueError(f"variance_proxy must be 'oracle' or 'ewma', got {config.variance_proxy!r}")
+        if not 0.0 < config.ewma_decay < 1.0:
+            raise ValueError(f"ewma_decay must be in (0, 1), got {config.ewma_decay}")
+
+        self._instrument_mask: torch.Tensor | None = None
+        if config.instrument_mask is not None:
+            mask = np.asarray(config.instrument_mask, dtype=bool)
+            if mask.shape != (self.n_instruments,):
+                raise ValueError(
+                    f"instrument_mask has {mask.size} entries for a grid of "
+                    f"{self.n_instruments} instruments"
+                )
+            if not mask.any():
+                raise ValueError("instrument_mask leaves no instrument to trade")
+            self._instrument_mask = torch.from_numpy(mask).to(device)
+
         self._market_sampler = market_sampler
         self._single_path_sampler = single_path_sampler
 
@@ -711,7 +753,21 @@ class BuehlerTrainer(BaseTrainer):
 
         self._jax_key, subkey = jax.random.split(self._jax_key)
         batch = self._market_sampler(self.config.batch_size, subkey)
-        return trajectory_batch_to_torch(batch, device=self.device)
+        return self._observed(trajectory_batch_to_torch(batch, device=self.device))
+
+    def _observed(self, trajectory: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+        """The trajectory as the policy sees and trades it: the instrument mask
+        applied to the action masks, and the variance feature per the config."""
+        out = dict(trajectory)
+        if self._instrument_mask is not None:
+            masks = trajectory["action_masks"].bool() & self._instrument_mask
+            out["action_masks"] = masks.to(trajectory["action_masks"].dtype)
+        if not self.config.observe_variance:
+            out["variances"] = torch.zeros_like(trajectory["variances"])
+        elif self.config.variance_proxy == "ewma":
+            out["variances"] = ewma_variance(trajectory["spots"], trajectory["variances"][:, 0],
+                                             self.env_config.dt, self.config.ewma_decay)
+        return out
 
     def _compute_liability_payoffs(
         self, trajectory: dict[str, torch.Tensor],
@@ -875,7 +931,7 @@ class BuehlerTrainer(BaseTrainer):
         try:
             key = jax.random.PRNGKey(seed)
             batch = self._market_sampler(n_paths, key)
-            trajectory = trajectory_batch_to_torch(batch, device=self.device)
+            trajectory = self._observed(trajectory_batch_to_torch(batch, device=self.device))
             _assert_finite_trajectory(trajectory)
 
             rollout_fn = (
