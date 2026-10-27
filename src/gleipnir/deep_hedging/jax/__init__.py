@@ -37,7 +37,8 @@ from .policies import (
 from .pricing import (
     HestonMarketParams,
     compile_padded_grid,
-    price_option_grid,
+    contract_schedule,
+    price_option_contracts,
 )
 from .rollout import (
     MarketTrajectory,
@@ -69,9 +70,10 @@ __all__ = [
     "compile_padded_grid",
     "compute_hedging_loss",
     "compute_portfolio_value",
+    "contract_schedule",
     "init_linear_policy_params",
     "init_policy_state",
-    "price_option_grid",
+    "price_option_contracts",
     "replay_rollout",
     "reset_state",
     "rollout_trades",

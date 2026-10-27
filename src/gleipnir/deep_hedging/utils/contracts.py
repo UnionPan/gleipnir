@@ -315,6 +315,22 @@ def liability_max_maturity(liability: LiabilityPortfolio) -> int:
     return max(leg.maturity for leg in _normalize_legs(liability))
 
 
+# Policy observations describe each listed option by its log-moneyness log(K/S)
+# and its tenor in units of 1/TENOR_FEATURE_SCALE years (12: months).
+TENOR_FEATURE_SCALE = 12.0
+
+
+def contract_features(spot, strikes, taus):
+    """Per-option features ``[log(K/S)..., tenor...]`` for observations; works on
+    NumPy arrays and Torch tensors alike (``spot`` broadcasts against ``strikes``)."""
+    log_moneyness = (strikes / spot).log() if hasattr(strikes, "log") else np.log(strikes / spot)
+    if hasattr(log_moneyness, "new_tensor"):
+        import torch
+
+        return torch.cat([log_moneyness, taus * TENOR_FEATURE_SCALE], dim=-1)
+    return np.concatenate([log_moneyness, np.asarray(taus) * TENOR_FEATURE_SCALE], axis=-1)
+
+
 @dataclass(frozen=True)
 class MarketTrajectory:
     """
@@ -331,12 +347,18 @@ class MarketTrajectory:
         variances:         (B, T + 1)
         instrument_prices: (B, T + 1, N)
         action_masks:      (T + 1, N) or (B, T + 1, N)
+
+    The options' contract terms, when the kernel lists contracts:
+        option_strikes:    ((B,) T + 1, N - 1) strike of each slot's live contract
+        option_taus:       (T + 1, N - 1) its remaining tenor in years (0 at expiry)
     """
 
     spots: NDArray[np.float64]
     variances: NDArray[np.float64]
     instrument_prices: NDArray[np.float64]
     action_masks: NDArray[np.bool_]
+    option_strikes: NDArray[np.float64] | None = None
+    option_taus: NDArray[np.float64] | None = None
 
 
 @dataclass(frozen=True)
@@ -372,6 +394,8 @@ class TrajectoryBatch:
     action_masks: NDArray[np.bool_] | None = None
     terminal_liability_payoffs: NDArray[np.float32] | None = None
     initial_cash: NDArray[np.float32] | None = None
+    option_strikes: NDArray[np.float32] | None = None   # (B, T + 1, N - 1)
+    option_taus: NDArray[np.float32] | None = None      # (B, T + 1, N - 1), years
 
     @property
     def batch_size(self) -> int:

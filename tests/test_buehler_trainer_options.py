@@ -94,3 +94,30 @@ def test_bad_options_are_refused():
         _trainer(instrument_mask=(0,) * N_INSTRUMENTS)
     with pytest.raises(ValueError, match="variance_proxy"):
         _trainer(variance_proxy="garch")
+
+
+def test_per_path_evaluation_matches_the_aggregate_metrics():
+    trainer = _trainer()
+    paths = trainer.evaluate_paths(n_paths=64, seed=5)
+    metrics = trainer.evaluate(n_paths=64, seed=5)
+    assert paths["positions"].shape == (64, HORIZON, N_INSTRUMENTS)
+    assert float(np.std(paths["hedging_errors"])) == pytest.approx(metrics["std_hedging_error"], rel=1e-5)
+    assert float(np.mean(paths["costs"])) == pytest.approx(metrics["mean_cost"], rel=1e-5)
+
+
+@pytest.mark.parametrize("kind", ["delta", "delta_gamma", "delta_gamma_vega"])
+def test_analytical_paths_match_the_analytical_metrics(kind):
+    from gleipnir.deep_hedging.agents.analytical_delta_hedger import build_option_grid_spec
+    from gleipnir.deep_hedging.utils.eval_baseline import analytical_hedge_paths, evaluate_analytical_hedger_batch
+
+    trainer = _trainer()
+    common = dict(market_sampler=trainer._market_sampler, horizon=HORIZON, n_instruments=N_INSTRUMENTS,
+                  transaction_cost_rates=trainer.transaction_cost_rates.cpu().numpy(),
+                  liability=LiabilitySpec(kind="call", strike=100.0, maturity=HORIZON, quantity=1.0),
+                  hedge_kind=kind, option_grid_spec=build_option_grid_spec(GRID_COARSE), n_paths=64, eval_seed=5)
+    paths = analytical_hedge_paths(**common)
+    metrics = evaluate_analytical_hedger_batch(**common)
+    assert paths["positions"].shape == (64, HORIZON, N_INSTRUMENTS)
+    assert float(np.std(paths["hedging_errors"])) == pytest.approx(metrics["std_hedging_error"])
+    held_options = np.abs(paths["positions"][..., 1:]).sum()
+    assert (held_options == 0) == (kind == "delta")

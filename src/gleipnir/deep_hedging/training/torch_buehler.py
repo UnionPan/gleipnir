@@ -40,6 +40,7 @@ from ..utils.contracts import (
     MarketTrajectory,
     TrajectoryBatch,
     _normalize_legs,
+    contract_features,
 )
 from .base import BaseTrainer
 
@@ -188,6 +189,8 @@ def _build_batch_obs_tensor(
     Concatenation order matches :func:`obs_batch_to_tensor` in the
     inference path:
         ``[spot, option_features, positions, previous_trades, context]``
+    where context is ``[variance, time, 1]`` followed, with an option grid, by
+    each listed option's log-moneyness and tenor (``contract_features``).
     """
     B = positions.shape[0]
     device = positions.device
@@ -219,7 +222,14 @@ def _build_batch_obs_tensor(
     variance = trajectory["variances"][:, time_index].unsqueeze(1)
     time_feat = torch.full((B, 1), time_ratio, dtype=torch.float32, device=device)
     bias_feat = torch.ones(B, 1, dtype=torch.float32, device=device)
-    context = torch.cat([variance, time_feat, bias_feat], dim=1)
+    context = [variance, time_feat, bias_feat]
+    if n_instruments > 1:
+        if "option_strikes" not in trajectory:
+            raise ValueError("an option grid needs the contracts' strikes and tenors in the trajectory")
+        context.append(contract_features(trajectory["spots"][:, time_index].unsqueeze(1),
+                                         trajectory["option_strikes"][:, time_index],
+                                         trajectory["option_taus"][:, time_index]))
+    context = torch.cat(context, dim=1)
 
     obs = torch.cat(
         [spot, option_features, scaled_positions, scaled_previous_trades, context],
@@ -254,6 +264,7 @@ def differentiable_rollout(
     transaction_cost_rates: torch.Tensor,
     horizon: int,
     n_instruments: int,
+    record_positions: list[torch.Tensor] | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Run the policy through a batch of market trajectories, differentiably.
@@ -261,6 +272,9 @@ def differentiable_rollout(
     Returns:
         terminal_pnl: ``(B,)`` terminal portfolio value (cash + mark-to-market).
         total_costs: ``(B,)`` accumulated transaction costs.
+
+    With ``record_positions`` (a list), the ``(B, N)`` positions held over each
+    step are appended to it, detached.
     """
     B = trajectory["spots"].shape[0]
     device = trajectory["spots"].device
@@ -297,6 +311,8 @@ def differentiable_rollout(
         positions = positions + trades
         previous_trades = trades
         total_costs = total_costs + step_cost
+        if record_positions is not None:  # held over step t, after its trade
+            record_positions.append(positions.detach())
 
     prices_T = trajectory["instrument_prices"][:, horizon]
     terminal_pnl = cash + (positions * prices_T).sum(dim=1)
@@ -309,6 +325,7 @@ def differentiable_rollout_recurrent(
     transaction_cost_rates: torch.Tensor,
     horizon: int,
     n_instruments: int,
+    record_positions: list[torch.Tensor] | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Recurrent variant of :func:`differentiable_rollout` for LSTM policies.
@@ -321,6 +338,8 @@ def differentiable_rollout_recurrent(
     Returns:
         terminal_pnl: ``(B,)`` terminal portfolio value (cash + mark-to-market).
         total_costs: ``(B,)`` accumulated transaction costs.
+
+    ``record_positions`` works as in :func:`differentiable_rollout`.
     """
     B = trajectory["spots"].shape[0]
     device = trajectory["spots"].device
@@ -360,6 +379,8 @@ def differentiable_rollout_recurrent(
         positions = positions + trades
         previous_trades = trades
         total_costs = total_costs + step_cost
+        if record_positions is not None:  # held over step t, after its trade
+            record_positions.append(positions.detach())
 
     prices_T = trajectory["instrument_prices"][:, horizon]
     terminal_pnl = cash + (positions * prices_T).sum(dim=1)
@@ -562,9 +583,9 @@ class BuehlerTrainer(BaseTrainer):
         self.n_instruments = env_config.option_grid.n_instruments
         self.horizon = env_config.horizon_steps
 
-        # obs_dim = spot(1) + option_features(N-1) + positions(N)
-        #         + previous_trades(N) + context(3) = 3N + 3
-        self.obs_dim = 3 * self.n_instruments + 3
+        # obs_dim = spot(1) + option_features(N-1) + positions(N) + previous_trades(N)
+        #         + context(3 + 2 (N-1): variance, time, bias, log-moneyness and tenor per option)
+        self.obs_dim = 3 * self.n_instruments + 3 + 2 * (self.n_instruments - 1)
 
         kind = getattr(config, "policy_kind", "mlp").lower()
         default_position_scale = (
@@ -708,6 +729,7 @@ class BuehlerTrainer(BaseTrainer):
                 initial_variance=initial_variance,
                 keys=keys,
             )
+            strikes = np.asarray(market_traj.option_strikes, dtype=np.float32)
             return TrajectoryBatch(
                 spots=np.asarray(market_traj.spots, dtype=np.float32),
                 variances=np.asarray(market_traj.variances, dtype=np.float32),
@@ -715,6 +737,10 @@ class BuehlerTrainer(BaseTrainer):
                 action_masks=np.broadcast_to(
                     np.asarray(market_traj.action_masks, dtype=bool),
                     (batch_size, horizon + 1, n_instruments),
+                ).copy(),
+                option_strikes=strikes,
+                option_taus=np.broadcast_to(
+                    np.asarray(market_traj.option_taus, dtype=np.float32), strikes.shape,
                 ).copy(),
             )
 
@@ -1014,6 +1040,42 @@ class BuehlerTrainer(BaseTrainer):
     def get_agent(self) -> BaseHedgingAgent:
         """Return a :class:`TorchPolicyAgent` wrapping the current policy."""
         return TorchPolicyAgent(self.policy)
+
+    def evaluate_paths(self, n_paths: int = 4096, seed: int = 9999) -> dict[str, np.ndarray]:
+        """Per-path results on the evaluation batch ``seed`` (the one :meth:`evaluate`
+        and the analytical baselines use): ``hedging_errors``, ``costs``,
+        ``liability_payoffs`` and ``spots`` per path, and ``positions`` (B, T, N),
+        the holdings over each step."""
+        import jax
+
+        from ..utils.adapters import trajectory_batch_to_torch
+
+        was_training = self.policy.training
+        self.policy.eval()
+        try:
+            batch = self._market_sampler(n_paths, jax.random.PRNGKey(seed))
+            trajectory = self._observed(trajectory_batch_to_torch(batch, device=self.device))
+            rollout_fn = differentiable_rollout_recurrent if self._is_recurrent else differentiable_rollout
+            recorded: list[torch.Tensor] = []
+            with torch.no_grad():
+                payoffs = self._compute_liability_payoffs(trajectory)
+                terminal_pnl, costs = rollout_fn(
+                    policy=self.policy, trajectory=trajectory,
+                    transaction_cost_rates=self.transaction_cost_rates,
+                    horizon=self.horizon, n_instruments=self.n_instruments,
+                    record_positions=recorded,
+                )
+                terminal_pnl = terminal_pnl + self.initial_cash
+        finally:
+            if was_training:
+                self.policy.train()
+        return {
+            "hedging_errors": (terminal_pnl - payoffs).cpu().numpy(),
+            "costs": costs.cpu().numpy(),
+            "liability_payoffs": payoffs.cpu().numpy(),
+            "spots": trajectory["spots"].cpu().numpy(),
+            "positions": torch.stack(recorded, dim=1).cpu().numpy(),
+        }
 
     def save_checkpoint(self, path: str) -> None:
         """Save policy weights and optimizer state."""

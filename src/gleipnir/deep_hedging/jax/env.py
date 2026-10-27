@@ -19,11 +19,13 @@ configure_jax_runtime()
 @dataclass(frozen=True)
 class FloatingOptionGrid:
     """
-    Floating-grid option specification from the deep hedging notes.
+    Option grid specification from the deep hedging notes.
 
     ``maturities`` are measured in environment steps. Each maturity maps to a
     tuple of relative strikes / moneyness levels. For each grid point the
-    action space contains both a call and a put, plus the underlying.
+    action space contains both a call and a put, plus the underlying. The
+    strikes float with the spot only at issue: each listed contract keeps its
+    strike until it expires (see ``pricing.contract_schedule``).
     """
 
     maturities: tuple[int, ...]
@@ -144,11 +146,13 @@ def build_action_mask(
     horizon_steps: int,
 ) -> np.ndarray:
     """
-    Build the floating-grid action mask at a given time.
+    Build the grid's action mask at a given time.
 
-    The underlying is always tradable. Option actions are available only when
-    their maturity does not exceed the remaining episode horizon, matching the
-    convention in the notes.
+    The underlying is always tradable. Each maturity lists one contract at a
+    time (see ``pricing.contract_schedule``): it trades while its tenor runs
+    down, and on its expiry step it settles at intrinsic value and cannot be
+    traded, so a position in it is closed there. A contract still live at the
+    horizon is marked at its value.
     """
 
     if time_index < 0:
@@ -156,13 +160,11 @@ def build_action_mask(
     if horizon_steps <= 0:
         raise ValueError("horizon_steps must be positive")
 
-    remaining_steps = max(horizon_steps - time_index, 0)
     mask = [True]
-
     for maturity in option_grid.maturities:
-        available = maturity <= remaining_steps
+        live = time_index % (maturity + 1) != maturity
         for _ in option_grid.moneyness_by_maturity[maturity]:
-            mask.extend([available, available])
+            mask.extend([live, live])
 
     return np.asarray(mask, dtype=bool)
 

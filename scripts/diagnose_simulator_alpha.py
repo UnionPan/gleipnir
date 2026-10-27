@@ -8,10 +8,13 @@ structural alpha that any agent could harvest as "free PnL":
     1. Spot martingale check:  E[S_T] − S_0 should be ≈ 0 under Q (r=q=0).
     2. Payoff consistency:     E[max(S_T − K, 0)] should match the
                                t=0 Heston-COS price of the liability.
-    3. Per-instrument hold:    E[P_T^i − P_0^i] − costs for each of the
-                               13 grid slots (1 underlying + 12 rolling
-                               options). Should be ≈ 0 in a self-
-                               consistent simulator.
+    3. Per-contract hold:      E[P_expiry^i − P_0^i] for each of the 13
+                               grid slots (1 underlying + 12 listed
+                               options), each held to its own expiry.
+                               Should be ≈ 0 in a self-consistent simulator.
+    3b. Predictability:        today's variance must not forecast a held
+                               contract's next move (the leak the old
+                               rolling grid had: z ≈ 40).
     4. Do-nothing baseline:    confirms mean_pnl=0 for positions=0
                                (sanity check on the eval pipeline).
 
@@ -32,7 +35,7 @@ import numpy as np
 import jax
 
 from gleipnir.deep_hedging.jax.env import (
-    DeepHedgingEnvConfig, GRID_COARSE, build_transaction_cost_vector,
+    DeepHedgingEnvConfig, GRID_COARSE,
 )
 from gleipnir.deep_hedging.jax.pricing import (
     HestonMarketParams, compile_padded_grid,
@@ -94,7 +97,6 @@ def main() -> None:
     masks = np.asarray(traj.action_masks, dtype=bool)             # (T+1, N)
     B = args.n_paths
     n_inst = grid.n_instruments
-    tc = build_transaction_cost_vector(env_config).astype(np.float64)
 
     # ── 1. Spot martingale check ────────────────────────────────────────
     print("\n[1] Spot martingale check  (E[S_T] - S_0 should be ≈ 0)")
@@ -134,9 +136,10 @@ def main() -> None:
     #         + price_T_eff[i]                       (final mark)
     #         - tc[i] * price_T_eff[i]               (exit cost)
     # where T_eff is the last time index where the instrument is tradable.
-    print("\n[3] Per-instrument buy-and-hold alpha  (E[P_T^i - P_0^i] minus costs)")
-    print("    Underlying entry/exit cost = 1bp;  option entry/exit cost = 100bp")
-    print("    Held from t=0 to t=T_eff (last time mask[t,i]=True), then liquidated")
+    print("\n[3] Per-contract buy-and-hold alpha  (E[P_expiry^i - P_0^i], before costs)")
+    print("    Each option is bought at issue (t=0) and held to its own expiry, where it settles at")
+    print("    intrinsic value; the underlying is held to the horizon. A self-consistent simulator")
+    print("    gives zero at r = q = 0.")
     print(f"    {'instrument':>30s}  {'price_0':>9s}  {'mean_pnl':>10s}  {'sem':>8s}  {'z':>6s}")
 
     # Build instrument labels (slot 0 = underlying)
@@ -148,26 +151,32 @@ def main() -> None:
 
     instrument_alphas = {}
     for i in range(n_inst):
-        # Find last time index where the instrument is tradable.
-        # masks shape: (T+1, N)
         mask_i = masks[:, i]  # (T+1,)
-        if not mask_i[0]:
-            # Not tradable at t=0; skip (shouldn't happen for any slot)
-            continue
-        last_tradable = int(np.where(mask_i)[0][-1])  # last True index in (T+1,)
-        # We trade at time t (use prices_t = prices[:, t, i]):
-        #   t=0:           buy 1 unit  -> cash -= price_0 + tc * price_0
-        #   t=last_tradable: sell 1 unit -> cash += price_last - tc * price_last
-        # Final terminal: positions = 0, so terminal_pnl = cash + 0
+        # the first contract's expiry: the first step the slot cannot trade
+        end = args.horizon if mask_i.all() else int(np.where(~mask_i)[0][0])
         p0 = prices[:, 0, i]
-        p_last = prices[:, last_tradable, i]
-        pnl = -p0 - tc[i] * np.abs(p0) + p_last - tc[i] * np.abs(p_last)
+        pnl = prices[:, end, i] - p0
         mean = float(pnl.mean())
         sem = float(pnl.std(ddof=1) / math.sqrt(B))
         z = mean / sem if sem > 1e-12 else float("nan")
         flag = "  ← STRUCTURAL" if not math.isnan(z) and abs(z) > 3 else ""
         print(f"    {labels[i]:>30s}  {float(p0.mean()):>9.4f}  {mean:>+10.4f}  {sem:>8.4f}  {z:>+6.2f}{flag}")
         instrument_alphas[labels[i]] = (mean, sem)
+
+    print("\n[3b] Predictability  (does today's variance forecast a held contract's next move?)")
+    print("    Slope of the one-step price change on (theta - v_t), over steps where the same")
+    print("    contract is held; |z| > 3 means an agent that sees v_t can trade on it.")
+    variances = np.asarray(traj.variances)
+    predictable = 0
+    for i in range(1, n_inst):
+        held = masks[:-1, i]
+        gain = (prices[:, 1:, i] - prices[:, :-1, i])[:, held].ravel()
+        gap = (args.initial_variance - variances[:, :-1])[:, held].ravel()
+        slope, intercept = np.polyfit(gap, gain, 1)
+        resid = gain - slope * gap - intercept
+        z = slope / (resid.std() / (gap.std() * math.sqrt(gap.size)))
+        predictable += abs(z) > 3
+        print(f"    {labels[i]:>30s}  slope {slope:+.4f}  (z={z:+6.2f}){'  ← PREDICTABLE' if abs(z) > 3 else ''}")
 
     # ── 4. Do-nothing eval ──────────────────────────────────────────────
     print("\n[4] Do-nothing baseline  (positions=0 forever)")
@@ -184,13 +193,12 @@ def main() -> None:
         1 for (m, s) in instrument_alphas.values()
         if s > 1e-12 and abs(m / s) > 3
     )
-    print(f"  instruments with |z|>3 alpha: {n_struct} / {len(instrument_alphas)}")
-    if n_struct > 0:
-        print(f"  → simulator has {n_struct} structurally-alpha-leaking instruments")
-        print("    → consistent with LSTM exploiting them (the +$3.67 leak)")
+    print(f"  instruments with |z|>3 buy-and-hold alpha: {n_struct} / {len(instrument_alphas)}")
+    print(f"  options whose next move today's variance predicts (|z|>3): {predictable} / {n_inst - 1}")
+    if n_struct or predictable:
+        print("  → the simulator leaks alpha a learned hedger can harvest")
     else:
-        print(f"  → no structural per-instrument alpha at the {1/B:.4f} resolution")
-        print("    → if LSTM has a leak, it must come from path-conditional trading")
+        print("  → no leak found: held contracts are martingales, unconditionally and given v_t")
     print("=" * 78)
 
 

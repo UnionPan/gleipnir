@@ -1,9 +1,10 @@
 """
-JAX-native option grid pricing for the deep hedging environment.
+JAX-native option pricing for the deep hedging environment.
 
-Prices the entire FloatingOptionGrid at each time step using the COS method,
-staying entirely in JAX arrays (no to_numpy() calls) so the result can feed
-directly into a ``lax.scan`` rollout body.
+The grid's options are listed contracts (see :func:`contract_schedule`):
+strikes fixed at issue, tenors running down to expiry. Every step prices all
+of them with the COS method, staying entirely in JAX arrays (no to_numpy()
+calls) so the result can feed directly into a ``lax.scan`` rollout body.
 
 The grid is pre-compiled once via ``compile_padded_grid()`` into fixed-shape
 arrays (padded to max_strikes_per_maturity) so that ``vmap`` over maturities
@@ -24,8 +25,6 @@ import numpy as np
 # names kept as local aliases to minimize the diff).
 from mjollnir.jax import (
     HestonCFParams,
-    cos_price_multi as _jax_cos_price_multi,
-    jax_heston_cf,
     configure_runtime as configure_jax_runtime,
 )
 
@@ -171,7 +170,7 @@ def compile_padded_grid(
 
 
 # ============================================================================
-# Single-maturity pricing slice (vmap target)
+# Listed contracts: fixed strikes, decaying tenors
 # ============================================================================
 
 def _enforce_vanilla_price_bounds(
@@ -189,149 +188,81 @@ def _enforce_vanilla_price_bounds(
     return jnp.minimum(cleaned, upper_bounds)
 
 
-def _price_maturity_slice(
-    spot: jnp.ndarray,
-    v0: jnp.ndarray,
-    T: jnp.ndarray,
-    moneyness_row: jnp.ndarray,
-    mask_row: jnp.ndarray,
-    market: HestonMarketParams,
-    N_cos: int,
-    L_cos: float,
-) -> jnp.ndarray:
-    """Price calls and puts for one maturity, returning interleaved prices.
+def contract_schedule(maturities_steps: jnp.ndarray, time_index) -> tuple[jnp.ndarray, jnp.ndarray]:
+    """Where each maturity's contract is in its life at ``time_index``.
 
-    Args:
-        spot: scalar JAX array — current spot price
-        v0: scalar JAX array — current instantaneous variance
-        T: scalar JAX array — time to maturity in years
-        moneyness_row: (max_strikes,) — relative strikes (padded)
-        mask_row: (max_strikes,) bool — True for valid strikes
-        market: Heston risk-neutral parameters
-        N_cos: number of COS expansion terms
-        L_cos: COS truncation parameter
+    A maturity of ``m`` steps lists one contract at a time: it is issued at a
+    step with phase 0 (strikes set from that step's spot), trades for ``m``
+    steps while its tenor runs down from ``m`` to 1, and at phase ``m`` it
+    expires (tenor 0, priced at intrinsic value, not tradable); the next
+    contract is issued on the following step. Holding a slot across steps is
+    therefore holding one contract, whose price is a martingale under the
+    pricing measure.
 
     Returns:
-        (2 * max_strikes,) — interleaved [call_0, put_0, call_1, put_1, ...]
-        Invalid entries (from padding) are zeroed out.
+        (tau_steps, is_issue): ``(n_maturities,)`` remaining steps of the live
+        contract (0 on its expiry step) and whether this step issues a new one.
     """
-    mu = market.r - market.q
-    log_S0 = jnp.log(spot)
-
-    # Truncation range for COS (stays in JAX, no Python float conversion)
-    c1 = log_S0 + (mu - 0.5 * v0) * T
-    c2 = jnp.maximum(v0 * T, 1e-12)
-    a = c1 - L_cos * jnp.sqrt(c2)
-    b = c1 + L_cos * jnp.sqrt(c2)
-
-    # CF on the k-grid (shared across all strikes in this maturity)
-    k_grid = jnp.arange(N_cos)
-    ba = b - a
-    u_k = k_grid * jnp.pi / ba
-
-    cf_params = HestonCFParams(
-        v0=v0, kappa=market.kappa, theta=market.theta,
-        sigma_v=market.sigma_v, rho=market.rho, mu=mu,
-    )
-    cf_vals = jax_heston_cf(cf_params, u_k, log_S0, v0, T)
-
-    # Absolute strikes from moneyness
-    strikes = spot * moneyness_row  # (max_strikes,)
-
-    # Price calls
-    is_call = jnp.ones(moneyness_row.shape[0], dtype=bool)
-    call_prices = _jax_cos_price_multi(cf_vals, strikes, T, market.r, a, b, is_call)
-
-    # Price puts
-    is_put = jnp.zeros(moneyness_row.shape[0], dtype=bool)
-    put_prices = _jax_cos_price_multi(cf_vals, strikes, T, market.r, a, b, is_put)
-
-    # Mask invalid (padded) entries
-    call_prices = jnp.where(mask_row, call_prices, 0.0)
-    put_prices = jnp.where(mask_row, put_prices, 0.0)
-
-    # Vanilla no-arbitrage upper bounds. COS can overshoot badly near
-    # degenerate variance; never feed impossible option prices to RL.
-    call_prices = _enforce_vanilla_price_bounds(
-        call_prices,
-        spot * jnp.exp(-market.q * T),
-    )
-    put_prices = _enforce_vanilla_price_bounds(
-        put_prices,
-        strikes * jnp.exp(-market.r * T),
-    )
-
-    # Interleave: [call_0, put_0, call_1, put_1, ...]
-    # Use stack+ravel instead of .at[::2].set() for MPS compatibility under vmap
-    interleaved = jnp.stack([call_prices, put_prices], axis=-1).ravel()
-
-    return interleaved
+    period = maturities_steps + 1
+    phase = jnp.mod(time_index, period)
+    return maturities_steps - phase, phase == 0
 
 
-# ============================================================================
-# Full grid pricing
-# ============================================================================
-
-def price_option_grid(
+def price_option_contracts(
     spot: jnp.ndarray,
     v0: jnp.ndarray,
+    strikes: jnp.ndarray,
+    tau_years: jnp.ndarray,
     padded_grid: _PaddedGrid,
     market: HestonMarketParams,
-    time_index: int,
-    horizon_steps: int,
     N_cos: int = 128,
     L_cos: float = 12.0,
 ) -> jnp.ndarray:
-    """Price the entire option grid at the current state.
+    """Price the listed contracts at the current state.
 
-    Uses a flat-table approach: all options are priced via a single
-    broadcast operation, with no ``vmap``, ``fori_loop``, or ``.at[].set()``
-    scatter. This is MPS-safe and vmap-compatible.
-
-    Each option instrument is mapped to its maturity's CF via
-    ``padded_grid.flat_maturity_idx``, so the COS summation over k terms
-    happens in one (n_options, N_cos) broadcast.
+    All options are priced in one broadcast over (n_options, N_cos): the
+    Heston characteristic function is evaluated once per maturity at that
+    maturity's remaining tenor, and each option gathers its maturity's
+    coefficients. Contracts at expiry (tenor 0) are worth their intrinsic
+    value.
 
     Args:
-        spot: scalar JAX array — current spot
-        v0: scalar JAX array — current instantaneous variance
-        padded_grid: pre-compiled padded grid from ``compile_padded_grid``
+        spot: scalar JAX array, current spot
+        v0: scalar JAX array, current instantaneous variance
+        strikes: ``(n_options,)`` the contracts' strikes, fixed at issue
+        tau_years: ``(n_maturities,)`` remaining tenor of each maturity's contract
+        padded_grid: pre-compiled grid from ``compile_padded_grid``
         market: risk-neutral Heston parameters
-        time_index: current env step
-        horizon_steps: total episode horizon
         N_cos: COS expansion terms (static for JIT)
-        L_cos: COS truncation parameter
+        L_cos: COS truncation, in standard deviations of the log return
 
     Returns:
-        (n_instruments,) price vector.
-        Index 0 is the underlying (= spot).
-        Remaining indices are interleaved call/put prices per maturity.
+        ``(n_instruments,)`` price vector; index 0 is the underlying (= spot),
+        then the options in the grid's interleaved call/put order.
     """
     mu = market.r - market.q
     log_S0 = jnp.log(spot)
-    remaining = horizon_steps - time_index
 
-    # --- Step 1: Compute per-maturity COS quantities ---
-    # Truncation ranges: (n_mat,) each
-    T_all = padded_grid.maturities_years                    # (n_mat,)
-    c1 = log_S0 + (mu - 0.5 * v0) * T_all
-    c2 = jnp.maximum(v0 * T_all, 1e-12)
-    a_all = c1 - L_cos * jnp.sqrt(c2)                      # (n_mat,)
-    b_all = c1 + L_cos * jnp.sqrt(c2)                      # (n_mat,)
-    ba_all = b_all - a_all                                  # (n_mat,)
+    # --- Step 1: per-maturity COS quantities ---
+    expired = tau_years <= 0.0                                  # (n_mat,)
+    T_all = jnp.where(expired, 1.0 / 252.0, tau_years)          # placeholder tenor where priced at intrinsic
+    # The range is sized at the larger of today's and the long-run variance:
+    # variance mean-reverts over the option's life, and a v0 near zero would
+    # otherwise shrink the range below the density's support.
+    v_range = jnp.maximum(v0, market.theta)
+    c1 = log_S0 + (mu - 0.5 * v_range) * T_all
+    c2 = jnp.maximum(v_range * T_all, 1e-12)
+    a_all = c1 - L_cos * jnp.sqrt(c2)
+    b_all = c1 + L_cos * jnp.sqrt(c2)
+    ba_all = b_all - a_all
 
-    # k-grid: (N_cos,)
     k_grid = jnp.arange(N_cos)
+    u_k_all = k_grid[None, :] * jnp.pi / ba_all[:, None]       # (n_mat, N_cos)
 
-    # u_k per maturity: (n_mat, N_cos)
-    u_k_all = k_grid[None, :] * jnp.pi / ba_all[:, None]
-
-    # Heston CF per maturity: (n_mat, N_cos) complex
     cf_params = HestonCFParams(
         v0=v0, kappa=market.kappa, theta=market.theta,
         sigma_v=market.sigma_v, rho=market.rho, mu=mu,
     )
-    # Evaluate CF for each maturity — broadcast over (n_mat, N_cos)
     d = jnp.sqrt(
         (cf_params.rho * cf_params.sigma_v * 1j * u_k_all - cf_params.kappa)**2
         + cf_params.sigma_v**2 * (1j * u_k_all + u_k_all**2)
@@ -354,88 +285,64 @@ def price_option_grid(
         (cf_params.kappa - cf_params.rho * cf_params.sigma_v * 1j * u_k_all - d)
         / cf_params.sigma_v**2
     ) * ((1.0 - exp_dt) / (1.0 - g * exp_dt))
-    cf_all = jnp.exp(C + D * v0 + 1j * u_k_all * log_S0)  # (n_mat, N_cos)
+    cf_all = jnp.exp(C + D * v0 + 1j * u_k_all * log_S0)       # (n_mat, N_cos)
 
     # Fourier density coefficients: F_k = Re{cf * exp(-i*u_k*a)}
-    F_k_all = jnp.real(
-        cf_all * jnp.exp(-1j * u_k_all * a_all[:, None])
-    )  # (n_mat, N_cos)
+    F_k_all = jnp.real(cf_all * jnp.exp(-1j * u_k_all * a_all[:, None]))
 
-    # --- Step 2: Gather per-option quantities from maturity tables ---
-    mat_idx = padded_grid.flat_maturity_idx                 # (n_options,) int
-    moneyness = padded_grid.flat_moneyness                  # (n_options,)
-    is_call = padded_grid.flat_is_call                      # (n_options,) bool
-
-    # Per-option COS parameters (gathered from maturity arrays)
-    T_opt = T_all[mat_idx]                                  # (n_options,)
-    a_opt = a_all[mat_idx]                                  # (n_options,)
-    b_opt = b_all[mat_idx]                                  # (n_options,)
-    ba_opt = ba_all[mat_idx]                                # (n_options,)
-    F_k_opt = F_k_all[mat_idx]                              # (n_options, N_cos)
-
-    # Availability: maturity must be <= remaining steps
-    mat_steps_opt = padded_grid.maturities_steps[mat_idx]   # (n_options,)
-    available = mat_steps_opt <= remaining                   # (n_options,) bool
-
-    # Absolute strikes
-    strikes_opt = spot * moneyness                          # (n_options,)
-    log_K = jnp.log(strikes_opt)                            # (n_options,)
+    # --- Step 2: gather per-option quantities from the maturity tables ---
+    mat_idx = padded_grid.flat_maturity_idx                     # (n_options,)
+    is_call = padded_grid.flat_is_call                          # (n_options,) 1.0 call / 0.0 put
+    T_opt = T_all[mat_idx]
+    a_opt = a_all[mat_idx]
+    b_opt = b_all[mat_idx]
+    ba_opt = ba_all[mat_idx]
+    F_k_opt = F_k_all[mat_idx]                                  # (n_options, N_cos)
+    log_K = jnp.log(strikes)
 
     # --- Step 3: COS payoff coefficients (n_options, N_cos) ---
-    w = k_grid[None, :] * jnp.pi / ba_opt[:, None]         # (n_options, N_cos)
+    w = k_grid[None, :] * jnp.pi / ba_opt[:, None]
 
     def _F_antideriv(x_col):
         """Antiderivative of exp(x)*cos(w*(x-a)). x_col: (n_options,)."""
-        x = x_col[:, None]                                 # (n_options, 1)
-        a = a_opt[:, None]                                  # (n_options, 1)
+        x = x_col[:, None]
+        a = a_opt[:, None]
         return jnp.exp(x) / (1.0 + w**2) * (
             jnp.cos(w * (x - a)) + w * jnp.sin(w * (x - a))
         )
 
-    # Call payoff: chi(log_K, b), psi(log_K, b)
-    chi_call = _F_antideriv(b_opt) - _F_antideriv(log_K)   # (n_options, N_cos)
-    safe_k = jnp.where(k_grid == 0, 1.0, k_grid)           # (N_cos,)
+    # strikes outside the truncation range: clip the integration limits into it
+    log_K_in = jnp.clip(log_K, a_opt, b_opt)
+    safe_k = jnp.where(k_grid == 0, 1.0, k_grid)
+
+    chi_call = _F_antideriv(b_opt) - _F_antideriv(log_K_in)
     psi_call = (ba_opt[:, None] / (safe_k[None, :] * jnp.pi)) * (
         jnp.sin(w * (b_opt[:, None] - a_opt[:, None]))
-        - jnp.sin(w * (log_K[:, None] - a_opt[:, None]))
+        - jnp.sin(w * (log_K_in[:, None] - a_opt[:, None]))
     )
-    psi_call = jnp.where(
-        k_grid[None, :] == 0,
-        (b_opt - log_K)[:, None],
-        psi_call,
+    psi_call = jnp.where(k_grid[None, :] == 0, (b_opt - log_K_in)[:, None], psi_call)
+    V_call = 2.0 / ba_opt[:, None] * (chi_call - strikes[:, None] * psi_call)
+
+    chi_put = _F_antideriv(log_K_in) - _F_antideriv(a_opt)
+    psi_put = (ba_opt[:, None] / (safe_k[None, :] * jnp.pi)) * jnp.sin(
+        w * (log_K_in[:, None] - a_opt[:, None])
     )
-    V_call = 2.0 / ba_opt[:, None] * (chi_call - strikes_opt[:, None] * psi_call)
+    psi_put = jnp.where(k_grid[None, :] == 0, (log_K_in - a_opt)[:, None], psi_put)
+    V_put = 2.0 / ba_opt[:, None] * (-chi_put + strikes[:, None] * psi_put)
 
-    # Put payoff: chi(a, log_K), psi(a, log_K)
-    chi_put = _F_antideriv(log_K) - _F_antideriv(a_opt)
-    psi_put = (ba_opt[:, None] / (safe_k[None, :] * jnp.pi)) * (
-        jnp.sin(w * (log_K[:, None] - a_opt[:, None]))
-        - jnp.sin(w * (a_opt[:, None] - a_opt[:, None]))   # = 0
-    )
-    psi_put = jnp.where(
-        k_grid[None, :] == 0,
-        (log_K - a_opt)[:, None],
-        psi_put,
-    )
-    V_put = 2.0 / ba_opt[:, None] * (-chi_put + strikes_opt[:, None] * psi_put)
+    V_k = is_call[:, None] * V_call + (1.0 - is_call[:, None]) * V_put
+    half_weight = jnp.where(k_grid == 0, 0.5, 1.0)
 
-    # Select call or put per instrument (float mask: 1.0=call, 0.0=put)
-    V_k = is_call[:, None] * V_call + (1.0 - is_call[:, None]) * V_put  # (n_options, N_cos)
-
-    # Half weight for k=0
-    half_weight = jnp.where(k_grid == 0, 0.5, 1.0)         # (N_cos,)
-
-    # --- Step 4: Price = exp(-rT) * sum(F_k * V_k * half_weight) ---
+    # --- Step 4: price = exp(-rT) * sum(F_k * V_k * half_weight) ---
     option_prices = jnp.exp(-market.r * T_opt) * jnp.sum(
         F_k_opt * V_k * half_weight[None, :], axis=-1
-    )  # (n_options,)
-
+    )
     call_upper = spot * jnp.exp(-market.q * T_opt)
-    put_upper = strikes_opt * jnp.exp(-market.r * T_opt)
+    put_upper = strikes * jnp.exp(-market.r * T_opt)
     upper_bound = is_call * call_upper + (1.0 - is_call) * put_upper
     option_prices = _enforce_vanilla_price_bounds(option_prices, upper_bound)
-    available_f = jnp.where(available, 1.0, 0.0)
-    option_prices = option_prices * available_f * padded_grid.flat_valid
 
-    # Build price vector: [spot, option_0, option_1, ...]
+    intrinsic = is_call * jnp.maximum(spot - strikes, 0.0) + (1.0 - is_call) * jnp.maximum(strikes - spot, 0.0)
+    option_prices = jnp.where(expired[mat_idx], intrinsic, option_prices) * padded_grid.flat_valid
+
     return jnp.concatenate([spot[jnp.newaxis], option_prices])

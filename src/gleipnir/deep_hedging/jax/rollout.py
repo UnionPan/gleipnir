@@ -2,8 +2,11 @@
 Integrated JAX rollout: fused Heston path simulation + COS option pricing.
 
 The core function ``simulate_heston_market`` runs a single-path Heston
-Euler-Maruyama simulation and prices the entire floating option grid at
-every time step via the COS method — all inside a single ``lax.scan``.
+simulation and prices the grid's listed contracts at every time step via the
+COS method, all inside a single ``lax.scan``. A contract keeps its strike
+from issue to expiry, so a position held across steps is one instrument whose
+price is a martingale under the pricing measure (see
+``pricing.contract_schedule``).
 
 This is the "counterfactual instrument simulator": given calibrated Heston
 parameters, it produces a realistic but synthetic trajectory of spot,
@@ -34,7 +37,7 @@ from .env import (
     build_action_mask,
     build_transaction_cost_vector,
 )
-from .pricing import HestonMarketParams, _PaddedGrid, price_option_grid
+from .pricing import HestonMarketParams, _PaddedGrid, contract_schedule, price_option_contracts
 
 configure_jax_runtime()
 
@@ -143,8 +146,10 @@ def _simulate_market_core(
             preserving for borderline-Feller params).
 
     Returns:
-        (spots, variances, instrument_prices) as JAX arrays with shapes
-        (horizon+1,), (horizon+1,), (horizon+1, n_instruments).
+        (spots, variances, instrument_prices, option_strikes, option_taus) as
+        JAX arrays with shapes (horizon+1,), (horizon+1,),
+        (horizon+1, n_instruments), (horizon+1, n_options), (horizon+1, n_options);
+        tenors in years (0 on a contract's expiry step).
     """
     mu = market.r - market.q
     horizon = horizon_steps
@@ -158,14 +163,20 @@ def _simulate_market_core(
     spot_0 = jnp.asarray(initial_spot)
     var_0 = jnp.asarray(initial_variance)
 
-    prices_0 = price_option_grid(
-        spot_0, var_0, padded_grid, market,
-        time_index=0, horizon_steps=horizon,
-        N_cos=N_cos, L_cos=L_cos,
+    def contracts_at(spot, strikes, time_index):
+        """Issue new contracts where due; (strikes, tenors in years) at time_index."""
+        tau_steps, is_issue = contract_schedule(padded_grid.maturities_steps, time_index)
+        issue = is_issue[padded_grid.flat_maturity_idx]
+        strikes = jnp.where(issue, spot * padded_grid.flat_moneyness, strikes)
+        return strikes, tau_steps * dt
+
+    strikes_0, tau_0 = contracts_at(spot_0, spot_0 * padded_grid.flat_moneyness, 0)
+    prices_0 = price_option_contracts(
+        spot_0, var_0, strikes_0, tau_0, padded_grid, market, N_cos=N_cos, L_cos=L_cos,
     )
 
     def scan_body(carry, time_idx):
-        spot, variance, key = carry
+        spot, variance, strikes, key = carry
 
         if scheme == "qe":
             next_spot, next_var, key = _heston_qe_step(
@@ -180,26 +191,27 @@ def _simulate_market_core(
                 cholesky, key,
             )
 
-        prices = price_option_grid(
-            next_spot, next_var, padded_grid, market,
-            time_index=time_idx + 1, horizon_steps=horizon,
-            N_cos=N_cos, L_cos=L_cos,
+        next_strikes, tau = contracts_at(next_spot, strikes, time_idx + 1)
+        prices = price_option_contracts(
+            next_spot, next_var, next_strikes, tau, padded_grid, market, N_cos=N_cos, L_cos=L_cos,
         )
 
-        return (next_spot, next_var, key), (next_spot, next_var, prices)
+        return (next_spot, next_var, next_strikes, key), (next_spot, next_var, prices, next_strikes, tau)
 
     time_indices = jnp.arange(horizon, dtype=jnp.int32)
-    _, (spots_body, vars_body, prices_body) = jax.lax.scan(
+    _, (spots_body, vars_body, prices_body, strikes_body, tau_body) = jax.lax.scan(
         scan_body,
-        (spot_0, var_0, key),
+        (spot_0, var_0, strikes_0, key),
         time_indices,
     )
 
     spots = jnp.concatenate([spot_0[jnp.newaxis], spots_body])
     variances = jnp.concatenate([var_0[jnp.newaxis], vars_body])
     instrument_prices = jnp.concatenate([prices_0[jnp.newaxis], prices_body])
+    option_strikes = jnp.concatenate([strikes_0[jnp.newaxis], strikes_body])
+    option_taus = jnp.concatenate([tau_0[jnp.newaxis], tau_body])[:, padded_grid.flat_maturity_idx]
 
-    return spots, variances, instrument_prices
+    return spots, variances, instrument_prices, option_strikes, option_taus
 
 
 # ============================================================================
@@ -255,7 +267,7 @@ def simulate_heston_market(
     horizon = config.horizon_steps
     scheme = getattr(config, "scheme", "euler")
 
-    spots, variances, instrument_prices = _jit_simulate_single(
+    spots, variances, instrument_prices, option_strikes, option_taus = _jit_simulate_single(
         market, padded_grid,
         initial_spot, initial_variance, key,
         config.dt, horizon, N_cos, L_cos, scheme,
@@ -275,6 +287,8 @@ def simulate_heston_market(
         variances=np.asarray(variances, dtype=np.float64),
         instrument_prices=np.asarray(instrument_prices, dtype=np.float64),
         action_masks=masks,
+        option_strikes=np.asarray(option_strikes, dtype=np.float64),
+        option_taus=np.asarray(option_taus, dtype=np.float64),
     )
 
 
@@ -305,7 +319,7 @@ def simulate_heston_market_batch(
     horizon = config.horizon_steps
     scheme = getattr(config, "scheme", "euler")
 
-    spots, variances, instrument_prices = _jit_simulate_batch(
+    spots, variances, instrument_prices, option_strikes, option_taus = _jit_simulate_batch(
         market, padded_grid,
         initial_spot, initial_variance, keys,
         config.dt, horizon, N_cos, L_cos, scheme,
@@ -325,6 +339,8 @@ def simulate_heston_market_batch(
         variances=np.asarray(variances, dtype=np.float64),
         instrument_prices=np.asarray(instrument_prices, dtype=np.float64),
         action_masks=masks,
+        option_strikes=np.asarray(option_strikes, dtype=np.float64),
+        option_taus=np.asarray(option_taus[0], dtype=np.float64),  # the schedule is the same on every path
     )
 
 

@@ -13,6 +13,7 @@ from .contracts import (
     MarketTrajectory,
     ObservationBatch,
     TrajectoryBatch,
+    contract_features,
     total_payoff_from_path,
 )
 
@@ -34,13 +35,32 @@ def _ensure_single_path_trajectory(trajectory: MarketTrajectory) -> MarketTrajec
         if masks.shape[0] != 1:
             raise ValueError("collect_agent_rollout_from_market currently supports single-path masks only")
         masks = masks[0]
+    strikes = trajectory.option_strikes
+    if strikes is not None:
+        strikes = np.asarray(strikes, dtype=np.float64)
+        if strikes.ndim == 3:
+            strikes = strikes[0]
 
     return MarketTrajectory(
         spots=spots,
         variances=variances,
         instrument_prices=prices,
         action_masks=masks,
+        option_strikes=strikes,
+        option_taus=trajectory.option_taus,
     )
+
+
+def _context_features(trajectory: MarketTrajectory, time_index: int, time_ratio) -> np.ndarray:
+    """``[variance, time, 1]`` plus each listed option's log-moneyness and tenor,
+    as the Buehler trainer builds them (``contract_features``)."""
+    base = np.asarray([trajectory.variances[time_index], time_ratio, 1.0], dtype=np.float32)
+    if trajectory.option_strikes is None or trajectory.option_taus is None:
+        return base.reshape(1, -1)
+    contracts = contract_features(np.float32(trajectory.spots[time_index]),
+                                  np.asarray(trajectory.option_strikes[time_index], dtype=np.float32),
+                                  np.asarray(trajectory.option_taus[time_index], dtype=np.float32))
+    return np.concatenate([base, contracts.astype(np.float32)]).reshape(1, -1)
 
 
 def _build_market_observation(
@@ -61,10 +81,7 @@ def _build_market_observation(
         ).reshape(1, -1),
         portfolio_features=np.asarray(positions, dtype=np.float32).reshape(1, -1),
         previous_action=np.asarray(previous_action, dtype=np.float32).reshape(1, -1),
-        context_features=np.asarray(
-            [[trajectory.variances[time_index], time_ratio, 1.0]],
-            dtype=np.float32,
-        ),
+        context_features=_context_features(trajectory, time_index, time_ratio),
         action_mask=np.asarray(trajectory.action_masks[time_index], dtype=bool).reshape(1, -1),
     )
 

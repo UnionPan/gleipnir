@@ -251,11 +251,20 @@ def adapt_market_trajectory_batch(trajectory: MarketTrajectory) -> TrajectoryBat
             f"action_masks shape {action_masks.shape} incompatible with instrument_prices shape {instrument_prices.shape}"
         )
 
+    strikes = taus = None
+    if trajectory.option_strikes is not None and trajectory.option_taus is not None:
+        strikes = _as_batch_first(np.asarray(trajectory.option_strikes, dtype=np.float32), 3, "option_strikes")
+        if strikes.shape[0] == 1 and batch_size > 1:
+            strikes = np.repeat(strikes, batch_size, axis=0)
+        taus = np.broadcast_to(np.asarray(trajectory.option_taus, dtype=np.float32), strikes.shape).copy()
+
     return TrajectoryBatch(
         spots=spots,
         variances=variances,
         instrument_prices=instrument_prices,
         action_masks=action_masks,
+        option_strikes=strikes,
+        option_taus=taus,
     )
 
 
@@ -286,6 +295,8 @@ def trajectory_batch_to_torch(
         "action_masks",
         "terminal_liability_payoffs",
         "initial_cash",
+        "option_strikes",
+        "option_taus",
     ):
         value = getattr(batch, key)
         if value is None:

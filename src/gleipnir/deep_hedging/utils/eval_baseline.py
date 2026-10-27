@@ -272,7 +272,7 @@ def _error_distribution_metrics(
     }
 
 
-def evaluate_analytical_hedger_batch(
+def analytical_hedge_paths(
     market_sampler: MarketBatchSampler,
     horizon: int,
     n_instruments: int,
@@ -285,17 +285,16 @@ def evaluate_analytical_hedger_batch(
     eval_seed: int = 9999,
     risk_free_rate: float = 0.0,
     initial_cash: float = 0.0,
-    risk_aversion: float = 1000.0,
     variance_source: str = "oracle",
     ewma_lambda: float = 0.94,
     initial_variance_prior: float = 0.04,
-) -> dict[str, float]:
+) -> dict[str, np.ndarray]:
     """Run a BS-{delta | delta-gamma | delta-gamma-vega} hedger over a batched
-    JAX market trajectory.
+    JAX market trajectory, path by path.
 
-    Returns a metric dict with the same keys as
-    :meth:`BuehlerTrainer.evaluate` so it can be compared directly against a
-    trained-policy eval on the *same* ``eval_seed``.
+    Returns ``hedging_errors``, ``costs``, ``liability_payoffs``,
+    ``terminal_pnl`` and ``spots`` per path, and ``positions`` (B, T, N), the
+    holdings over each step.
 
     Args:
         hedge_kind: which analytical hedger to use:
@@ -354,6 +353,14 @@ def evaluate_analytical_hedger_batch(
     variances = np.asarray(batch.variances, dtype=np.float64)      # (B, T+1)
     prices = np.asarray(batch.instrument_prices, dtype=np.float64) # (B, T+1, N)
     masks = np.asarray(batch.action_masks, dtype=bool)             # (T+1, N) or (B, T+1, N)
+
+    def contract(idx):
+        """(strike, tenor in years) of slot ``idx``'s live contract over the hedging steps."""
+        if batch.option_strikes is None or batch.option_taus is None:
+            raise ValueError("option hedges need the contracts' strikes and tenors in the trajectory")
+        strikes = np.asarray(batch.option_strikes, dtype=np.float64)[:, :horizon, idx - 1]
+        taus = np.broadcast_to(np.asarray(batch.option_taus, dtype=np.float64), (B, horizon + 1, n_instruments - 1))
+        return strikes, taus[:, :horizon, idx - 1]
     B = n_paths
     if spots.shape != (B, horizon + 1):
         raise ValueError(
@@ -397,8 +404,7 @@ def evaluate_analytical_hedger_batch(
             key=lambda s: abs(s["moneyness"] - 1.0) * 100 + s["tau_steps"],
         )
         atm_idx = atm["idx"]
-        atm_K = atm["moneyness"] * spots[:, :horizon]              # (B, T)
-        atm_tau = np.full_like(spots[:, :horizon], atm["tau_steps"] * dt)
+        atm_K, atm_tau = contract(atm_idx)                         # (B, T) each
         atm_call_prices = prices[:, :horizon, atm_idx]             # (B, T)
         # Newton's method on σ for BS call price (vectorized)
         sigma = np.full_like(spots[:, :horizon], np.sqrt(float(initial_variance_prior)))
@@ -411,7 +417,8 @@ def evaluate_analytical_hedger_batch(
             bs_price = S_ * norm.cdf(d1) - atm_K * norm.cdf(d1 - sigma * sqrtT)
             update = (bs_price - atm_call_prices) / np.maximum(vega, 1e-8)
             sigma = np.clip(sigma - update, 1e-4, 5.0)
-        sigma_t = sigma
+        # an expiring contract carries no volatility information: keep the prior there
+        sigma_t = np.where(atm_tau > 0.0, sigma, np.sqrt(float(initial_variance_prior)))
     steps_remaining = np.maximum(
         liability.maturity - np.arange(horizon, dtype=np.float64), 0.0
     )                                                              # (T,)
@@ -431,11 +438,7 @@ def evaluate_analytical_hedger_batch(
         # Pick 1 hedging option
         opt = _select_hedging_options(option_grid_spec, liability.maturity, 1)[0]
         opt_idx = opt["idx"]
-        opt_tau_steps = opt["tau_steps"]
-        opt_moneyness = opt["moneyness"]
-        # opt strike floats with spot (rolling-tenor moneyness convention)
-        opt_K = opt_moneyness * spots_t
-        opt_tau = np.full_like(spots_t, opt_tau_steps * dt)
+        opt_K, opt_tau = contract(opt_idx)  # the slot's listed contract (zero greeks on its expiry step)
         opt_delta, opt_gamma, _ = _bs_greeks_batch(
             S=spots_t, K=opt_K, tau=opt_tau, sigma=sigma_t,
             r=float(risk_free_rate), kind="call",
@@ -453,8 +456,7 @@ def evaluate_analytical_hedger_batch(
         # Compute greeks for both options
         opt_data = []
         for o in opts:
-            opt_K = o["moneyness"] * spots_t
-            opt_tau = np.full_like(spots_t, o["tau_steps"] * dt)
+            opt_K, opt_tau = contract(o["idx"])
             d_, g_, v_ = _bs_greeks_batch(
                 S=spots_t, K=opt_K, tau=opt_tau, sigma=sigma_t,
                 r=float(risk_free_rate), kind="call",
@@ -490,11 +492,55 @@ def evaluate_analytical_hedger_batch(
         horizon=horizon,
         n_instruments=n_instruments,
     )
+    liability_payoffs = _terminal_call_put_payoff(spots[:, horizon], liability)
+    # held positions: what the replay holds after masking (masked instruments are liquidated)
+    tradable = np.broadcast_to(masks[..., :horizon, :] if masks.ndim == 3 else masks[None, :horizon, :],
+                               (B, horizon, n_instruments))
+    return {
+        "hedging_errors": terminal_pnl - liability_payoffs,
+        "costs": total_costs,
+        "liability_payoffs": liability_payoffs,
+        "spots": spots,
+        "positions": np.where(tradable, np.transpose(target_positions, (1, 0, 2)), 0.0),
+        "terminal_pnl": terminal_pnl,
+    }
 
-    # ── Liability payoff + Buehler-style metrics ────────────────────────
-    spot_T = spots[:, horizon]
-    liability_payoffs = _terminal_call_put_payoff(spot_T, liability)
-    hedging_errors = terminal_pnl - liability_payoffs
+
+def evaluate_analytical_hedger_batch(
+    market_sampler: MarketBatchSampler,
+    horizon: int,
+    n_instruments: int,
+    transaction_cost_rates: np.ndarray,
+    liability: LiabilitySpec,
+    hedge_kind: HedgeKind = "delta",
+    option_grid_spec: list[dict] | None = None,
+    dt: float = 1.0 / 252.0,
+    n_paths: int = 4096,
+    eval_seed: int = 9999,
+    risk_free_rate: float = 0.0,
+    initial_cash: float = 0.0,
+    risk_aversion: float = 1000.0,
+    variance_source: str = "oracle",
+    ewma_lambda: float = 0.94,
+    initial_variance_prior: float = 0.04,
+) -> dict[str, float]:
+    """Run a BS-{delta | delta-gamma | delta-gamma-vega} hedger over a batched
+    JAX market trajectory.
+
+    Returns a metric dict with the same keys as
+    :meth:`BuehlerTrainer.evaluate` so it can be compared directly against a
+    trained-policy eval on the *same* ``eval_seed``. The arguments are those of
+    :func:`analytical_hedge_paths`, plus ``risk_aversion`` for the loss.
+    """
+    paths = analytical_hedge_paths(
+        market_sampler, horizon, n_instruments, transaction_cost_rates, liability, hedge_kind=hedge_kind,
+        option_grid_spec=option_grid_spec, dt=dt, n_paths=n_paths, eval_seed=eval_seed,
+        risk_free_rate=risk_free_rate, initial_cash=initial_cash, variance_source=variance_source,
+        ewma_lambda=ewma_lambda, initial_variance_prior=initial_variance_prior,
+    )
+    terminal_pnl, total_costs = paths["terminal_pnl"], paths["costs"]
+    liability_payoffs, hedging_errors = paths["liability_payoffs"], paths["hedging_errors"]
+    B = n_paths
     zero_errors = float(initial_cash) - liability_payoffs
 
     eval_loss = (
