@@ -70,6 +70,20 @@ def test_contract_prices_match_the_reference_cos_pricer(spot, variance):
         assert ours[i + 1] == pytest.approx(float(reference[0]), abs=1e-4)
 
 
+@pytest.mark.parametrize("variance", [5e-5, 2e-4, 1e-3, 0.04, 0.25])
+def test_128_terms_price_every_state_the_simulator_visits(variance):
+    # far below its long-run level, today's variance once got a range sized for the long run, and
+    # 128 terms mispriced short out-of-the-money contracts by more than it costs to trade them
+    strikes = jnp.asarray(100.0 * np.asarray(GRID.flat_moneyness))
+    for spot in (85.0, 100.0, 115.0):
+        for days in (1, 3, 5, 12, 20):
+            tau = jnp.asarray([min(days, 5), days]) * DT
+            ours = price_option_contracts(jnp.asarray(spot), jnp.asarray(variance), strikes, tau, GRID, MARKET)
+            fine = price_option_contracts(jnp.asarray(spot), jnp.asarray(variance), strikes, tau, GRID, MARKET,
+                                          N_cos=4096)
+            np.testing.assert_allclose(np.asarray(ours), np.asarray(fine), rtol=0, atol=1e-6)
+
+
 @pytest.mark.parametrize("slot", [3, 4, 9, 10])  # 5- and 20-day at-the-money calls and puts
 def test_todays_variance_does_not_predict_a_held_contracts_next_move(market, slot):
     held = market.action_masks[:-1, slot]

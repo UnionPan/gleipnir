@@ -208,6 +208,23 @@ def contract_schedule(maturities_steps: jnp.ndarray, time_index) -> tuple[jnp.nd
     return maturities_steps - phase, phase == 0
 
 
+def _window_variance(v0: jnp.ndarray, tau: jnp.ndarray, market: HestonMarketParams) -> jnp.ndarray:
+    """The variance that sizes each maturity's COS range.
+
+    The expected average variance over the contract's remaining life,
+    ``theta + (v0 - theta)(1 - exp(-kappa tau)) / (kappa tau)``, and never less
+    than today's: the log return's spread at that tenor. Sizing at
+    ``max(v0, theta)`` instead (as this did until 2026-10-28) made the range
+    many times wider than the density when variance sat far below its mean,
+    and 128 terms then mispriced short-dated, out-of-the-money contracts by
+    up to 4e-3, more than the 1% cost of trading them. Now 128 terms agree
+    with 4096 to 1e-7 over every state the simulator visits.
+    """
+    reversion = market.kappa * tau
+    average = market.theta + (v0 - market.theta) * -jnp.expm1(-reversion) / reversion
+    return jnp.maximum(average, v0)
+
+
 def price_option_contracts(
     spot: jnp.ndarray,
     v0: jnp.ndarray,
@@ -246,10 +263,7 @@ def price_option_contracts(
     # --- Step 1: per-maturity COS quantities ---
     expired = tau_years <= 0.0                                  # (n_mat,)
     T_all = jnp.where(expired, 1.0 / 252.0, tau_years)          # placeholder tenor where priced at intrinsic
-    # The range is sized at the larger of today's and the long-run variance:
-    # variance mean-reverts over the option's life, and a v0 near zero would
-    # otherwise shrink the range below the density's support.
-    v_range = jnp.maximum(v0, market.theta)
+    v_range = _window_variance(v0, T_all, market)
     c1 = log_S0 + (mu - 0.5 * v_range) * T_all
     c2 = jnp.maximum(v_range * T_all, 1e-12)
     a_all = c1 - L_cos * jnp.sqrt(c2)
