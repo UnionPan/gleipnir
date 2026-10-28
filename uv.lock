@@ -1252,7 +1252,7 @@ requires-dist = [
     { name = "jax", extras = ["cuda13"], marker = "sys_platform == 'linux' and extra == 'cuda'", specifier = ">=0.9.0,<0.10" },
     { name = "jax-metal", marker = "sys_platform == 'darwin' and extra == 'metal'", specifier = ">=0.1.0" },
     { name = "matplotlib", specifier = ">=3.7.0" },
-    { name = "mjollnir", git = "https://github.com/UnionPan/mjollnir?rev=efb6d4cf55329349f0ccd6380dc80b2fd3dd82b8" },
+    { name = "mjollnir", git = "https://github.com/UnionPan/mjollnir?rev=4fafc82aae60cc83279412a5b64275f3517fd62d" },
     { name = "numpy", specifier = ">=1.24.0" },
     { name = "optax", specifier = ">=0.2.0" },
     { name = "pandas", specifier = ">=2.0.0" },
@@ -2587,7 +2587,7 @@ wheels = [
 [[package]]
 name = "mjollnir"
 version = "0.3.0"
-source = { git = "https://github.com/UnionPan/mjollnir?rev=efb6d4cf55329349f0ccd6380dc80b2fd3dd82b8#efb6d4cf55329349f0ccd6380dc80b2fd3dd82b8" }
+source = { git = "https://github.com/UnionPan/mjollnir?rev=4fafc82aae60cc83279412a5b64275f3517fd62d#4fafc82aae60cc83279412a5b64275f3517fd62d" }
 dependencies = [
     { name = "flax" },
     { name = "gymnasium" },

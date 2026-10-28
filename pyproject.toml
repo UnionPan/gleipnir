@@ -80,7 +80,7 @@ conflicts = [[{ extra = "cuda" }, { extra = "metal" }]]
 # Pinned by commit until mjollnir tags its next release; uv.lock records the
 # resolved commit. Co-develop against a local checkout with
 # `uv run --with-editable ../mjollnir ...` (what `make dev` does).
-mjollnir = { git = "https://github.com/UnionPan/mjollnir", rev = "efb6d4cf55329349f0ccd6380dc80b2fd3dd82b8" }
+mjollnir = { git = "https://github.com/UnionPan/mjollnir", rev = "4fafc82aae60cc83279412a5b64275f3517fd62d" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
