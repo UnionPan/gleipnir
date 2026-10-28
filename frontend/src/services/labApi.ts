@@ -130,6 +130,8 @@ export interface WorldResult {
   };
   /** The first simulated paths whole, for the animation (absent from older servers). */
   paths?: SimulatedPaths;
+  /** Per hedger, the book marked to market across all paths (absent from older servers). */
+  mtm_bands?: Record<HedgerName, Bands>;
 }
 
 /** Whole simulated paths: the same index is the same random draw in every world. */
@@ -139,6 +141,19 @@ export interface SimulatedPaths {
   pnl: Record<HedgerName, number[]>;
   /** The path closest to the median outcome. */
   highlight: number;
+  /** Per path, the option sold marked at the premium's implied vol: the premium on day 0, the payoff at expiry. */
+  liability?: number[][];
+  /** Per hedger and path, the book marked to market each day: 0 on day 0, the P&L at expiry. */
+  mtm_pnl?: Record<HedgerName, number[][]>;
+}
+
+/** Quantiles across every path of a world, day by day. */
+export interface Bands {
+  p5: number[];
+  p25: number[];
+  p50: number[];
+  p75: number[];
+  p95: number[];
 }
 
 export interface BookOrigin {

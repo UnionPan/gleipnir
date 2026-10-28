@@ -5,10 +5,9 @@ import { fetchCatalog, HedgeRequest, hedgerByRole, HedgeResponse, LabCatalog, ru
 import { BUNDLES_EVENT, listBundles, markBundlesSeen, StoredBundle, unseenBundle } from '../services/labBundles';
 import LabControls, { LabConfig } from '../components/lab/LabControls';
 import MarketCard from '../components/lab/MarketCard';
-import ResultsTable from '../components/lab/ResultsTable';
-import DistributionPanels from '../components/lab/DistributionPanels';
 import SimulationHero, { WorldView } from '../components/lab/SimulationHero';
 import FollowPath from '../components/lab/FollowPath';
+import WealthBands from '../components/lab/WealthBands';
 import { readResult } from '../components/lab/insights';
 
 function initialConfig(catalog: LabCatalog, bundles: StoredBundle[], arrival: string | null): LabConfig {
@@ -184,11 +183,13 @@ const HedgingLabPage: React.FC = () => {
                   <span className="lab-view-note">Same random draws in both worlds: only the market differs.</span>
                 </div>
               )}
-              {result.factual.paths
-                ? <SimulationHero result={result} theme={theme} view={view} selected={path} onSelect={setPath} />
-                : <DistributionPanels result={result} theme={theme} />}
+              {result.factual.paths && (
+                <SimulationHero result={result} theme={theme} view={view} selected={path} onSelect={setPath} />
+              )}
             </div>
           </section>
+
+          {result.factual.mtm_bands && <WealthBands result={result} theme={theme} view={view} />}
 
           {result.factual.paths && (
             <FollowPath result={result} theme={theme} view={view} path={path} onPath={setPath} />
@@ -200,10 +201,6 @@ const HedgingLabPage: React.FC = () => {
                 {(100 * result.book.implied_vol).toFixed(1)}%</span>
             </summary>
             <MarketCard catalog={catalog} result={result} />
-          </details>
-          <details className="lab-disclosure">
-            <summary>All numbers <span>every hedger in every world, over all {result.n_paths.toLocaleString()} paths</span></summary>
-            <ResultsTable result={result} />
           </details>
           <details className="lab-disclosure">
             <summary>How this works</summary>

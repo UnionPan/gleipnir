@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { HedgeResponse, SimulatedPaths } from '../../services/labApi';
 import { chrome, ThemeName, World } from './chartTheme';
 import { extent, linear, linePath, ticks, useWidth } from './viz';
@@ -23,12 +23,14 @@ interface Series {
 /** One small line chart with the shared day cursor. */
 const Mini: React.FC<{
   title: string; series: Series[]; days: number; theme: ThemeName; cursor: number | null;
-  onCursor: (day: number | null) => void; reference?: number; digits: number;
-}> = ({ title, series, days, theme, cursor, onCursor, reference, digits }) => {
+  onCursor: (day: number | null) => void; reference?: number; digits: number; domain?: [number, number];
+  note?: string;
+}> = ({ title, series, days, theme, cursor, onCursor, reference, digits, domain: shared, note }) => {
   const c = chrome(theme);
   const [ref, width] = useWidth<HTMLDivElement>(300);
   const x = linear([0, days], [PAD.left, width - PAD.right]);
-  const domain = extent([...series.flatMap((s) => s.values), ...(reference === undefined ? [] : [reference])], 0.08);
+  const domain = shared
+    ?? extent([...series.flatMap((s) => s.values), ...(reference === undefined ? [] : [reference])], 0.08);
   const y = linear(domain, [HEIGHT - PAD.bottom, PAD.top]);
   const move = (e: React.MouseEvent<SVGSVGElement>) => {
     const box = e.currentTarget.getBoundingClientRect();
@@ -37,7 +39,10 @@ const Mini: React.FC<{
   };
   return (
     <figure className="lab-chart" ref={ref}>
-      <figcaption><span className="lab-chart-title">{title}</span></figcaption>
+      <figcaption>
+        <span className="lab-chart-title">{title}</span>
+        {note && <span className="lab-hero-count">{note}</span>}
+      </figcaption>
       <svg width={width} height={HEIGHT} onMouseMove={move} onMouseLeave={() => onCursor(null)} role="img" aria-label={title}>
         {ticks(domain[0], domain[1], 3).map((v) => (
           <g key={v}>
@@ -75,9 +80,14 @@ const FollowPath: React.FC<Props> = ({ result, theme, view, path, onPath }) => {
   const traders = result.hedgers.filter((h) => h.role !== 'none');
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [cursor, setCursor] = useState<number | null>(null);
+  const marked = worlds.every(([, p]) => p.mtm_pnl && p.liability);
+  const [measure, setMeasure] = useState<'value' | 'shares'>('value');
+  const showValue = marked && measure === 'value';
   const nPaths = worlds[0][1].spots.length;
   const days = worlds[0][1].spots[0].length - 1;
   const at = cursor ?? days;
+  const bookDomain = useMemo(() => extent(marked ? traders.flatMap((h) => shown.flatMap(([, p]) =>
+    (p.mtm_pnl as Record<string, number[][]>)[h.name][path])) : [0], 0.08), [marked, traders, shown, path]);
   const label = (w: World) => (w === 'factual' ? result.factual.label : result.counterfactual?.label ?? '');
   const toggle = (name: string) => setHidden((prev) => {
     const next = new Set(prev);
@@ -118,18 +128,42 @@ const FollowPath: React.FC<Props> = ({ result, theme, view, path, onPath }) => {
             </span>
           ))}
         </p>
+        {marked && (
+          <div className="lab-view" role="radiogroup" aria-label="What the small charts show">
+            {([['value', 'What the book is worth'], ['shares', 'Shares held']] as ['value' | 'shares', string][])
+              .map(([m, text]) => (
+                <button key={m} type="button" role="radio" aria-checked={measure === m}
+                  className={`lab-view-option ${measure === m ? 'active' : ''}`} onClick={() => setMeasure(m)}>{text}</button>
+              ))}
+          </div>
+        )}
         <div className="lab-multiples">
           <Mini title="Price" series={shown.map(([w, p]) => ({ world: w, values: p.spots[path] }))} days={days}
             theme={theme} cursor={cursor} onCursor={setCursor} reference={result.book.strike} digits={0} />
-          {traders.filter((h) => !hidden.has(h.name)).map((h) => (
-            <Mini key={h.name} title={`${h.label}: shares held`} days={days} theme={theme} cursor={cursor}
-              onCursor={setCursor} digits={2}
-              series={shown.map(([w, p]) => ({ world: w, values: p.positions[h.name][path] }))} />
-          ))}
+          {marked && (
+            <Mini title="The option sold, marked" days={days} theme={theme} cursor={cursor} onCursor={setCursor}
+              digits={1} series={shown.map(([w, p]) => ({ world: w, values: (p.liability as number[][])[path] }))} />
+          )}
+          {showValue
+            ? result.hedgers.filter((h) => !hidden.has(h.name)).map((h) => (
+              <Mini key={h.name} title={`${h.label}: the book`} days={days} theme={theme} cursor={cursor}
+                onCursor={setCursor} digits={1} reference={0} note={h.role === 'none' ? 'own scale' : undefined}
+                domain={h.role === 'none' ? undefined : bookDomain}
+                series={shown.map(([w, p]) => ({ world: w, values: (p.mtm_pnl as Record<string, number[][]>)[h.name][path] }))} />
+            ))
+            : traders.filter((h) => !hidden.has(h.name)).map((h) => (
+              <Mini key={h.name} title={`${h.label}: shares held`} days={days} theme={theme} cursor={cursor}
+                onCursor={setCursor} digits={2}
+                series={shown.map(([w, p]) => ({ world: w, values: p.positions[h.name][path] }))} />
+            ))}
         </div>
         <p className="lab-hero-note">
-          Shares each hedger holds against the option sold, after each day's trade. Hover a chart to read any day;
-          without a cursor the line above shows each hedger's result at expiry.
+          {showValue
+            ? <>The option sold is marked at its implied vol at sale: the premium on day 0, the payoff at expiry. Each
+              hedger&apos;s book is its hedge account less that mark, so it starts at 0 and ends at the P&amp;L; a good
+              hedge keeps it near 0 all the way. Hedged books share one scale.</>
+            : <>Shares each hedger holds against the option sold, after each day&apos;s trade.</>}{' '}
+          Hover a chart to read any day; without a cursor the line above shows each hedger&apos;s result at expiry.
         </p>
       </div>
     </section>
