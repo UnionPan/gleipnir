@@ -98,6 +98,24 @@
   background: var(--panel-bg-alt);
 }
 
+.learn-verdict {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--text-primary);
+  background: var(--well-bg);
+  border-left: 3px solid var(--accent);
+}
+
+.learn-verdict p {
+  margin: 0;
+}
+
+.learn-verdict p + p {
+  margin-top: 0.375rem;
+}
+
 .learn-details {
   margin: 1rem 0 0;
   padding: 0.5rem 0.75rem;

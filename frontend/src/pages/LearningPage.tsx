@@ -25,8 +25,9 @@ const LearningPage: React.FC = () => {
       <header className="page-header">
         <h1>Learning to Hedge</h1>
         <p className="page-subtitle">
-          Two controllers trained offline on a GPU and evaluated on fixed paths: a deep hedger that learns when
-          options are worth their cost, and an agent that must remember a contract&apos;s history it cannot see.
+          Two controllers trained offline on a GPU and evaluated on fixed paths against the classical hedges they
+          would replace: a deep hedger that may trade listed options, and an agent that must remember a
+          contract&apos;s history it cannot see.
         </p>
       </header>
       {error && <div className="lab-error" role="alert">{error}</div>}

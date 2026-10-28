@@ -5,6 +5,7 @@ import type { DeepHedgingDemo, HedgerKey, SeedStat } from '../../services/rlApi'
 import { baseLayout, chrome, PLOT_CONFIG, ThemeName } from '../lab/chartTheme';
 import { hedgerColor } from './learningTheme';
 import { endLabels, LabeledSeries } from './endLabels';
+import { verdict } from './verdict';
 import { useNarrow } from './useNarrow';
 
 interface Props {
@@ -19,7 +20,6 @@ const PATH_NAMES = ['Spot ends low', 'Spot ends near the middle', 'Spot ends hig
 
 const isStat = (v: number | SeedStat): v is SeedStat => typeof v === 'object';
 const meanOf = (v: number | SeedStat) => (isStat(v) ? v.mean : v);
-
 function Cell({ value, digits = 2 }: { value: number | SeedStat; digits?: number }) {
   if (!isStat(value)) return <td>{value.toFixed(digits)}</td>;
   return (
@@ -50,6 +50,7 @@ export function labeled(narrow: boolean, labels: ReturnType<typeof endLabels>, w
 }
 
 const days = (n: number) => [...Array(n).keys()];
+const withArticle = (noun: string) => `${/^[aeiou]/i.test(noun) ? 'an' : 'a'} ${noun}`;
 
 const DeepHedgingSection: React.FC<Props> = ({ demo, theme }) => {
   const [pathIndex, setPathIndex] = useState(1);
@@ -100,7 +101,7 @@ const DeepHedgingSection: React.FC<Props> = ({ demo, theme }) => {
       <div className="lab-titlebar">Deep hedging · a short call in a Heston world</div>
       <div className="lab-panel-body">
         <p className="lab-caption">
-          A desk sells a {setup.liability.replace('short ', '')} and hedges it daily. The market is Heston
+          A desk sells {withArticle(setup.liability.replace('short ', ''))} and hedges it daily. The market is Heston
           (κ {setup.market.kappa}, θ {setup.market.theta}, ξ {setup.market.sigma_v}, ρ {setup.market.rho}) with no rates or
           dividends, so the pricing and real-world measures coincide. The hedgers can trade the underlying (cost{' '}
           {(1e4 * setup.costs.underlying).toFixed(0)} bp) and {setup.options} (cost {(100 * setup.costs.options).toFixed(0)}%
@@ -147,11 +148,14 @@ const DeepHedgingSection: React.FC<Props> = ({ demo, theme }) => {
         </div>
         <p className="lab-caption">
           The worst 5% is the mean shortfall of the worst twentieth of paths, measured from each hedger&apos;s own average.
-          Options traded is the premium bought and sold over the year. Every hedger&apos;s average outcome is the
-          option&apos;s fair value plus its trading costs ({Math.min(...fairValues).toFixed(2)} to{' '}
-          {Math.max(...fairValues).toFixed(2)} across hedgers, against an average payoff of {setup.mean_payoff.toFixed(2)}):
-          no strategy earns money on average here, so all of the difference between hedgers is risk and cost.
+          Options traded is the premium bought and sold over the year. Before costs, every hedger&apos;s average outcome
+          is the same up to sampling noise ({Math.min(...fairValues).toFixed(2)} to {Math.max(...fairValues).toFixed(2)}{' '}
+          on these paths, whose average payoff is {setup.mean_payoff.toFixed(2)}): no strategy earns money on average
+          here, so all of the difference between hedgers is risk and cost.
         </p>
+        <div className="learn-verdict">
+          {verdict(demo, label).map((sentence) => <p key={sentence}>{sentence}</p>)}
+        </div>
 
         <div className="lab-section-head">
           <h3 className="learn-subhead">How the errors are spread</h3>
