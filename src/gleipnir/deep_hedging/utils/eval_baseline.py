@@ -131,45 +131,33 @@ def _bs_greeks_batch(
     return delta, gamma, vega
 
 
-def _select_hedging_options(
-    option_grid_spec: list[dict],
-    liability_maturity: int,
-    n_options: int,
-) -> list[dict]:
-    """Pick the best ``n_options`` calls for hedging from the grid spec.
+def _hedging_contracts(option_grid_spec, contract, spots_t, maturities, min_tenor_steps, dt):
+    """Per maturity, the live call nearest the money at each (path, step).
 
-    Heuristic: score = abs(tau_steps - liability_maturity) + 100·|moneyness − 1|.
-    Returns ``n_options`` calls sorted ascending by score (best first).
+    Returns ``[(slot, strike, tenor), ...]``, each ``(B, T)``; the tenor is 0
+    (zero greeks, so no position) in a contract's last ``min_tenor_steps - 1``
+    steps and on its expiry step.
     """
-    calls = [s for s in option_grid_spec if s["kind"] == "call"]
-    if not calls:
-        raise ValueError("option_grid_spec contains no call options")
-    if len(calls) < n_options:
-        raise ValueError(
-            f"need {n_options} hedging options, grid only has {len(calls)} calls"
-        )
-    calls_sorted = sorted(
-        calls,
-        key=lambda s: (
-            abs(s["tau_steps"] - liability_maturity)
-            + 100.0 * abs(s["moneyness"] - 1.0)
-        ),
-    )
-    # Prefer DIVERSE tenors when picking 2+ (avoids near-singular {gamma,vega} matrix)
-    if n_options >= 2:
-        chosen = [calls_sorted[0]]
-        for cand in calls_sorted[1:]:
-            if all(c["tau_steps"] != cand["tau_steps"] for c in chosen):
-                chosen.append(cand)
-            if len(chosen) == n_options:
-                break
-        if len(chosen) < n_options:
-            chosen += [
-                c for c in calls_sorted
-                if c not in chosen
-            ][: n_options - len(chosen)]
-        return chosen
-    return calls_sorted[:n_options]
+    out = []
+    for maturity in maturities:
+        calls = [s for s in option_grid_spec if s["kind"] == "call" and s["tau_steps"] == maturity]
+        if not calls:
+            raise ValueError(f"option_grid_spec has no {maturity}-step calls")
+        terms = [contract(c["idx"]) for c in calls]
+        strikes = np.stack([t[0] for t in terms], axis=-1)            # (B, T, n_calls)
+        tenors = terms[0][1]                                          # (B, T), shared by the maturity
+        nearest = np.argmin(np.abs(np.log(strikes / spots_t[..., None])), axis=-1)
+        slot = np.asarray([c["idx"] for c in calls])[nearest]
+        strike = np.take_along_axis(strikes, nearest[..., None], axis=-1)[..., 0]
+        tenor = np.where(tenors >= min_tenor_steps * dt - 1e-12, tenors, 0.0)
+        out.append((slot, strike, tenor))
+    return out
+
+
+def _place(target_positions: np.ndarray, slot: np.ndarray, position: np.ndarray) -> None:
+    """Add ``position`` (B, T) into ``target_positions`` (T, B, N) at per-cell slots."""
+    T, B = target_positions.shape[:2]
+    target_positions[np.arange(T)[:, None], np.arange(B)[None, :], slot.T] += position.T
 
 
 def _replay_multi_instrument_batch(
@@ -288,6 +276,8 @@ def analytical_hedge_paths(
     variance_source: str = "oracle",
     ewma_lambda: float = 0.94,
     initial_variance_prior: float = 0.04,
+    min_tenor_steps: int = 3,
+    max_option_position: float = 3.0,
 ) -> dict[str, np.ndarray]:
     """Run a BS-{delta | delta-gamma | delta-gamma-vega} hedger over a batched
     JAX market trajectory, path by path.
@@ -319,6 +309,14 @@ def analytical_hedge_paths(
         initial_variance_prior: seed value for the EWMA recursion at t=0
             (the hedger doesn't see v_0 in the POMDP regime; this is the
             agent's prior). Defaults to long-run Heston θ.
+        min_tenor_steps: an option hedge uses, each step, the live call of its
+            maturity whose strike is nearest the spot, and none in a
+            contract's last ``min_tenor_steps - 1`` steps (gamma there
+            concentrates at the strike and positions would explode).
+        max_option_position: cap on each option position per unit of
+            liability. Near the liability's own expiry its gamma grows without
+            bound; matching it with a longer option would take thousands of
+            contracts, and a desk caps the position instead.
 
     All other args match :func:`BuehlerTrainer.evaluate` semantics.
     """
@@ -435,52 +433,47 @@ def analytical_hedge_paths(
     if hedge_kind == "delta":
         target_positions[:, :, 0] = target_underlying.T            # transpose to (T, B)
     elif hedge_kind == "delta_gamma":
-        # Pick 1 hedging option
-        opt = _select_hedging_options(option_grid_spec, liability.maturity, 1)[0]
-        opt_idx = opt["idx"]
-        opt_K, opt_tau = contract(opt_idx)  # the slot's listed contract (zero greeks on its expiry step)
+        # Gamma from the longest maturity's live call nearest the money
+        (opt_idx, opt_K, opt_tau), = _hedging_contracts(
+            option_grid_spec, contract, spots_t, (max(s["tau_steps"] for s in option_grid_spec),), min_tenor_steps, dt)
         opt_delta, opt_gamma, _ = _bs_greeks_batch(
             S=spots_t, K=opt_K, tau=opt_tau, sigma=sigma_t,
             r=float(risk_free_rate), kind="call",
         )
-        liab_gamma_qty = qty * liab_gamma
-        # Avoid divide-by-tiny-gamma issues at near-expiry
-        safe_opt_gamma = np.where(np.abs(opt_gamma) > 1e-8, opt_gamma, np.inf)
-        opt_pos = liab_gamma_qty / safe_opt_gamma                  # (B, T)
+        usable = opt_gamma > 1e-8  # zero greeks where the contract is too close to expiry
+        opt_pos = np.where(usable, qty * liab_gamma / np.where(usable, opt_gamma, 1.0), 0.0)
+        opt_pos = np.clip(opt_pos, -max_option_position * qty, max_option_position * qty)
         underlying_pos = target_underlying - opt_pos * opt_delta
         target_positions[:, :, 0] = underlying_pos.T
-        target_positions[:, :, opt_idx] = opt_pos.T
+        _place(target_positions, opt_idx, opt_pos)
     elif hedge_kind == "delta_gamma_vega":
-        opts = _select_hedging_options(option_grid_spec, liability.maturity, 2)
-        opt_indices = [o["idx"] for o in opts]
-        # Compute greeks for both options
-        opt_data = []
-        for o in opts:
-            opt_K, opt_tau = contract(o["idx"])
-            d_, g_, v_ = _bs_greeks_batch(
-                S=spots_t, K=opt_K, tau=opt_tau, sigma=sigma_t,
-                r=float(risk_free_rate), kind="call",
-            )
-            opt_data.append({"delta": d_, "gamma": g_, "vega": v_})
-        # Solve 2x2 system per (B, T) cell for option positions:
-        #   [γ_1  γ_2] [p_1]   [Γ_liab]
-        #   [ν_1  ν_2] [p_2] = [ν_liab]
-        # vectorized via direct inverse formula
-        g1, g2 = opt_data[0]["gamma"], opt_data[1]["gamma"]
-        v1, v2 = opt_data[0]["vega"], opt_data[1]["vega"]
+        # Gamma and vega from the live calls nearest the money of the two longest maturities
+        maturities = sorted({s["tau_steps"] for s in option_grid_spec})[-2:]
+        if len(maturities) < 2:
+            raise ValueError("delta_gamma_vega needs options of two maturities")
+        (idx1, K1, tau1), (idx2, K2, tau2) = _hedging_contracts(
+            option_grid_spec, contract, spots_t, tuple(maturities), min_tenor_steps, dt)
+        d1, g1, v1 = _bs_greeks_batch(S=spots_t, K=K1, tau=tau1, sigma=sigma_t, r=float(risk_free_rate), kind="call")
+        d2, g2, v2 = _bs_greeks_batch(S=spots_t, K=K2, tau=tau2, sigma=sigma_t, r=float(risk_free_rate), kind="call")
+        # Solve [g1 g2; v1 v2] p = [gamma_L; vega_L] where both contracts are usable;
+        # the cells where one is not fall back to delta-gamma with the other
         det = g1 * v2 - g2 * v1
-        # Sanitize near-singular cells
-        safe_det = np.where(np.abs(det) > 1e-10, det, np.inf)
+        both = (g1 > 1e-8) & (g2 > 1e-8) & (np.abs(det) > 1e-10)
+        safe_det = np.where(both, det, 1.0)
         liab_gamma_qty = qty * liab_gamma
         liab_vega_qty = qty * liab_vega
-        p1 = (v2 * liab_gamma_qty - g2 * liab_vega_qty) / safe_det
-        p2 = (-v1 * liab_gamma_qty + g1 * liab_vega_qty) / safe_det
-        # Residual delta absorbed into underlying
-        d1, d2 = opt_data[0]["delta"], opt_data[1]["delta"]
+        p1 = np.where(both, (v2 * liab_gamma_qty - g2 * liab_vega_qty) / safe_det, 0.0)
+        p2 = np.where(both, (-v1 * liab_gamma_qty + g1 * liab_vega_qty) / safe_det, 0.0)
+        only1 = ~both & (g1 > 1e-8)
+        only2 = ~both & ~only1 & (g2 > 1e-8)
+        p1 = np.where(only1, liab_gamma_qty / np.where(only1, g1, 1.0), p1)
+        p2 = np.where(only2, liab_gamma_qty / np.where(only2, g2, 1.0), p2)
+        cap = max_option_position * qty
+        p1, p2 = np.clip(p1, -cap, cap), np.clip(p2, -cap, cap)
         underlying_pos = target_underlying - p1 * d1 - p2 * d2
         target_positions[:, :, 0] = underlying_pos.T
-        target_positions[:, :, opt_indices[0]] = p1.T
-        target_positions[:, :, opt_indices[1]] = p2.T
+        _place(target_positions, idx1, p1)
+        _place(target_positions, idx2, p2)
 
     # ── Replay with the multi-instrument accounting ─────────────────────
     terminal_pnl, total_costs, _ = _replay_multi_instrument_batch(
@@ -523,6 +516,8 @@ def evaluate_analytical_hedger_batch(
     variance_source: str = "oracle",
     ewma_lambda: float = 0.94,
     initial_variance_prior: float = 0.04,
+    min_tenor_steps: int = 3,
+    max_option_position: float = 3.0,
 ) -> dict[str, float]:
     """Run a BS-{delta | delta-gamma | delta-gamma-vega} hedger over a batched
     JAX market trajectory.
@@ -536,7 +531,8 @@ def evaluate_analytical_hedger_batch(
         market_sampler, horizon, n_instruments, transaction_cost_rates, liability, hedge_kind=hedge_kind,
         option_grid_spec=option_grid_spec, dt=dt, n_paths=n_paths, eval_seed=eval_seed,
         risk_free_rate=risk_free_rate, initial_cash=initial_cash, variance_source=variance_source,
-        ewma_lambda=ewma_lambda, initial_variance_prior=initial_variance_prior,
+        ewma_lambda=ewma_lambda, initial_variance_prior=initial_variance_prior, min_tenor_steps=min_tenor_steps,
+        max_option_position=max_option_position,
     )
     terminal_pnl, total_costs = paths["terminal_pnl"], paths["costs"]
     liability_payoffs, hedging_errors = paths["liability_payoffs"], paths["hedging_errors"]

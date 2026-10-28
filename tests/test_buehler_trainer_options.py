@@ -121,3 +121,21 @@ def test_analytical_paths_match_the_analytical_metrics(kind):
     assert float(np.std(paths["hedging_errors"])) == pytest.approx(metrics["std_hedging_error"])
     held_options = np.abs(paths["positions"][..., 1:]).sum()
     assert (held_options == 0) == (kind == "delta")
+
+
+def test_gamma_hedging_with_listed_contracts_beats_delta_and_stays_bounded():
+    """Without costs, hedging gamma with the nearest-the-money live contract cuts the
+    delta hedge's error; positions never exceed the cap (near the liability's
+    expiry its gamma would otherwise demand thousands of options)."""
+    from gleipnir.deep_hedging.agents.analytical_delta_hedger import build_option_grid_spec
+    from gleipnir.deep_hedging.utils.eval_baseline import analytical_hedge_paths
+
+    trainer = _trainer()
+    common = dict(market_sampler=trainer._market_sampler, horizon=HORIZON, n_instruments=N_INSTRUMENTS,
+                  transaction_cost_rates=np.zeros(N_INSTRUMENTS),
+                  liability=LiabilitySpec(kind="call", strike=100.0, maturity=HORIZON, quantity=1.0),
+                  option_grid_spec=build_option_grid_spec(GRID_COARSE), n_paths=512, eval_seed=2)
+    delta = analytical_hedge_paths(hedge_kind="delta", **common)
+    gamma = analytical_hedge_paths(hedge_kind="delta_gamma", max_option_position=3.0, **common)
+    assert gamma["hedging_errors"].std() < 0.8 * delta["hedging_errors"].std()
+    assert np.abs(gamma["positions"][..., 1:]).max() <= 3.0 + 1e-9

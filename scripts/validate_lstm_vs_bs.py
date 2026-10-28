@@ -46,13 +46,11 @@ import torch
 ROOT = Path(__file__).resolve().parents[1]
 
 from gleipnir.deep_hedging.jax.env import (  # noqa: E402
-    DeepHedgingEnvConfig,
     FloatingOptionGrid,
     GRID_COARSE,
     build_transaction_cost_vector,
 )
 from gleipnir.deep_hedging.jax.pricing import (  # noqa: E402
-    HestonMarketParams,
     compile_padded_grid,
 )
 from gleipnir.deep_hedging.jax.rollout import (  # noqa: E402
@@ -70,6 +68,10 @@ from gleipnir.deep_hedging.utils.contracts import (  # noqa: E402
 )
 from gleipnir.deep_hedging.utils.eval_baseline import (  # noqa: E402
     evaluate_analytical_delta_hedger_batch,
+)
+from gleipnir.deep_hedging.experiments import (  # noqa: E402
+    heston_easy,
+    make_env_config,
 )
 
 
@@ -137,25 +139,6 @@ def configure_logging(run_dir: Path) -> tuple[logging.Logger, JsonLinesHandler]:
 # ─────────────────────────────────────────────────────────────────────────
 # Experiment configuration
 # ─────────────────────────────────────────────────────────────────────────
-
-
-def heston_easy() -> HestonMarketParams:
-    # Borderline-Feller-safe: 2*kappa*theta = 0.16 > sigma_v^2 = 0.09
-    return HestonMarketParams(
-        kappa=2.0, theta=0.04, sigma_v=0.3, rho=-0.7, r=0.0, q=0.0,
-    )
-
-
-def make_env_config(grid: FloatingOptionGrid, horizon: int) -> DeepHedgingEnvConfig:
-    return DeepHedgingEnvConfig(
-        horizon_steps=horizon,
-        option_grid=grid,
-        dt=1.0 / 252.0,
-        transaction_cost_underlying=1.0e-4,
-        transaction_cost_option=1.0e-2,
-        risk_aversion=1_000.0,
-        scheme="qe",  # positivity-preserving — safe even if we change Heston later
-    )
 
 
 def make_market_sampler(env_config, market, padded_grid, S0, v0):
