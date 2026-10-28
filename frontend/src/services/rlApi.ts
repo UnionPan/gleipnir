@@ -24,6 +24,20 @@ export interface LearnedResult extends HedgerMetrics<SeedStat> {
   representative_seed: number;
 }
 
+export interface OptionSlot {
+  kind: 'call' | 'put';
+  tenor_days: number;
+  moneyness: number;
+}
+
+export interface Bands {
+  p5: number[];
+  p25: number[];
+  p50: number[];
+  p75: number[];
+  p95: number[];
+}
+
 export interface DeepHedgingDemo {
   schema_version: number;
   created_at: string;
@@ -40,6 +54,12 @@ export interface DeepHedgingDemo {
     eval_paths: number;
     eval_seed: number;
     mean_payoff: number;
+    /** The cash the hedgers start with: 0, so their errors are net of the premium (schema 2). */
+    initial_cash?: number;
+    /** The call's true-model value on day 0: what a desk selling it at fair value receives (schema 2). */
+    fair_premium?: number;
+    /** The listed option slots, in the order of the option holdings (schema 2). */
+    option_grid?: OptionSlot[];
   };
   hedgers: { key: HedgerKey; label: string; summary: string }[];
   results: Record<'bs_delta' | 'delta_gamma' | 'delta_gamma_vega', HedgerMetrics<number>>
@@ -49,7 +69,17 @@ export interface DeepHedgingDemo {
     spot: number[];
     positions: Record<HedgerKey, number[]>;
     option_value: Record<HedgerKey, number[]>;
+    /** The true-model value of the call the desk owes, each day; the payoff at expiry (schema 2). */
+    liability_value?: number[];
+    /** Each hedger's hedge account (cash received, plus gains, less costs), each day (schema 2). */
+    portfolio?: Record<HedgerKey, number[]>;
+    /** For hedgers that trade options: holdings of each slot after each day's trade (schema 2). */
+    option_holdings?: Partial<Record<HedgerKey, number[][]>>;
   }[];
+  /** Per hedger, the book marked to market (account less liability) across all paths, each day (schema 2). */
+  wealth_bands?: Record<HedgerKey, Bands>;
+  /** Shared-bin histograms of the P&L at expiry (schema 2). */
+  terminal_histogram?: { edges: number[] } & Record<HedgerKey, { counts: number[] }>;
   training_curves: Record<'lstm_underlying' | 'lstm_options', Record<string, { epoch: number[]; std_error: number[] }>>;
   provenance: { run: string; checkpoints_sha256: Record<string, string>; gleipnir_commit: string };
 }

@@ -160,38 +160,6 @@ const CliquetSection: React.FC<Props> = ({ demo, theme }) => {
           treats very differently.
         </p>
       </Disclosure>
-      <Disclosure title="All numbers" hint="mean ± sd across seeds">
-        <div className="lab-table-scroll">
-          <table className="lab-results learn-results">
-            <thead>
-              <tr>
-                <th scope="col">Method</th>
-                <th scope="col">Error, root mean square</th>
-                <th scope="col">Worst 5%, mean absolute</th>
-                <th scope="col">Trading cost</th>
-              </tr>
-            </thead>
-            <tbody>
-              {BASELINES.map((k) => (
-                <tr key={k}>
-                  <th scope="row">{baselines[k].label}<span className="learn-row-note">{baselines[k].summary}</span></th>
-                  <td>{baselines[k].terminal_pnl_rmse.toFixed(3)}</td>
-                  <td>{baselines[k].terminal_abs_cvar_95.toFixed(3)}</td>
-                  <td>{baselines[k].mean_trading_cost.toFixed(4)}</td>
-                </tr>
-              ))}
-              {METHODS.map((k) => (
-                <tr key={k} className="learn-learned-row">
-                  <th scope="row">{methods[k].label}<span className="learn-row-note">{methods[k].summary}</span></th>
-                  <td>{methods[k].terminal_pnl_rmse.mean.toFixed(3)}<span className="learn-sd"> ± {methods[k].terminal_pnl_rmse.sd.toFixed(3)}</span></td>
-                  <td>{methods[k].terminal_abs_cvar_95.mean.toFixed(3)}<span className="learn-sd"> ± {methods[k].terminal_abs_cvar_95.sd.toFixed(3)}</span></td>
-                  <td>{methods[k].mean_trading_cost.mean.toFixed(4)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Disclosure>
       <Disclosure title="What the evidence does and does not support">
         <div className="learn-ledger">
           <div>

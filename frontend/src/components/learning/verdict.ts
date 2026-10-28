@@ -39,3 +39,12 @@ export function verdict(demo: DeepHedgingDemo, label: Record<HedgerKey, string>)
   }
   return out;
 }
+
+/**
+ * What the desk is paid for the call: its true-model value on day 0. The demo's
+ * hedgers start with no cash, so every book the page draws is credited this
+ * premium and starts at 0 (0 for an export without it).
+ */
+export function premiumOf(demo: DeepHedgingDemo): number {
+  return (demo.setup.fair_premium ?? 0) - (demo.setup.initial_cash ?? 0);
+}

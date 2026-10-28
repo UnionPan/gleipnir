@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Plot from 'react-plotly.js';
 import type { Data } from 'plotly.js';
 import type { DeepHedgingDemo, HedgerKey, SeedStat } from '../../services/rlApi';
@@ -10,27 +10,17 @@ import { useNarrow } from './useNarrow';
 import Bars from './Bars';
 import Disclosure from '../common/Disclosure';
 import YearReplay from './YearReplay';
+import TerminalRidges from './TerminalRidges';
+import HedgerBands from './HedgerBands';
 
 interface Props {
   demo: DeepHedgingDemo;
   theme: ThemeName;
 }
 
-const LEARNED = new Set<HedgerKey>(['lstm_underlying', 'lstm_options']);
-
 const isStat = (v: number | SeedStat): v is SeedStat => typeof v === 'object';
 const meanOf = (v: number | SeedStat) => (isStat(v) ? v.mean : v);
 const sdOf = (v: number | SeedStat) => (isStat(v) ? v.sd : undefined);
-
-function Cell({ value, digits = 2 }: { value: number | SeedStat; digits?: number }) {
-  if (!isStat(value)) return <td>{value.toFixed(digits)}</td>;
-  return (
-    <td>
-      {value.mean.toFixed(digits)}
-      <span className="learn-sd"> ± {value.sd.toFixed(digits)}</span>
-    </td>
-  );
-}
 
 /** One color chip next to every hedger name: identity never rests on color alone. */
 export const Chip: React.FC<{ color: string }> = ({ color }) => (
@@ -52,66 +42,6 @@ export function labeled(narrow: boolean, labels: ReturnType<typeof endLabels>, w
 }
 
 const withArticle = (noun: string) => `${/^[aeiou]/i.test(noun) ? 'an' : 'a'} ${noun}`;
-
-const Distributions: React.FC<Props> = ({ demo, theme }) => {
-  const [asTable, setAsTable] = useState(false);
-  const edges = demo.histogram.edges;
-  const centers = edges.slice(0, -1).map((e, i) => (e + edges[i + 1]) / 2);
-  const total = demo.histogram.bs_delta.counts.reduce((a, b) => a + b, 0);
-  const share = (key: HedgerKey) => demo.histogram[key].counts.map((n) => (100 * n) / total);
-  return (
-    <>
-      <div className="lab-section-head">
-        <p className="lab-hero-note">Each hedger's error on every evaluation path, around its own average.</p>
-        <button type="button" className="lab-link" onClick={() => setAsTable(!asTable)}>{asTable ? 'Charts' : 'Table'}</button>
-      </div>
-      {asTable ? (
-        <div className="lab-table-scroll lab-table-tall">
-          <table className="lab-data-table">
-            <thead>
-              <tr>
-                <th scope="col">Error from</th>
-                <th scope="col">to</th>
-                {demo.hedgers.map((h) => <th key={h.key} scope="col">{h.label} %</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {centers.map((_, i) => (
-                <tr key={i}>
-                  <td>{edges[i].toFixed(2)}</td>
-                  <td>{edges[i + 1].toFixed(2)}</td>
-                  {demo.hedgers.map((h) => <td key={h.key}>{share(h.key)[i].toFixed(1)}</td>)}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="learn-multiples">
-          {demo.hedgers.map((h) => (
-            <figure key={h.key} className="lab-chart">
-              <figcaption><span className="lab-chart-title"><Chip color={hedgerColor(theme, h.key)} />{h.label}</span></figcaption>
-              <Plot
-                data={[{
-                  type: 'bar', x: centers, y: share(h.key), marker: { color: hedgerColor(theme, h.key) },
-                  hovertemplate: '%{y:.1f}% of paths<extra></extra>',
-                }]}
-                layout={baseLayout(theme, {
-                  height: 150, bargap: 0.1, hovermode: 'closest',
-                  xaxis: { range: [edges[0], edges[edges.length - 1]], title: { text: 'Error around its mean' } },
-                  yaxis: { title: { text: '% of paths' } },
-                })}
-                config={PLOT_CONFIG}
-                useResizeHandler
-                style={{ width: '100%' }}
-              />
-            </figure>
-          ))}
-        </div>
-      )}
-    </>
-  );
-};
 
 const Training: React.FC<Props> = ({ demo, theme }) => {
   const narrow = useNarrow();
@@ -158,6 +88,7 @@ const DeepHedgingSection: React.FC<Props> = ({ demo, theme }) => {
   const label = Object.fromEntries(demo.hedgers.map((h) => [h.key, h.label])) as Record<HedgerKey, string>;
   const fairValues = demo.hedgers.map((h) => -meanOf(results[h.key].mean_error) - meanOf(results[h.key].mean_cost));
   const reasons = verdict(demo, label);
+  const spread = Object.fromEntries(demo.hedgers.map((h) => [h.key, meanOf(results[h.key].std_error)])) as Record<HedgerKey, number>;
   const bars = (pick: (k: HedgerKey) => number | SeedStat) => demo.hedgers.map((h) => ({
     key: h.key, label: h.label, value: meanOf(pick(h.key)), sd: sdOf(pick(h.key)), color: hedgerColor(theme, h.key),
   }));
@@ -185,6 +116,15 @@ const DeepHedgingSection: React.FC<Props> = ({ demo, theme }) => {
 
       <section className="lab-panel" aria-label="Results">
         <div className="lab-titlebar">Over {setup.eval_paths.toLocaleString('en-US')} simulated years</div>
+        <div className="lab-panel-body">
+          <TerminalRidges demo={demo} theme={theme} spread={spread} />
+          {demo.wealth_bands && (
+            <figure className="lab-chart">
+              <figcaption><span className="lab-chart-title">What the book is worth through the year</span></figcaption>
+              <HedgerBands demo={demo} theme={theme} />
+            </figure>
+          )}
+        </div>
         <div className="lab-panel-body learn-bars-row">
           <Bars title="Spread of outcomes (lower is better)" theme={theme} rows={bars((k) => results[k].std_error)}
             note="Standard deviation of the P&L at expiry. Whiskers: spread across training seeds." />
@@ -204,46 +144,6 @@ const DeepHedgingSection: React.FC<Props> = ({ demo, theme }) => {
           same ({Math.min(...fairValues).toFixed(2)} to {Math.max(...fairValues).toFixed(2)}): no strategy earns money on
           average here, so the differences are risk and cost.
         </p>
-      </Disclosure>
-      <Disclosure title="All numbers" hint="every hedger, mean ± sd across seeds">
-        <div className="lab-table-scroll">
-          <table className="lab-results learn-results">
-            <thead>
-              <tr>
-                <th scope="col">Hedger</th>
-                <th scope="col">Hedging error, sd</th>
-                <th scope="col">Worst 5%, mean</th>
-                <th scope="col">Trading cost</th>
-                <th scope="col">Options traded</th>
-              </tr>
-            </thead>
-            <tbody>
-              {demo.hedgers.map((h) => {
-                const r = results[h.key];
-                return (
-                  <tr key={h.key} className={LEARNED.has(h.key) ? 'learn-learned-row' : undefined}>
-                    <th scope="row">
-                      <Chip color={hedgerColor(theme, h.key)} />
-                      {h.label}
-                      <span className="learn-row-note">{h.summary}</span>
-                    </th>
-                    <Cell value={r.std_error as number | SeedStat} />
-                    <Cell value={r.expected_shortfall_95 as number | SeedStat} />
-                    <Cell value={r.mean_cost as number | SeedStat} digits={3} />
-                    <Cell value={r.option_turnover as number | SeedStat} />
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <p className="lab-caption">
-          Worst 5%: the mean shortfall of the worst twentieth of paths, from each hedger&apos;s own average. Options traded:
-          the premium bought and sold over the year.
-        </p>
-      </Disclosure>
-      <Disclosure title="How the errors are spread" hint="a histogram per hedger">
-        <Distributions demo={demo} theme={theme} />
       </Disclosure>
       <Disclosure title="Training" hint="error by epoch, every seed">
         <Training demo={demo} theme={theme} />

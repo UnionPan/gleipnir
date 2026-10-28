@@ -1,41 +1,6 @@
 /* Learning to Hedge. Builds on the Hedging Lab's panels, tables and charts
    (HedgingLabPage.css); series colors come from components/learning/learningTheme.ts. */
 
-.learn-results caption,
-.learn-page .lab-data-table caption {
-  caption-side: top;
-  text-align: left;
-  padding: 0 0 0.375rem;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.learn-results th[scope='row'] {
-  text-align: left;
-  white-space: normal;
-  font-weight: 600;
-  vertical-align: top;
-  min-width: 13rem;
-}
-
-.learn-row-note {
-  display: block;
-  max-width: 24rem;
-  font-weight: 400;
-  font-size: 0.6875rem;
-  color: var(--text-muted);
-}
-
-.learn-learned-row th[scope='row'],
-.learn-learned-row td {
-  background: var(--panel-bg-alt);
-}
-
-.learn-sd {
-  font-size: 0.6875rem;
-  color: var(--text-muted);
-}
-
 .learn-chip {
   display: inline-block;
   width: 0.625rem;
@@ -121,34 +86,6 @@
 @media (max-width: 900px) {
   .learn-ledger {
     grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 600px) {
-  .learn-row-note {
-    display: none;
-  }
-
-  .learn-results th[scope='row'] {
-    min-width: 6rem;
-  }
-
-  .learn-results th,
-  .learn-results td {
-    padding: 0.375rem 0.1875rem;
-    font-size: 0.75rem;
-  }
-
-  .learn-results thead th {
-    font-size: 0.625rem;
-  }
-
-  .learn-results thead th {
-    white-space: normal;
-  }
-
-  .learn-sd {
-    display: block;
   }
 }
 
@@ -246,4 +183,22 @@
 .learn-bars svg {
   display: block;
   overflow: visible;
+}
+
+/* ── The option grid ── */
+.learn-grid svg {
+  display: block;
+}
+
+.learn-grid-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+/* five hedgers' bands on one row where there is room */
+.learn-bands {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
 }
