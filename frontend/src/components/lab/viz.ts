@@ -101,7 +101,8 @@ export function useAnimationClock(duration: number, key: unknown) {
     let frame = 0;
     start.current = performance.now() - offset.current;
     const tick = (now: number) => {
-      const elapsed = now - start.current;
+      // a frame's timestamp can precede the performance.now() the clock started from
+      const elapsed = Math.max(now - start.current, 0);
       if (elapsed >= duration) {
         setT(duration);
         offset.current = duration;
