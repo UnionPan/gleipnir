@@ -77,10 +77,11 @@ Repository = "https://github.com/UnionPan/gleipnir"
 conflicts = [[{ extra = "cuda" }, { extra = "metal" }]]
 
 [tool.uv.sources]
-# Pinned by commit until mjollnir tags its next release; uv.lock records the
-# resolved commit. Co-develop against a local checkout with
-# `uv run --with-editable ../mjollnir ...` (what `make dev` does).
-mjollnir = { git = "https://github.com/UnionPan/mjollnir", rev = "4fafc82aae60cc83279412a5b64275f3517fd62d" }
+# Pinned to a release tag; uv.lock records the resolved commit. The core is
+# enough here: gleipnir brings its own yfinance (web) for the fetcher it uses.
+# Co-develop against a local checkout with `uv run --with-editable ../mjollnir ...`
+# (what `make dev` does).
+mjollnir = { git = "https://github.com/UnionPan/mjollnir", tag = "v0.4.0" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
