@@ -120,6 +120,12 @@ def _simulate(model, parameters, s0, n_steps, n_paths, dt, rng, random_seed, dri
     raise ValueError(f"Unsupported model for simulation: {model}")
 
 
+def _price_decimals(s0: float) -> int:
+    """Decimals that keep six significant figures of prices near ``s0``: enough to
+    draw and read, and a response a third the size of full doubles."""
+    return max(0, 6 - int(np.ceil(np.log10(s0))))
+
+
 def simulate(model: str, parameters: dict[str, float], s0: float, n_steps: int, n_paths: int, dt: float,
              max_paths_return: int = 20, random_seed: int | None = None, risk_free_rate: float = 0.04,
              dividend_yield: float = 0.0, scenario_excess_drift: float = 0.05) -> dict:
@@ -145,29 +151,37 @@ def simulate(model: str, parameters: dict[str, float], s0: float, n_steps: int, 
         horizon_days = n_steps * dt * DAYS_PER_YEAR
         median = quantiles["p50"]
         if horizon_days > SCENARIO_FROM_DAYS + 1e-9 and scenario_excess_drift > 0:
-            for sign, label in ((1, "Positive excess drift"), (-1, "Negative excess drift")):
+            for sign, kind in ((1, "positive"), (-1, "negative")):
                 d = sign * scenario_excess_drift
-                scenarios.append({"label": f"{label} ({100 * d:+.0f}% a year)", "excess_drift": d,
-                                  "median": (median * np.exp(d * time_grid)).tolist()})
+                scenarios.append({"kind": kind, "label": f"{kind.capitalize()} excess drift ({100 * d:+.0f}% a year)",
+                                  "excess_drift": d, "median": median * np.exp(d * time_grid)})
             drift_note += (f" Beyond 3 months the policy adds explicit scenarios of ±{100 * scenario_excess_drift:.0f}% "
                            "a year of excess drift.")
         historical = _historical_drift(model, parameters, dt)
         if historical is not None:
             d = historical - policy_drift
-            scenarios.append({"label": f"If the historical drift continued ({100 * historical:.0f}% a year; not a forecast)",
-                              "excess_drift": d, "median": (median * np.exp(d * time_grid)).tolist()})
+            scenarios.append({"kind": "historical",
+                              "label": f"If the historical drift continued ({100 * historical:.0f}% a year; not a forecast)",
+                              "excess_drift": d, "median": median * np.exp(d * time_grid)})
 
     final = spot_paths[-1]
     n_return = min(max_paths_return, n_paths)
+    decimals = _price_decimals(s0)
+
+    def prices(values: np.ndarray) -> list[float]:
+        return np.round(values, decimals).tolist()
+
+    for scenario in scenarios:
+        scenario["median"] = prices(scenario["median"])
     return {
         "model": model,
         "n_steps": n_steps,
         "n_paths": n_paths,
         "dt": dt,
         "time_grid": time_grid.tolist(),
-        "mean_path": np.mean(spot_paths, axis=1).tolist(),
-        "quantiles": {name: values.tolist() for name, values in quantiles.items()},
-        "sample_paths": [spot_paths[:, i].tolist() for i in range(n_return)],
+        "mean_path": prices(np.mean(spot_paths, axis=1)),
+        "quantiles": {name: prices(values) for name, values in quantiles.items()},
+        "sample_paths": [prices(spot_paths[:, i]) for i in range(n_return)],
         "stats": {
             "mean": float(np.mean(final)), "std": float(np.std(final)),
             "p5": float(np.percentile(final, 5)), "p50": float(np.percentile(final, 50)),

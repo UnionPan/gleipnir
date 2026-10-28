@@ -5,6 +5,8 @@ Sizes are capped (see backend/core/compute_guard.py); the horizon stops at 2
 years, where the drift policy would need an equilibrium model the site does
 not have yet.
 """
+from typing import Literal
+
 from pydantic import BaseModel, Field, model_validator
 
 MAX_SIM_STEPS = 504
@@ -50,6 +52,7 @@ class SimulationStats(BaseModel):
 
 class DriftScenario(BaseModel):
     """A drift other than the policy's, shown as the median path it would give."""
+    kind: Literal["positive", "negative", "historical"]
     label: str
     excess_drift: float = Field(..., description="Annual drift on top of r - q")
     median: list[float]

@@ -34,13 +34,14 @@ def test_spot_drifts_at_r_minus_q_whatever_the_history_says(model):
 def test_scenarios_appear_only_beyond_three_months():
     long_run = path_simulation.simulate("gbm", MODELS["gbm"], S0, 252, 500, 1 / 252, random_seed=1)
     labels = [s["label"] for s in long_run["scenarios"]]
+    assert [s["kind"] for s in long_run["scenarios"]] == ["positive", "negative", "historical"]
     assert labels[0].startswith("Positive excess drift (+5%") and labels[1].startswith("Negative excess drift (-5%")
     assert "historical drift continued (40%" in labels[2] and "not a forecast" in labels[2]
     median = np.array(long_run["quantiles"]["p50"])
     assert np.array(long_run["scenarios"][0]["median"])[-1] == pytest.approx(median[-1] * np.exp(0.05))
 
     short = path_simulation.simulate("gbm", MODELS["gbm"], S0, 21, 500, 1 / 252, random_seed=1)
-    assert [s["excess_drift"] for s in short["scenarios"]] == [pytest.approx(0.40 - 0.04)]  # only the historical line
+    assert [(s["kind"], s["excess_drift"]) for s in short["scenarios"]] == [("historical", pytest.approx(0.40 - 0.04))]
 
 
 def test_ou_follows_its_fitted_level_and_says_so():
@@ -49,3 +50,14 @@ def test_ou_follows_its_fitted_level_and_says_so():
     assert out["spot_drift"] is None and out["scenarios"] == []
     assert "not as a forecast" in out["drift_note"]
     assert out["stats"]["p50"] == pytest.approx(150.0, rel=0.05)
+
+
+@pytest.mark.parametrize("s0", [0.05, 100.0, 60_000.0])
+def test_prices_keep_six_significant_figures(s0):
+    out = path_simulation.simulate("gbm", MODELS["gbm"], s0, 21, 50, 1 / 252, max_paths_return=50, random_seed=2)
+    paths = np.array(out["sample_paths"])
+    assert paths.shape == (50, 22)
+    assert np.allclose(paths[:, 0], s0, rtol=1e-6)
+    decimals = max(0, 6 - int(np.ceil(np.log10(s0))))
+    assert np.allclose(paths, np.round(paths, decimals), rtol=0, atol=1e-12)
+    assert out["stats"]["p50"] == pytest.approx(out["quantiles"]["p50"][-1], rel=1e-5)
