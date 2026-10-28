@@ -1,26 +1,13 @@
 import React from 'react';
 import { QuoteData } from '../../types/market';
 import './CommodityFutures.css';
+import { priceText, changeText, direction } from './quoteFormat';
 
 interface CommodityFuturesProps {
   commodities: QuoteData[];
 }
 
 const CommodityFutures: React.FC<CommodityFuturesProps> = ({ commodities }) => {
-  const formatPrice = (price: number | null) => {
-    if (price === null) return 'N/A';
-    return price.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
-  };
-
-  const formatChange = (change: number | null, changePercent: number | null) => {
-    if (change === null || changePercent === null) return 'N/A';
-    const sign = change >= 0 ? '+' : '';
-    return `${sign}${change.toFixed(2)} (${sign}${changePercent.toFixed(2)}%)`;
-  };
-
   return (
     <div className="commodity-futures-card">
       <h2 className="section-title">Commodity Futures</h2>
@@ -34,12 +21,12 @@ const CommodityFutures: React.FC<CommodityFuturesProps> = ({ commodities }) => {
             <div className="commodity-data">
               <div className="commodity-price-section">
                 <span className="commodity-label">Last</span>
-                <span className="commodity-price">${formatPrice(commodity.last_price)}</span>
+                <span className="commodity-price">${priceText(commodity.last_price)}</span>
               </div>
               <div className="commodity-change-section">
                 <span className="commodity-label">Change</span>
-                <span className={`commodity-change ${commodity.change !== null && commodity.change >= 0 ? 'positive' : 'negative'}`}>
-                  {formatChange(commodity.change, commodity.change_percent)}
+                <span className={`commodity-change ${direction(commodity.change)}`}>
+                  {changeText(commodity.change, commodity.change_percent)}
                 </span>
               </div>
             </div>

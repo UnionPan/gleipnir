@@ -68,8 +68,10 @@
 
 .index-data {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
+  gap: 0.25rem 0.5rem;
 }
 
 .index-price {
@@ -81,6 +83,7 @@
 }
 
 .index-change {
+  white-space: nowrap;
   font-size: 0.6875rem;
   font-weight: 600;
   font-family: 'IBM Plex Mono', 'Lucida Console', monospace;
