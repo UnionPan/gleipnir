@@ -3,10 +3,11 @@ import './App.css';
 import HomePage from './pages/HomePage';
 import CalibrationPage from './pages/CalibrationPage';
 import HedgingLabPage from './pages/HedgingLabPage';
+import LearningPage from './pages/LearningPage';
 import { useTheme } from './contexts/ThemeContext';
 import { BUNDLES_EVENT, unseenBundle } from './services/labBundles';
 
-type Page = 'market' | 'calibration' | 'lab';
+type Page = 'market' | 'calibration' | 'lab' | 'learning';
 
 interface MenuItem {
   id: Page;
@@ -17,6 +18,7 @@ const menuItems: MenuItem[] = [
   { id: 'market', label: 'Market' },
   { id: 'calibration', label: 'Calibration' },
   { id: 'lab', label: 'Hedging Lab' },
+  { id: 'learning', label: 'Learned Hedgers' },
 ];
 
 /* Logo: a delta glyph with a triangular counter */
@@ -65,6 +67,8 @@ function App() {
         return <CalibrationPage />;
       case 'lab':
         return <HedgingLabPage />;
+      case 'learning':
+        return <LearningPage />;
       default:
         return <HomePage />;
     }
