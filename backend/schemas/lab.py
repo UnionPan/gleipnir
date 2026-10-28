@@ -120,6 +120,22 @@ class SimulatedPaths(BaseModel):
     positions: dict[str, list[list[float]]] = Field(..., description="Per hedger and path, shares held after each day's trade")
     pnl: dict[str, list[float]] = Field(..., description="Per hedger, each path's P&L at expiry")
     highlight: int = Field(..., description="The path closest to the median outcome, followed by default")
+    liability: list[list[float]] = Field(
+        ..., description="Per path, the option sold marked at the premium's implied vol: the premium on day 0, "
+                         "the payoff at expiry")
+    mtm_pnl: dict[str, list[list[float]]] = Field(
+        ..., description="Per hedger and path, the book marked to market each day: the hedge account less the "
+                         "option's mark; 0 on day 0, the P&L at expiry")
+
+
+class Bands(BaseModel):
+    """Quantiles across every path of a world, day by day."""
+
+    p5: list[float]
+    p25: list[float]
+    p50: list[float]
+    p75: list[float]
+    p95: list[float]
 
 
 class WorldResult(BaseModel):
@@ -130,6 +146,7 @@ class WorldResult(BaseModel):
     hedgers: dict[str, HedgerStats]
     sample_path: SamplePath
     paths: SimulatedPaths
+    mtm_bands: dict[str, Bands] = Field(..., description="Per hedger, the marked-to-market book across all paths")
 
 
 class BookOrigin(BaseModel):

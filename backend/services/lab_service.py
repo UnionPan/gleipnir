@@ -28,14 +28,16 @@ from types import MappingProxyType
 import numpy as np
 from mjollnir import __version__ as mjollnir_version
 from mjollnir.backtest import BacktestResult
-from mjollnir.hedging import MODEL_HEDGERS, EuropeanOption, compare_hedgers, implied_vol, model_price, \
-    standard_hedgers
+from mjollnir.hedging import MODEL_HEDGERS, EuropeanOption, bs_delta, compare_hedgers, implied_vol, model_delta, \
+    model_price, no_hedge
+from mjollnir.model_pricing import bs_price
 from mjollnir.jax import configure_runtime
 from mjollnir.params import ParamSet
 from mjollnir.scenarios import SCENARIO_MODELS, scenario_for
 
 from backend.schemas.lab import (
     AssetInfo,
+    Bands,
     Book,
     BookOrigin,
     CalibrationBundle,
@@ -68,6 +70,7 @@ HISTOGRAM_BINS = 48
 HISTOGRAM_PAD = 0.04
 TAIL = 0.05
 N_SHOWN = 40  # whole paths returned per world, for the lab's animation
+BAND_QUANTILES = {"p5": 5, "p25": 25, "p50": 50, "p75": 75, "p95": 95}
 
 HEDGER_LABELS = {
     "heston_delta": "Heston delta",
@@ -247,9 +250,32 @@ def _cvar(pnl: np.ndarray) -> float:
     return float(worst.mean())
 
 
+@dataclass(frozen=True)
+class _Mark:
+    """How the option sold is marked between sale and expiry: Black-Scholes at the
+    premium's implied vol, so the mark is the premium on day 0 and the payoff at
+    expiry whatever the world; in between it is the desk's mark, not the world's
+    own price."""
+
+    option: EuropeanOption
+    sigma: float
+    rate: float
+    dividend: float
+
+    def __call__(self, spots: np.ndarray) -> np.ndarray:
+        steps = spots.shape[1] - 1
+        tau = np.maximum((steps - np.arange(steps + 1)) * DT, 1e-12)
+        marks = np.array(bs_price(spots, self.option.strike, tau, self.rate, self.dividend, self.sigma,
+                                  self.option.is_call), dtype=float)
+        marks[:, -1] = np.asarray(self.option.payoff(spots[:, -1]), dtype=float)
+        return marks
+
+
 def _world(label: str, description: str, params: ParamSet, results: dict[str, BacktestResult],
-           edges: dict[str, np.ndarray], path_index: int) -> WorldResult:
+           edges: dict[str, np.ndarray], path_index: int, mark: _Mark) -> WorldResult:
     first = next(iter(results.values()))
+    liability = mark(first.spots)
+    mtm = {name: res.wealth - liability for name, res in results.items()}
     hedgers = {}
     for name, res in results.items():
         bins = edges[name]
@@ -267,11 +293,15 @@ def _world(label: str, description: str, params: ParamSet, results: dict[str, Ba
             positions={n: r.positions[path_index].tolist() for n, r in results.items()},
             pnl={n: float(r.pnl[path_index]) for n, r in results.items()},
         ),
-        paths=_shown_paths(results),
+        paths=_shown_paths(results, liability, mtm),
+        mtm_bands={name: Bands(**{k: np.round(np.percentile(values, q, axis=0), 4).tolist()
+                                  for k, q in BAND_QUANTILES.items()})
+                   for name, values in mtm.items()},
     )
 
 
-def _shown_paths(results: dict[str, BacktestResult]) -> SimulatedPaths:
+def _shown_paths(results: dict[str, BacktestResult], liability: np.ndarray,
+                 mtm: dict[str, np.ndarray]) -> SimulatedPaths:
     """The first N_SHOWN paths whole, rounded for the wire (spots to 1e-3, the rest to 1e-4)."""
     first = next(iter(results.values()))
     terminal = first.spots[:N_SHOWN, -1]
@@ -280,10 +310,28 @@ def _shown_paths(results: dict[str, BacktestResult]) -> SimulatedPaths:
         positions={n: np.round(r.positions[:N_SHOWN], 4).tolist() for n, r in results.items()},
         pnl={n: np.round(r.pnl[:N_SHOWN], 4).tolist() for n, r in results.items()},
         highlight=int(np.argmin(np.abs(terminal - np.median(terminal)))),
+        liability=np.round(liability[:N_SHOWN], 4).tolist(),
+        mtm_pnl={n: np.round(values[:N_SHOWN], 4).tolist() for n, values in mtm.items()},
     )
 
 
-def _hedger_infos(model: str, book: ParamSet, sigma: float, learned: bool, cost_bps: float,
+def _book_vol(option: EuropeanOption, book: ParamSet, premium: float, rate: float, dividend: float,
+              seed: int) -> tuple[float, bool]:
+    """The premium's implied vol, and whether the premium has one.
+
+    Deep in the money and close to expiry the premium is intrinsic value to within
+    rounding: every small vol prices it, so it has no implied vol of its own (and a
+    delta of about 1 whatever the vol). The at-the-money implied vol of the same
+    expiry stands in."""
+    try:
+        return implied_vol(option, premium, SPOT0, rate, dividend), True
+    except ValueError:
+        atm = EuropeanOption(strike=SPOT0, maturity=option.maturity, is_call=option.is_call)
+        price = model_price(atm, book, SPOT0, rate=rate, dividend=dividend, dt=DT, seed=seed)
+        return implied_vol(atm, price, SPOT0, rate, dividend), False
+
+
+def _hedger_infos(model: str, book: ParamSet, sigma: float, own_vol: bool, learned: bool, cost_bps: float,
                   risk_aversion: float) -> list[HedgerInfo]:
     name, note = MODEL_HEDGERS[LAB_MODELS[model].world]
     # A GBM book priced by its own model has implied vol = sigma: its delta is Black-Scholes delta.
@@ -291,7 +339,10 @@ def _hedger_infos(model: str, book: ParamSet, sigma: float, learned: bool, cost_
     infos = [
         HedgerInfo(name="no_hedge", role="none", label="No hedge", note="Keeps the premium and pays the payoff."),
         HedgerInfo(name="bs_delta", role="bs", label="Black-Scholes delta",
-                   note=f"Delta at the premium's implied vol ({100 * sigma:.1f}%), fixed for the life of the option."),
+                   note=(f"Delta at the premium's implied vol ({100 * sigma:.1f}%), fixed for the life of the option."
+                         if own_vol else
+                         f"Delta at the at-the-money implied vol ({100 * sigma:.1f}%), fixed for the life of the option: "
+                         "the premium is all intrinsic value and has no implied vol of its own.")),
         HedgerInfo(name=name, role="model", label=HEDGER_LABELS[name], note=note + ".", same_as=same),
     ]
     if learned:
@@ -311,8 +362,12 @@ def run_hedge(request: HedgeRequest) -> HedgeResponse:
     book, option = _book(request, source)
     scenario = _scenario(request, book)
     premium = model_price(option, book, SPOT0, rate=rate, dividend=dividend, dt=DT, seed=request.seed)
-    sigma = implied_vol(option, premium, SPOT0, rate, dividend)
-    hedgers = standard_hedgers(option, book, dt=DT, spot0=SPOT0, rate=rate, dividend=dividend, premium=premium)
+    sigma, own_vol = _book_vol(option, book, premium, rate, dividend, request.seed)
+    hedgers = {
+        "no_hedge": no_hedge(),
+        "bs_delta": bs_delta(option, sigma, DT, rate, dividend),
+        MODEL_HEDGERS[book.model][0]: model_delta(option, book, DT, rate, dividend),
+    }
     band = learned_hedger.strategy(option, book, dt=DT, rate=rate, dividend=dividend, cost_bps=request.cost_bps,
                                    risk_aversion=request.risk_aversion)
     if band is not None:
@@ -337,12 +392,13 @@ def run_hedge(request: HedgeRequest) -> HedgeResponse:
     terminal = next(iter(factual_results.values())).spots[:, -1]
     path_index = int(np.argmin(np.abs(terminal - np.median(terminal))))
 
-    factual = _world("Factual", "As calibrated on real prices", book, factual_results, edges, path_index)
+    mark = _Mark(option, sigma, rate, dividend)
+    factual = _world("Factual", "As calibrated on real prices", book, factual_results, edges, path_index, mark)
     counterfactual = None
     if scenario is not None:
         shocked, shocked_results = worlds["counterfactual"]
         counterfactual = _world(SCENARIOS[request.scenario.name].label, scenario.description,
-                                shocked, shocked_results, edges, path_index)
+                                shocked, shocked_results, edges, path_index, mark)
 
     elapsed_ms = (time.perf_counter() - started) * 1000.0
     logger.info("lab hedge %s %s (%s) %s in %.0f ms", source.asset, request.model, source.origin.kind,
@@ -356,7 +412,8 @@ def run_hedge(request: HedgeRequest) -> HedgeResponse:
             maturity_days=request.option.maturity_days, is_call=option.is_call, premium=premium,
             implied_vol=sigma, rate=rate, dividend_yield=dividend,
         ),
-        hedgers=_hedger_infos(request.model, book, sigma, band is not None, request.cost_bps, request.risk_aversion),
+        hedgers=_hedger_infos(request.model, book, sigma, own_vol, band is not None, request.cost_bps,
+                              request.risk_aversion),
         bin_edges={name: e.tolist() for name, e in edges.items()},
         factual=factual, counterfactual=counterfactual,
         n_paths=N_PATHS, seed=request.seed, cost_bps=request.cost_bps,

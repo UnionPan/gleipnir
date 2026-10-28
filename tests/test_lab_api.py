@@ -1,10 +1,13 @@
 """End-to-end tests for the Counterfactual Hedging Lab API."""
 
+import math
+
 import pytest
 from fastapi.testclient import TestClient
 
 from backend.main import app
-from backend.services import learned_hedger
+from backend.schemas.lab import HedgeRequest
+from backend.services import lab_service, learned_hedger
 from backend.services.lab_models import LAB_MODELS
 
 # No `with` block: the lifespan warm-up stays off, tests compile on demand.
@@ -138,3 +141,38 @@ def test_responses_are_gzipped_when_asked():
     response = client.post("/api/v1/lab/hedge", json={"asset": "AAPL", "option": {"maturity_days": 21}, "seed": 3},
                            headers={"Accept-Encoding": "gzip"})
     assert response.status_code == 200 and response.headers.get("content-encoding") == "gzip"
+
+
+@pytest.mark.parametrize("option", [
+    {"maturity_days": 21},
+    {"maturity_days": 5, "moneyness": 0.8, "is_call": False},  # a near-worthless premium
+    {"maturity_days": 63, "moneyness": 1.2},
+])
+def test_the_book_marked_to_market_starts_at_zero_and_ends_at_the_pnl(option):
+    result = _hedge(model="heston", option=option, scenario={"name": "vol_spike", "severity": 2.0})
+    for world in (result["factual"], result["counterfactual"]):
+        paths, bands = world["paths"], world["mtm_bands"]
+        assert len(paths["liability"]) == 40 and len(paths["liability"][0]) == option["maturity_days"] + 1
+        assert paths["liability"][0][0] == pytest.approx(result["book"]["premium"], abs=1e-3)
+        for name, marked in paths["mtm_pnl"].items():
+            assert all(abs(m[0]) < 1e-3 for m in marked), name
+            assert [m[-1] for m in marked] == pytest.approx(paths["pnl"][name], abs=1e-3)
+            band = bands[name]
+            assert band["p5"][-1] <= band["p50"][-1] <= band["p95"][-1]
+            assert len(band["p50"]) == option["maturity_days"] + 1
+
+
+def test_a_premium_that_is_all_intrinsic_value_hedges_at_the_at_the_money_vol():
+    request = HedgeRequest(asset="KO", model="heston", option={"maturity_days": 5, "moneyness": 0.8}, seed=1)
+    source = lab_service._shipped(request)
+    book, option = lab_service._book(request, source)
+    rate, dividend = source.rate, source.dividend
+    # a one-week call 20% in the money, priced on the no-arbitrage bound: no vol inverts it
+    bound = 100 * math.exp(-dividend * option.maturity) - option.strike * math.exp(-rate * option.maturity)
+    sigma, own = lab_service._book_vol(option, book, bound - 1e-9, rate, dividend, seed=1)
+    assert not own and 0.05 < sigma < 1.0
+    at_money = lab_service._book_vol(lab_service.EuropeanOption(strike=100.0, maturity=option.maturity),
+                                     book, lab_service.model_price(lab_service.EuropeanOption(
+                                         strike=100.0, maturity=option.maturity), book, 100.0, rate=rate,
+                                         dividend=dividend, dt=lab_service.DT, seed=1), rate, dividend, seed=1)
+    assert at_money == (pytest.approx(sigma), True)
