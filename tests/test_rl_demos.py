@@ -1,6 +1,7 @@
 """The Learning to Hedge artifacts are served as exported."""
 
 import json
+from itertools import pairwise
 
 import numpy as np
 import pytest
@@ -35,9 +36,35 @@ def test_the_cliquet_artifact_reproduces_aispgs_registered_table():
     cliquet = rl_demos.demos()["cliquet_ais"]
     assert cliquet is not None
     rmse = {k: round(m["terminal_pnl_rmse"]["mean"], 3) for k, m in cliquet["methods"].items()}
-    assert rmse == {"reactive": 0.968, "sequential": 1.0, "concurrent": 0.949, "oracle_state": 0.961}
+    # the registered three-seed run of 2026-10-28 (after mjollnir's tail-aware COS window)
+    assert rmse == {"reactive": 0.947, "sequential": 1.029, "concurrent": 0.95, "oracle_state": 0.962}
     assert round(cliquet["baselines"]["static_vanilla"]["terminal_pnl_rmse"], 3) == 1.328
     assert len(cliquet["provenance"]["results_sha256"]) == 64
+
+
+def test_the_cliquet_paths_belong_to_the_registered_run():
+    cliquet = rl_demos.demos()["cliquet_ais"]
+    paths = cliquet["paths"]
+    policies = ["no_hedge", "static_vanilla", "oracle_cap_exit", "reactive", "sequential", "concurrent", "oracle_state"]
+    assert paths["provenance"]["registered_results_sha256"] == cliquet["provenance"]["results_sha256"]
+    steps = paths["steps"]
+    assert set(paths["pnl_bands"]) == set(paths["samples"][0]["pnl"]) == set(policies)
+    assert len(paths["terminal_histogram"]["edges"]) == len(paths["terminal_histogram"]["no_hedge"]) + 1
+    for policy in policies:
+        assert sum(paths["terminal_histogram"][policy]) == paths["evaluation_paths"]
+        band = paths["pnl_bands"][policy]
+        assert len(band["p50"]) == steps + 1 and band["p5"][0] == pytest.approx(paths["premium"], abs=1e-4)
+    for sample in paths["samples"]:
+        assert len(sample["spot"]) == len(sample["locked_in"]) == steps + 1
+        assert all(len(sample["exposure"][p]) == steps for p in policies)
+        # the locked-in payoff only grows, and only at resets, up to the cap
+        locked = sample["locked_in"]
+        assert all(b >= a - 1e-9 for a, b in pairwise(locked))
+        assert max(locked) <= paths["notional"] * paths["global_cap"] + 1e-9
+        assert all(locked[t] == locked[t - 1] for t in range(1, steps + 1) if t not in paths["reset_steps"])
+    # every learned method is shown at its median seed
+    for method, seed in paths["representative_seeds"].items():
+        assert seed in cliquet["methods"][method]["seeds"]
 
 
 def test_the_deep_hedging_artifact_has_the_chart_series(deep_hedging):

@@ -38,7 +38,13 @@ less the payoff it is the hedging error.
 
 AIS cliquet (``backend/data/rl/cliquet_ais.json``). The registered three-seed
 run of aispg's concurrent cliquet-hedging benchmark, summarized per method
-(mean and standard deviation over seeds) with its learning curves.
+(mean and standard deviation over seeds) with its learning curves. With
+``--aispg-paths``, also ``paths``: what aispg's
+``experiments/cliquet_path_export.py`` recorded on the benchmark's evaluation
+paths for every baseline and each method's median seed (the payoff locked in
+so far, each policy's exposure and running P&L on three sample contracts, the
+running P&L's quantiles per period, shared-bin histograms of the terminal
+P&L), refused unless it was exported from the same results file.
 
 Both files record where every number came from: run ids, checkpoint and
 result-file SHA-256s, the evaluation seed, the commit of this repository.
@@ -47,7 +53,8 @@ Usage (a GPU helps for the deep-hedging evaluation)::
 
     uv run --extra web --extra rl --extra cuda python scripts/export_rl_demos.py \\
         --run runs/validate_lstm_vs_bs/<run-id> \\
-        --aispg ../aispg/experiments/results/cliquet_concurrent_learning.json
+        --aispg ../aispg/experiments/results/cliquet_concurrent_learning.json \\
+        --aispg-paths ../aispg/experiments/results/cliquet_concurrent_learning_paths.json
 """
 
 from __future__ import annotations
@@ -372,7 +379,24 @@ AIS_METRICS = ("terminal_pnl_rmse", "terminal_abs_cvar_95", "mean_trading_cost")
 AIS_PROBES = ("period_return_probe_r2", "accrued_return_probe_r2")
 
 
-def export_cliquet(results_path: Path) -> dict:
+CLIQUET_POLICIES = (*AIS_BASELINES, *AIS_METHODS)
+
+
+def cliquet_paths(paths_path: Path, results_path: Path) -> dict:
+    """The per-path series of ``aispg experiments/cliquet_path_export.py``, checked against the results they
+    were exported from."""
+    paths = json.loads(paths_path.read_text())
+    if paths["provenance"]["registered_results_sha256"] != sha256(results_path):
+        raise ValueError(f"{paths_path.name} was exported from other results than {results_path.name}")
+    if tuple(paths["policies"]) != CLIQUET_POLICIES:
+        raise ValueError(f"{paths_path.name} has policies {paths['policies']}, expected {CLIQUET_POLICIES}")
+    return {k: paths[k] for k in ("steps", "days_per_step", "reset_steps", "premium", "notional", "global_cap",
+                                  "local_cap", "representative_seeds", "evaluation_paths", "terminal_histogram",
+                                  "pnl_bands", "locked_in_bands", "capped_share", "samples")} | {
+        "provenance": {"file": paths_path.name, "sha256": sha256(paths_path), **paths["provenance"]}}
+
+
+def export_cliquet(results_path: Path, paths_path: Path | None = None) -> dict:
     data = json.loads(results_path.read_text())
     env = data["environment"]
     methods = {}
@@ -404,6 +428,7 @@ def export_cliquet(results_path: Path) -> dict:
         },
         "baselines": baselines,
         "methods": methods,
+        **({"paths": cliquet_paths(paths_path, results_path)} if paths_path else {}),
         "provenance": {"results_file": results_path.name, "results_sha256": sha256(results_path),
                        "source": "aispg experiments/cliquet_concurrent_learning.py, registered configuration"},
     }
@@ -413,6 +438,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--run", type=Path, help="a validate_lstm_vs_bs run directory")
     parser.add_argument("--aispg", type=Path, help="aispg's cliquet_concurrent_learning.json")
+    parser.add_argument("--aispg-paths", type=Path,
+                        help="aispg's cliquet_concurrent_learning_paths.json, exported from the --aispg results")
     args = parser.parse_args()
     if not args.run and not args.aispg:
         parser.error("nothing to export: pass --run and/or --aispg")
@@ -423,7 +450,8 @@ def main() -> int:
         print(f"wrote {path.relative_to(ROOT)} ({path.stat().st_size / 1e3:.0f} kB)")
     if args.aispg:
         path = OUT / "cliquet_ais.json"
-        path.write_text(json.dumps(export_cliquet(args.aispg.resolve()), indent=1) + "\n")
+        paths = args.aispg_paths.resolve() if args.aispg_paths else None
+        path.write_text(json.dumps(export_cliquet(args.aispg.resolve(), paths), indent=1) + "\n")
         print(f"wrote {path.relative_to(ROOT)} ({path.stat().st_size / 1e3:.0f} kB)")
     return 0
 
