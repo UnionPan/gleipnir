@@ -110,6 +110,18 @@ class SamplePath(BaseModel):
     pnl: dict[str, float]
 
 
+class SimulatedPaths(BaseModel):
+    """The first simulated paths of a world, whole: what the lab animates.
+
+    Paths are the simulation's own (random, not picked); the same index is the same
+    random draw in every world."""
+
+    spots: list[list[float]] = Field(..., description="Per path, the spot on each day, today first")
+    positions: dict[str, list[list[float]]] = Field(..., description="Per hedger and path, shares held after each day's trade")
+    pnl: dict[str, list[float]] = Field(..., description="Per hedger, each path's P&L at expiry")
+    highlight: int = Field(..., description="The path closest to the median outcome, followed by default")
+
+
 class WorldResult(BaseModel):
     label: str
     description: str
@@ -117,6 +129,7 @@ class WorldResult(BaseModel):
     params_hash: str
     hedgers: dict[str, HedgerStats]
     sample_path: SamplePath
+    paths: SimulatedPaths
 
 
 class BookOrigin(BaseModel):

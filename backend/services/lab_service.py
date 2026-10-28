@@ -48,6 +48,7 @@ from backend.schemas.lab import (
     LabModelInfo,
     ModelFit,
     SamplePath,
+    SimulatedPaths,
     ScenarioInfo,
     WorldResult,
 )
@@ -66,6 +67,7 @@ RHO_ASSUMPTION = -0.7  # typical equity option-implied spot-vol correlation
 HISTOGRAM_BINS = 48
 HISTOGRAM_PAD = 0.04
 TAIL = 0.05
+N_SHOWN = 40  # whole paths returned per world, for the lab's animation
 
 HEDGER_LABELS = {
     "heston_delta": "Heston delta",
@@ -265,6 +267,19 @@ def _world(label: str, description: str, params: ParamSet, results: dict[str, Ba
             positions={n: r.positions[path_index].tolist() for n, r in results.items()},
             pnl={n: float(r.pnl[path_index]) for n, r in results.items()},
         ),
+        paths=_shown_paths(results),
+    )
+
+
+def _shown_paths(results: dict[str, BacktestResult]) -> SimulatedPaths:
+    """The first N_SHOWN paths whole, rounded for the wire (spots to 1e-3, the rest to 1e-4)."""
+    first = next(iter(results.values()))
+    terminal = first.spots[:N_SHOWN, -1]
+    return SimulatedPaths(
+        spots=np.round(first.spots[:N_SHOWN], 3).tolist(),
+        positions={n: np.round(r.positions[:N_SHOWN], 4).tolist() for n, r in results.items()},
+        pnl={n: np.round(r.pnl[:N_SHOWN], 4).tolist() for n, r in results.items()},
+        highlight=int(np.argmin(np.abs(terminal - np.median(terminal)))),
     )
 
 

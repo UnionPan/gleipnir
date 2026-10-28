@@ -120,3 +120,21 @@ def test_the_learned_band_trades_less_when_trading_costs_more(model):
     note = next(h["note"] for h in result["hedgers"] if h["role"] == "learned")
     assert "30 bp" in note and "risk aversion 1" in note
 
+
+
+def test_whole_paths_come_with_every_world_and_share_their_random_draws():
+    result = _hedge(model="heston", scenario={"name": "vol_spike", "severity": 2.0})
+    factual, shocked = result["factual"]["paths"], result["counterfactual"]["paths"]
+    hedgers = {h["name"] for h in result["hedgers"]}
+    assert len(factual["spots"]) == 40 and len(factual["spots"][0]) == 22
+    assert set(factual["pnl"]) == set(factual["positions"]) == hedgers
+    assert all(len(p) == 21 for p in factual["positions"]["bs_delta"])
+    assert 0 <= factual["highlight"] < 40
+    # the same draws: identical start, different worlds
+    assert factual["spots"][0][0] == shocked["spots"][0][0] and factual["spots"][0][-1] != shocked["spots"][0][-1]
+
+
+def test_responses_are_gzipped_when_asked():
+    response = client.post("/api/v1/lab/hedge", json={"asset": "AAPL", "option": {"maturity_days": 21}, "seed": 3},
+                           headers={"Accept-Encoding": "gzip"})
+    assert response.status_code == 200 and response.headers.get("content-encoding") == "gzip"

@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from backend.core.config import settings
 from backend.core.compute_guard import Overloaded, admit_request
 from backend.api.v1.api import api_router
@@ -71,6 +72,9 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["Retry-After"],  # the compute guard's 429/503 say when to retry
 )
+
+# Outermost: lab results carry whole simulated paths (~100 kB of JSON, a fifth gzipped).
+app.add_middleware(GZipMiddleware, minimum_size=2048)
 
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
