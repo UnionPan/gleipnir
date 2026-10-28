@@ -1,13 +1,25 @@
-import React, { useMemo } from 'react';
-import type { Bands, DeepHedgingDemo, HedgerKey } from '../../services/rlApi';
+import React from 'react';
+import type { Bands } from '../../services/rlApi';
 import { chrome, ThemeName } from '../lab/chartTheme';
 import { extent, linear, Scale, ticks, useAnimationClock, useWidth } from '../lab/viz';
-import { hedgerColor } from './learningTheme';
-import { premiumOf } from './verdict';
+
+export interface BandRow {
+  key: string;
+  label: string;
+  color: string;
+  bands: Bands;
+}
 
 interface Props {
-  demo: DeepHedgingDemo;
+  rows: BandRow[];
   theme: ThemeName;
+  /** Restarts the sweep when it changes. */
+  animationKey: unknown;
+  /** x-axis value of each point (defaults to its index). */
+  xs?: number[];
+  /** The narrowest a panel gets before the row wraps (default 210 px). */
+  minPanel?: number;
+  note: React.ReactNode;
 }
 
 const HEIGHT = 160;
@@ -22,68 +34,54 @@ function band(lower: number[], upper: number[], x: Scale, y: Scale, upTo: number
   return `${d}Z`;
 }
 
-const Panel: React.FC<{ label: string; color: string; bands: Bands; domain: [number, number]; theme: ThemeName;
-  upTo: number }> = ({ label, color, bands, domain, theme, upTo }) => {
+const Panel: React.FC<{ row: BandRow; domain: [number, number]; theme: ThemeName; upTo: number; xs?: number[] }> = ({
+  row, domain, theme, upTo, xs,
+}) => {
   const c = chrome(theme);
   const [ref, width] = useWidth<HTMLDivElement>(240);
-  const days = bands.p50.length - 1;
-  const x = linear([0, days], [PAD.left, width - PAD.right]);
+  const n = row.bands.p50.length - 1;
+  const index = linear([0, n], [PAD.left, width - PAD.right]);
+  const x = xs ? linear([xs[0], xs[n]], [PAD.left, width - PAD.right]) : index;
   const y = linear(domain, [HEIGHT - PAD.bottom, PAD.top]);
-  const median = bands.p50.slice(0, Math.ceil(upTo) + 1)
-    .map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+  const median = row.bands.p50.slice(0, Math.ceil(upTo) + 1)
+    .map((v, i) => `${i === 0 ? 'M' : 'L'}${index(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
   return (
     <figure className="lab-chart" ref={ref}>
-      <figcaption><span className="lab-chart-title"><span className="learn-chip" style={{ background: color }} aria-hidden />{label}</span></figcaption>
-      <svg width={width} height={HEIGHT} role="img" aria-label={`${label}: the book's value over the year, across all paths`}>
+      <figcaption>
+        <span className="lab-chart-title"><span className="learn-chip" style={{ background: row.color }} aria-hidden />{row.label}</span>
+      </figcaption>
+      <svg width={width} height={HEIGHT} role="img" aria-label={`${row.label}: middle half and middle 90% of paths over time`}>
         {ticks(domain[0], domain[1], 4).map((v) => (
           <g key={v}>
             <line x1={PAD.left} x2={width - PAD.right} y1={y(v)} y2={y(v)} stroke={v === 0 ? c.baseline : c.grid} />
             <text x={PAD.left - 5} y={y(v) + 4} textAnchor="end" fill={c.muted} fontSize={10}>{v}</text>
           </g>
         ))}
-        {ticks(0, days, 3).map((d) => (
+        {ticks(xs ? xs[0] : 0, xs ? xs[n] : n, 3).map((d) => (
           <text key={d} x={x(d)} y={HEIGHT - 6} textAnchor="middle" fill={c.muted} fontSize={10}>{d}</text>
         ))}
-        <path d={band(bands.p5, bands.p95, x, y, upTo)} fill={color} fillOpacity={0.16} />
-        <path d={band(bands.p25, bands.p75, x, y, upTo)} fill={color} fillOpacity={0.3} />
-        <path d={median} fill="none" stroke={color} strokeWidth={1.8} />
+        <path d={band(row.bands.p5, row.bands.p95, index, y, upTo)} fill={row.color} fillOpacity={0.16} />
+        <path d={band(row.bands.p25, row.bands.p75, index, y, upTo)} fill={row.color} fillOpacity={0.3} />
+        <path d={median} fill="none" stroke={row.color} strokeWidth={1.8} />
       </svg>
     </figure>
   );
 };
 
-/** Each hedger's book marked to market through the year, across every evaluation path, on one scale. */
-const HedgerBands: React.FC<Props> = ({ demo, theme }) => {
-  const clock = useAnimationClock(SWEEP, demo);
-  const bands = useMemo(() => {
-    if (!demo.wealth_bands) return null;
-    const premium = premiumOf(demo);
-    const shift = (b: Bands): Bands => ({
-      p5: b.p5.map((v) => v + premium), p25: b.p25.map((v) => v + premium), p50: b.p50.map((v) => v + premium),
-      p75: b.p75.map((v) => v + premium), p95: b.p95.map((v) => v + premium),
-    });
-    return Object.fromEntries(Object.entries(demo.wealth_bands).map(([k, b]) => [k, shift(b)])) as Record<HedgerKey, Bands>;
-  }, [demo]);
-  if (!bands) return null;
-  const keys = demo.hedgers.map((h) => h.key).filter((k): k is HedgerKey => !!bands[k]);
-  const domain = extent(keys.flatMap((k) => [...bands[k].p5, ...bands[k].p95]), 0.05);
-  const days = bands[keys[0]].p50.length - 1;
+/** One band chart per row on one shared scale, growing from the start: a wider band is a wider spread. */
+const BandMultiples: React.FC<Props> = ({ rows, theme, animationKey, xs, minPanel = 210, note }) => {
+  const clock = useAnimationClock(SWEEP, animationKey);
+  if (rows.length === 0) return null;
+  const domain = extent(rows.flatMap((r) => [...r.bands.p5, ...r.bands.p95]), 0.05);
+  const n = rows[0].bands.p50.length - 1;
   return (
     <div>
-      <div className="learn-multiples learn-bands">
-        {demo.hedgers.filter((h) => bands[h.key]).map((h) => (
-          <Panel key={h.key} label={h.label} color={hedgerColor(theme, h.key)} bands={bands[h.key]} domain={domain}
-            theme={theme} upTo={(clock.t / SWEEP) * days} />
-        ))}
+      <div className="learn-multiples" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${minPanel}px, 1fr))` }}>
+        {rows.map((r) => <Panel key={r.key} row={r} domain={domain} theme={theme} upTo={(clock.t / SWEEP) * n} xs={xs} />)}
       </div>
-      <p className="lab-hero-note">
-        What the book is worth each day: the hedge account (the premium of {premiumOf(demo).toFixed(2)}, plus gains,
-        less costs) less the true value of the call still owed. It starts at 0 and ends at the P&amp;L. The bands hold
-        the middle half and the middle 90% of {demo.setup.eval_paths.toLocaleString('en-US')} years; one scale for every
-        hedger, so a wider band is a worse hedge.
-      </p>
+      <p className="lab-hero-note">{note}</p>
     </div>
   );
 };
 
-export default HedgerBands;
+export default BandMultiples;

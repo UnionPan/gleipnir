@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { DeepHedgingDemo, HedgerKey } from '../../services/rlApi';
 import { chrome, ThemeName } from '../lab/chartTheme';
-import { extent, linear, linePath, ticks, useAnimationClock, useWidth } from '../lab/viz';
+import { extent, linear, linePath, Scale, ticks, useAnimationClock, useWidth } from '../lab/viz';
 import { hedgerColor } from './learningTheme';
 import OptionGrid from './OptionGrid';
 import { premiumOf } from './verdict';
@@ -19,18 +19,32 @@ const DEFAULT_SHOWN: HedgerKey[] = ['bs_delta', 'delta_gamma', 'lstm_options'];
 const TRADES_OPTIONS = new Set<HedgerKey>(['delta_gamma', 'delta_gamma_vega', 'lstm_options']);
 const PAD = { left: 42, right: 12, top: 8, bottom: 22 };
 
-interface Line {
+export interface Line {
   key: string;
   values: number[];
   color: string;
   width?: number;
   dash?: string;
+  /** Held constant until the next point (a position), in place of a straight line between points. */
+  step?: boolean;
 }
 
-const ReplayChart: React.FC<{
+/** An SVG path that holds each value until the next index, drawn up to ``upTo`` (fractional). */
+function stepPath(ys: number[], x: Scale, y: Scale, upTo: number): string {
+  const last = Math.min(Math.max(upTo, 0), ys.length);
+  let d = `M${x(0).toFixed(1)},${y(ys[0]).toFixed(1)}`;
+  for (let i = 0; i < ys.length && i < last; i++) {
+    const end = Math.min(i + 1, last);
+    d += `L${x(end).toFixed(1)},${y(ys[i]).toFixed(1)}`;
+    if (i + 1 < ys.length && end === i + 1) d += `L${x(end).toFixed(1)},${y(ys[i + 1]).toFixed(1)}`;
+  }
+  return d;
+}
+
+export const ReplayChart: React.FC<{
   title: string; lines: Line[]; days: number; upTo: number; theme: ThemeName; height: number; reference?: number;
-  digits: number; note?: string;
-}> = ({ title, lines, days, upTo, theme, height, reference, digits, note }) => {
+  digits: number; note?: string; marks?: number[]; referenceLabel?: string;
+}> = ({ title, lines, days, upTo, theme, height, reference, digits, note, marks, referenceLabel }) => {
   const c = chrome(theme);
   const [ref, width] = useWidth<HTMLDivElement>(500);
   const x = linear([0, days], [PAD.left, width - PAD.right]);
@@ -52,11 +66,31 @@ const ReplayChart: React.FC<{
         {ticks(0, days, 4).map((d) => (
           <text key={d} x={x(d)} y={height - 6} textAnchor="middle" fill={c.muted} fontSize={10}>{d}</text>
         ))}
+        {marks?.map((m) => (
+          <line key={`mark-${m}`} x1={x(m)} x2={x(m)} y1={PAD.top} y2={height - PAD.bottom} stroke={c.grid}
+            strokeDasharray="2 3" />
+        ))}
         {reference !== undefined && (
-          <line x1={PAD.left} x2={width - PAD.right} y1={y(reference)} y2={y(reference)} stroke={c.inkSecondary}
-            strokeDasharray="5 4" />
+          <g>
+            <line x1={PAD.left} x2={width - PAD.right} y1={y(reference)} y2={y(reference)} stroke={c.inkSecondary}
+              strokeDasharray="5 4" />
+            {referenceLabel && (
+              <text x={width - PAD.right - 2} y={y(reference) - 5} textAnchor="end" fill={c.inkSecondary} fontSize={10}
+                stroke={c.surface} strokeWidth={3} paintOrder="stroke">{referenceLabel}</text>
+            )}
+          </g>
         )}
         {lines.map((l) => {
+          if (l.step) {
+            const i = Math.min(Math.floor(upTo), l.values.length - 1);
+            return (
+              <g key={l.key}>
+                <path d={stepPath(l.values, x, y, upTo)} fill="none" stroke={l.color} strokeWidth={l.width ?? 2}
+                  strokeDasharray={l.dash} />
+                <circle cx={x(Math.min(upTo, l.values.length))} cy={y(l.values[i])} r={3.5} fill={l.color} />
+              </g>
+            );
+          }
           const last = Math.min(upTo, l.values.length - 1);
           const i = Math.floor(last);
           const head = l.values[i] + ((l.values[i + 1] ?? l.values[i]) - l.values[i]) * (last - i);

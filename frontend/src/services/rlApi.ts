@@ -117,7 +117,38 @@ export interface CliquetDemo {
     accrued_return_probe_r2: SeedStat;
     curves: { iteration: number[]; terminal_pnl_rmse: number[]; reward_mse: number[] }[];
   }>;
+  /** What every policy did along the benchmark's evaluation paths (absent from older exports). */
+  paths?: CliquetPaths;
   provenance: { results_file: string; results_sha256: string; source: string };
+}
+
+export type CliquetPolicyKey = CliquetBaselineKey | CliquetMethodKey;
+
+export interface CliquetPaths {
+  /** Decision periods; each spans ``days_per_step`` trading days. */
+  steps: number;
+  days_per_step: number;
+  /** The periods after which the contract resets. */
+  reset_steps: number[];
+  premium: number;
+  notional: number;
+  global_cap: number;
+  local_cap: number;
+  representative_seeds: Record<CliquetMethodKey, number>;
+  evaluation_paths: number;
+  terminal_histogram: { edges: number[] } & Record<CliquetPolicyKey, number[]>;
+  /** Per policy, the running P&L (premium + hedge gains - payoff locked in so far) per period. */
+  pnl_bands: Record<CliquetPolicyKey, Bands>;
+  /** The payoff locked in so far, the same for every policy on a path. */
+  locked_in_bands: Bands;
+  /** Share of paths whose payoff has reached the cap, per period. */
+  capped_share: number[];
+  samples: {
+    spot: number[];
+    locked_in: number[];
+    exposure: Record<CliquetPolicyKey, number[]>;
+    pnl: Record<CliquetPolicyKey, number[]>;
+  }[];
 }
 
 export interface LearningDemos {

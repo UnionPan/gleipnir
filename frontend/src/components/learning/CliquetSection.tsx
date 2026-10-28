@@ -2,8 +2,11 @@ import React from 'react';
 import type { CliquetBaselineKey, CliquetDemo, CliquetMethodKey } from '../../services/rlApi';
 import { chrome, ThemeName } from '../lab/chartTheme';
 import { extent, linear, linePath, ticks, useAnimationClock, useWidth } from '../lab/viz';
-import { slotColor } from './learningTheme';
+import { cliquetColor } from './learningTheme';
 import Bars from './Bars';
+import BandMultiples from './BandMultiples';
+import ContractReplay, { POLICIES, policyLabel } from './ContractReplay';
+import Ridges from './Ridges';
 import Disclosure from '../common/Disclosure';
 
 interface Props {
@@ -13,9 +16,6 @@ interface Props {
 
 const BASELINES: CliquetBaselineKey[] = ['no_hedge', 'static_vanilla', 'oracle_cap_exit'];
 const METHODS: CliquetMethodKey[] = ['reactive', 'sequential', 'concurrent', 'oracle_state'];
-// The three methods that must learn from observations take palette slots; the exact-state
-// learner is the reference, drawn in neutral ink, as are the rule-based baselines.
-const SLOT: Partial<Record<CliquetMethodKey, number>> = { reactive: 0, sequential: 1, concurrent: 2 };
 const DURATION = 7000;
 const HEIGHT = 240;
 const PAD = { left: 44, right: 12, top: 10, bottom: 34 };
@@ -39,7 +39,7 @@ const TrainingReplay: React.FC<Props> = ({ demo, theme }) => {
   const y = linear(domain, [HEIGHT - PAD.bottom, PAD.top]);
   const upTo = (clock.t / DURATION) * (curves[0].x.length - 1);
   const iteration = Math.round(curves[0].x[Math.min(Math.round(upTo), curves[0].x.length - 1)]);
-  const color = (k: CliquetMethodKey) => (SLOT[k] === undefined ? c.muted : slotColor(theme, SLOT[k] as number));
+  const color = (k: CliquetMethodKey) => cliquetColor(theme, k);
   const staticBasket = demo.baselines.static_vanilla.terminal_pnl_rmse;
   return (
     <figure className="lab-chart" ref={ref}>
@@ -99,11 +99,11 @@ const TrainingReplay: React.FC<Props> = ({ demo, theme }) => {
 };
 
 const CliquetSection: React.FC<Props> = ({ demo, theme }) => {
-  const c = chrome(theme);
   const { setup, methods, baselines } = demo;
-  const color = (k: CliquetMethodKey) => (SLOT[k] === undefined ? c.muted : slotColor(theme, SLOT[k] as number));
+  const color = (k: CliquetMethodKey) => cliquetColor(theme, k);
   const errorRows = [
-    ...BASELINES.map((k) => ({ key: k, label: baselines[k].label, value: baselines[k].terminal_pnl_rmse, color: c.baseline })),
+    ...BASELINES.map((k) => ({ key: k, label: baselines[k].label, value: baselines[k].terminal_pnl_rmse,
+      color: cliquetColor(theme, k) })),
     ...METHODS.map((k) => ({ key: k, label: methods[k].label, value: methods[k].terminal_pnl_rmse.mean,
       sd: methods[k].terminal_pnl_rmse.sd, color: color(k) })),
   ];
@@ -130,6 +130,42 @@ const CliquetSection: React.FC<Props> = ({ demo, theme }) => {
         </details>
       </div>
 
+      {demo.paths && (
+        <section className="lab-panel" aria-label="One contract">
+          <div className="lab-titlebar">One contract, period by period</div>
+          <div className="lab-panel-body">
+            <ContractReplay demo={demo} paths={demo.paths} theme={theme} />
+          </div>
+        </section>
+      )}
+
+      {demo.paths && (
+        <section className="lab-panel" aria-label="Every contract">
+          <div className="lab-titlebar">Over {demo.paths.evaluation_paths.toLocaleString('en-US')} contracts</div>
+          <div className="lab-panel-body">
+            <Ridges title="P&L at settlement, every contract" theme={theme} edges={demo.paths.terminal_histogram.edges}
+              axisLabel="P&L at settlement (notional 100)"
+              rows={POLICIES.map((k) => ({
+                key: k, label: policyLabel(demo, k), color: cliquetColor(theme, k),
+                counts: (demo.paths as NonNullable<CliquetDemo['paths']>).terminal_histogram[k],
+              }))}
+              note={<>The premium of {demo.paths.premium.toFixed(2)}, plus the basket&apos;s gains, less the payoff, on
+                every evaluation contract. A narrow ridge around 0 is a good hedge; learned methods are each shown at
+                their median seed.</>} />
+            <figure className="lab-chart">
+              <figcaption><span className="lab-chart-title">The running P&amp;L, period by period</span></figcaption>
+              <BandMultiples theme={theme} animationKey={demo} minPanel={160}
+                rows={POLICIES.map((k) => ({
+                  key: k, label: policyLabel(demo, k), color: cliquetColor(theme, k),
+                  bands: (demo.paths as NonNullable<CliquetDemo['paths']>).pnl_bands[k],
+                }))}
+                note={<>The middle half and the middle 90% of contracts, on one scale. Every book starts at the premium
+                  and falls toward 0 as the payoff locks in at each reset; how wide it ends is the hedging error.</>} />
+            </figure>
+          </div>
+        </section>
+      )}
+
       <section className="lab-panel" aria-label="Learning">
         <div className="lab-titlebar">Learning to hedge a cliquet</div>
         <div className="lab-panel-body">
@@ -141,7 +177,7 @@ const CliquetSection: React.FC<Props> = ({ demo, theme }) => {
         <div className="lab-titlebar">After training</div>
         <div className="lab-panel-body learn-bars-row">
           <Bars title="Error at settlement (lower is better)" theme={theme} rows={errorRows} digits={3}
-            note="Root mean square P&L error on shared paths. Grey: fixed rules and the exact-state reference. Whiskers: spread across seeds." />
+            note="Root mean square P&L error on shared paths. Whiskers: spread across seeds." />
           <div className="learn-bars-stack">
             <Bars title="Remembers the return since the last reset (R²)" theme={theme}
               rows={probeRows('period_return_probe_r2')} />

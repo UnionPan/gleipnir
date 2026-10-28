@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import Plot from 'react-plotly.js';
 import type { Data } from 'plotly.js';
-import type { DeepHedgingDemo, HedgerKey, SeedStat } from '../../services/rlApi';
+import type { Bands, DeepHedgingDemo, HedgerKey, SeedStat } from '../../services/rlApi';
 import { baseLayout, PLOT_CONFIG, ThemeName } from '../lab/chartTheme';
 import { hedgerColor } from './learningTheme';
 import { endLabels, LabeledSeries } from './endLabels';
@@ -10,13 +10,19 @@ import { useNarrow } from './useNarrow';
 import Bars from './Bars';
 import Disclosure from '../common/Disclosure';
 import YearReplay from './YearReplay';
-import TerminalRidges from './TerminalRidges';
-import HedgerBands from './HedgerBands';
+import Ridges from './Ridges';
+import BandMultiples from './BandMultiples';
+import { premiumOf } from './verdict';
 
 interface Props {
   demo: DeepHedgingDemo;
   theme: ThemeName;
 }
+
+const shiftBands = (b: Bands, by: number): Bands => ({
+  p5: b.p5.map((v) => v + by), p25: b.p25.map((v) => v + by), p50: b.p50.map((v) => v + by),
+  p75: b.p75.map((v) => v + by), p95: b.p95.map((v) => v + by),
+});
 
 const isStat = (v: number | SeedStat): v is SeedStat => typeof v === 'object';
 const meanOf = (v: number | SeedStat) => (isStat(v) ? v.mean : v);
@@ -88,6 +94,10 @@ const DeepHedgingSection: React.FC<Props> = ({ demo, theme }) => {
   const label = Object.fromEntries(demo.hedgers.map((h) => [h.key, h.label])) as Record<HedgerKey, string>;
   const fairValues = demo.hedgers.map((h) => -meanOf(results[h.key].mean_error) - meanOf(results[h.key].mean_cost));
   const reasons = verdict(demo, label);
+  const premium = premiumOf(demo);
+  // the export's books start with no cash: credit the premium so every drawn book starts at 0
+  const wealth = useMemo(() => (demo.wealth_bands ? Object.fromEntries(Object.entries(demo.wealth_bands)
+    .map(([k, b]) => [k, shiftBands(b, premium)])) as Record<HedgerKey, Bands> : null), [demo, premium]);
   const spread = Object.fromEntries(demo.hedgers.map((h) => [h.key, meanOf(results[h.key].std_error)])) as Record<HedgerKey, number>;
   const bars = (pick: (k: HedgerKey) => number | SeedStat) => demo.hedgers.map((h) => ({
     key: h.key, label: h.label, value: meanOf(pick(h.key)), sd: sdOf(pick(h.key)), color: hedgerColor(theme, h.key),
@@ -117,11 +127,31 @@ const DeepHedgingSection: React.FC<Props> = ({ demo, theme }) => {
       <section className="lab-panel" aria-label="Results">
         <div className="lab-titlebar">Over {setup.eval_paths.toLocaleString('en-US')} simulated years</div>
         <div className="lab-panel-body">
-          <TerminalRidges demo={demo} theme={theme} spread={spread} />
-          {demo.wealth_bands && (
+          {demo.terminal_histogram && (
+            <Ridges title="P&L at expiry, every simulated year" theme={theme}
+              edges={demo.terminal_histogram.edges.map((e) => e + premium)}
+              axisLabel="P&L at expiry (the option's units, spot = 100)"
+              rows={demo.hedgers.map((h) => ({
+                key: h.key, label: h.label, color: hedgerColor(theme, h.key),
+                counts: (demo.terminal_histogram as NonNullable<DeepHedgingDemo['terminal_histogram']>)[h.key].counts,
+                end: `±${spread[h.key].toFixed(2)}`,
+              }))}
+              note={<>Each ridge is how one hedger&apos;s {setup.eval_paths.toLocaleString('en-US')} years end: the
+                premium of {premium.toFixed(2)}, plus the hedge&apos;s gains, less its costs and the payoff. A narrow
+                ridge is a good hedge; ± is its spread (standard deviation).</>} />
+          )}
+          {wealth && (
             <figure className="lab-chart">
               <figcaption><span className="lab-chart-title">What the book is worth through the year</span></figcaption>
-              <HedgerBands demo={demo} theme={theme} />
+              <BandMultiples theme={theme} animationKey={demo}
+                rows={demo.hedgers.filter((h) => wealth[h.key]).map((h) => ({
+                  key: h.key, label: h.label, color: hedgerColor(theme, h.key), bands: wealth[h.key],
+                }))}
+                note={<>What the book is worth each day: the hedge account (the premium of {premium.toFixed(2)}, plus
+                  gains, less costs) less the true value of the call still owed. It starts at 0 and ends at the
+                  P&amp;L. The bands hold the middle half and the middle 90% of{' '}
+                  {setup.eval_paths.toLocaleString('en-US')} years; one scale for every hedger, so a wider band is a
+                  worse hedge.</>} />
             </figure>
           )}
         </div>
