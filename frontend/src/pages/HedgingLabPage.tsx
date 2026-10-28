@@ -200,7 +200,7 @@ const HedgingLabPage: React.FC = () => {
               Market and model <span>{result.book.asset}, premium {result.book.premium.toFixed(2)}, implied vol{' '}
                 {(100 * result.book.implied_vol).toFixed(1)}%</span>
             </summary>
-            <MarketCard catalog={catalog} result={result} />
+            <MarketCard catalog={catalog} result={result} theme={theme} />
           </details>
           <details className="lab-disclosure">
             <summary>How this works</summary>
