@@ -67,6 +67,8 @@ dev = [
 notebooks = [
     "jupyter>=1.0.0",
     "ipywidgets>=8.0.0",
+    "seaborn>=0.13",  # the notebooks' plots
+    "plotly>=5.18",  # 02's interactive implied-vol surface
 ]
 
 [project.urls]
