@@ -122,6 +122,7 @@ def calibrate_qmeasure(request: QMeasureCalibrationRequest):
             filter_params=request.filter_params,
             calibration_method=request.calibration_method,
             maxiter=request.maxiter,
+            min_days=request.min_days,
         )
 
         # Format result

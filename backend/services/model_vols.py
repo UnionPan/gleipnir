@@ -6,7 +6,7 @@ IV. A time value inside the COS pricer's error carries no volatility information
 and comes back as NaN rather than as a vol fitted to round-off.
 """
 import numpy as np
-from mjollnir.jax import configure_runtime, fourier_price_batch, jax_cos_price_merton_multi
+from mjollnir.jax import configure_runtime, fourier_price_batch, jax_cos_price_bates_multi, jax_cos_price_merton_multi
 from mjollnir.pricer._jax_iv import implied_vol_batch_np
 
 # COS with the default 256 terms prices to ~3e-12 of spot; stay well above it.
@@ -37,6 +37,16 @@ def merton_ivs(spot: float, strikes: np.ndarray, t: float, r: float, q: float, *
     strikes = np.asarray(strikes, dtype=float)
     is_call = _out_of_the_money_calls(spot, strikes, t, r, q)
     prices = jax_cos_price_merton_multi(spot, strikes, t, r, q, sigma, lambda_j, mu_j, sigma_j, is_call)
+    return _invert(spot, strikes, t, r, q, prices, is_call)
+
+
+def bates_ivs(spot: float, strikes: np.ndarray, t: float, r: float, q: float, *, v0: float, kappa: float,
+              theta: float, sigma_v: float, rho: float, lambda_j: float, mu_j: float, sigma_j: float) -> np.ndarray:
+    configure_runtime()
+    strikes = np.asarray(strikes, dtype=float)
+    is_call = _out_of_the_money_calls(spot, strikes, t, r, q)
+    prices = jax_cos_price_bates_multi(spot, strikes, t, r, q, v0, kappa, theta, sigma_v, rho, lambda_j, mu_j, sigma_j,
+                                       is_call)
     return _invert(spot, strikes, t, r, q, prices, is_call)
 
 

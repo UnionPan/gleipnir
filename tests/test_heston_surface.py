@@ -39,12 +39,15 @@ def _heston_chain(days=(21, 49, 91, 182, 364)):
 def test_quotes_keep_the_out_of_the_money_side_within_the_expiry_window():
     chain = _heston_chain(days=(3, 21, 91, 900))
     chain.options.append(_quote(100.0, 49, True, 3.0, bid_fraction=0.0))  # no bid
-    quotes, weights, summary = heston_surface.chain_quotes(chain)
+    quotes, weights, summary = heston_surface.chain_quotes(chain, min_days=7)
     for strike, T, is_call, _ in quotes:
         assert is_call == (strike >= S0 * np.exp((R - Q) * T))
-        assert heston_surface.MIN_DAYS <= round(T * heston_surface.DAYS_PER_YEAR) <= heston_surface.MAX_DAYS
+        assert 7 <= round(T * heston_surface.DAYS_PER_YEAR) <= heston_surface.MAX_DAYS
     assert summary["n_expiries"] == 2 and summary["days_range"] == [21, 91]
     assert len(weights) == len(quotes) and np.all(weights > 0)
+    # by default the shortest expiries (where earnings sit) are left out
+    _, _, default = heston_surface.chain_quotes(chain)
+    assert heston_surface.MIN_DAYS == 30 and default["days_range"] == [91, 91]
 
 
 def test_quotes_are_capped_at_the_bucket_most_liquid_first():
@@ -75,3 +78,41 @@ def test_a_chain_too_thin_to_fit_is_refused():
     chain.options = chain.options[:5]
     with pytest.raises(ValueError, match="usable out-of-the-money quotes"):
         heston_surface.fit_chain(chain)
+
+
+BATES_TRUE = {"v0": 0.03, "kappa": 2.0, "theta": 0.04, "sigma_v": 0.4, "rho": -0.6,
+              "lambda_j": 0.8, "mu_j": -0.12, "sigma_j": 0.08}
+
+
+def _bates_chain(days=(9, 21, 49, 91, 182)):
+    from mjollnir.jax import jax_cos_price_bates_multi
+
+    p = BATES_TRUE
+    options = []
+    for d in days:
+        T = d / heston_surface.DAYS_PER_YEAR
+        strikes = np.linspace(80, 120, 11)
+        for is_call in (True, False):
+            mids = jax_cos_price_bates_multi(S0, strikes, T, R, Q, p["v0"], p["kappa"], p["theta"], p["sigma_v"],
+                                             p["rho"], p["lambda_j"], p["mu_j"], p["sigma_j"],
+                                             np.full(len(strikes), is_call))
+            options += [_quote(float(k), d, is_call, float(m)) for k, m in zip(strikes, mids, strict=True)]
+    return OptionChain(underlying="CRASHY", spot_price=S0, reference_date=TODAY,
+                       risk_free_rate=R, dividend_yield=Q, options=options)
+
+
+def test_bates_fits_a_crash_skew_with_plausible_diffusion_and_the_jumps_it_has():
+    chain = _bates_chain()
+    params, diagnostics = heston_surface.fit_chain(chain, "bates", min_days=7)
+    assert set(params) == {"v0", "kappa", "theta", "xi", "rho", "lambda", "mu_j", "sigma_j"}
+    assert diagnostics["rmse_iv"] < 2e-3 and diagnostics["converged"]
+    assert params["kappa"] == pytest.approx(2.0, rel=0.1) and params["xi"] == pytest.approx(0.4, rel=0.1)
+    assert params["lambda"] == pytest.approx(0.8, rel=0.1) and params["mu_j"] == pytest.approx(-0.12, rel=0.05)
+    assert "Jumps:" in diagnostics["note"]
+    _, heston_diagnostics = heston_surface.fit_chain(chain, "heston", min_days=7)
+    assert heston_diagnostics["rmse_iv"] > 3 * diagnostics["rmse_iv"]
+
+
+def test_an_unknown_chain_model_is_refused():
+    with pytest.raises(ValueError, match="no chain fit"):
+        heston_surface.fit_chain(_heston_chain(), "sabr")

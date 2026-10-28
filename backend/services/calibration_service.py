@@ -7,7 +7,7 @@ import pandas as pd
 from datetime import datetime, date
 from backend.services.market_data import FETCH_ERRORS, MarketDataError, fetch_dividend_yield
 from backend.services import heston_surface, path_simulation, physical_fits
-from backend.services.model_vols import finite_or_none, heston_ivs
+from backend.services.model_vols import bates_ivs, finite_or_none, heston_ivs
 
 # Import P-measure calibrators
 
@@ -190,18 +190,20 @@ class CalibrationService:
         filter_params: dict | None = None,
         calibration_method: str = 'differential_evolution',
         maxiter: int = 1000,
+        min_days: int = heston_surface.MIN_DAYS,
     ) -> tuple[dict[str, float], dict]:
         """
         Calibrate a Q-measure model to option prices
 
         Args:
             ticker: Ticker symbol
-            model: Model name ('heston', 'sabr', 'dupire')
+            model: Model name ('heston', 'bates', 'sabr', 'dupire')
             reference_date: Reference date (YYYY-MM-DD)
             risk_free_rate: Risk-free rate
             filter_params: Parameters for filtering options (min_volume, min_oi, etc.)
             calibration_method: Optimization method
             maxiter: Maximum iterations
+            min_days: shortest expiry a Heston or Bates fit uses
 
         Returns:
             Tuple of (parameters, diagnostics)
@@ -239,8 +241,8 @@ class CalibrationService:
             raise ValueError(f"No valid options found for {ticker} after filtering")
 
         # Calibrate based on model type
-        if model == 'heston':
-            return heston_surface.fit_chain(chain)
+        if model in heston_surface.FITS:
+            return heston_surface.fit_chain(chain, model, min_days=min_days)
         elif model == 'sabr':
             return CalibrationService._calibrate_sabr_qmeasure(
                 chain=chain,
@@ -253,7 +255,7 @@ class CalibrationService:
                 dividend_yield=dividend_yield,
             )
         else:
-            raise ValueError(f"Unsupported Q-measure model: {model}. Supported: 'heston', 'sabr', 'dupire'")
+            raise ValueError(f"Unsupported Q-measure model: {model}. Supported: 'heston', 'bates', 'sabr', 'dupire'")
 
 
     @staticmethod
@@ -378,7 +380,7 @@ class CalibrationService:
 
         Args:
             ticker: Ticker symbol
-            model: Model name ('heston', 'sabr', 'dupire')
+            model: Model name ('heston', 'bates', 'sabr', 'dupire')
             parameters: Calibrated model parameters
             spot_price: Current spot price
             risk_free_rate: Risk-free rate
@@ -401,6 +403,10 @@ class CalibrationService:
 
         if model == 'heston':
             return CalibrationService._generate_heston_surface(
+                parameters, strikes, maturities, spot_price, risk_free_rate, dividend_yield
+            )
+        elif model == 'bates':
+            return CalibrationService._generate_bates_surface(
                 parameters, strikes, maturities, spot_price, risk_free_rate, dividend_yield
             )
         elif model == 'sabr':
@@ -434,6 +440,29 @@ class CalibrationService:
         surface = [
             finite_or_none(heston_ivs(S0, strikes, float(T), r, q, v0=params['v0'], kappa=params['kappa'],
                                       theta=params['theta'], sigma_v=params['xi'], rho=params['rho']))
+            for T in maturities
+        ]
+        return {
+            'strikes': strikes.tolist(),
+            'maturities': maturities.tolist(),
+            'vols': surface,
+            'surface_type': 'implied_vol',
+        }
+
+    @staticmethod
+    def _generate_bates_surface(
+        params: dict[str, float],
+        strikes: np.ndarray,
+        maturities: np.ndarray,
+        S0: float,
+        r: float,
+        q: float,
+    ) -> dict:
+        """Implied-vol surface of a Bates model (backend.services.model_vols)."""
+        surface = [
+            finite_or_none(bates_ivs(S0, strikes, float(T), r, q, v0=params['v0'], kappa=params['kappa'],
+                                     theta=params['theta'], sigma_v=params['xi'], rho=params['rho'],
+                                     lambda_j=params['lambda'], mu_j=params['mu_j'], sigma_j=params['sigma_j']))
             for T in maturities
         ]
         return {

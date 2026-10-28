@@ -223,7 +223,7 @@ class OptionChainData(BaseModel):
 class QMeasureCalibrationRequest(BaseModel):
     """Request to calibrate Q-measure model from option chain"""
     ticker: str = Field(..., description="Ticker symbol")
-    model: str = Field(..., description="Model name (heston)")
+    model: str = Field(..., description="Model name (heston, bates, sabr, dupire)")
     reference_date: str | None = Field(None, description="Reference date (YYYY-MM-DD)")
     risk_free_rate: float = Field(default=0.05, ge=-0.05, le=0.25, description="Risk-free rate")
     filter_params: dict[str, Any] | None = Field(
@@ -232,6 +232,11 @@ class QMeasureCalibrationRequest(BaseModel):
     )
     calibration_method: str = Field(default="differential_evolution", description="Optimization method")
     maxiter: int = Field(default=200, ge=1, le=MAX_OPTIMIZER_ITERATIONS, description="Maximum iterations")
+    min_days: int = Field(
+        default=30, ge=1, le=365,
+        description="Shortest expiry a Heston or Bates fit uses, in days: shorter ones carry scheduled events "
+                    "(earnings) that neither model has, and pull its parameters to extremes",
+    )
 
 
 class QMeasureCalibrationResult(BaseModel):

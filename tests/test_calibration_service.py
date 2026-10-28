@@ -106,6 +106,18 @@ class TestVolSurfaceOffline:
         # Negative rho: downside strikes carry higher implied vol (equity skew).
         assert np.nanmean(vols[:, 5]) > np.nanmean(vols[:, 15])
 
+    def test_bates_jumps_steepen_the_short_dated_skew(self):
+        diffusion = {"v0": 0.04, "kappa": 2.0, "theta": 0.04, "xi": 0.5, "rho": -0.7}
+        common = dict(ticker="SYN", spot_price=100.0, risk_free_rate=0.03, n_strikes=21, n_maturities=6,
+                      strike_range=(0.7, 1.3), maturity_range=(0.05, 1.0))
+        heston = CalibrationService.generate_vol_surface(model="heston", parameters=diffusion, **common)
+        bates = CalibrationService.generate_vol_surface(
+            model="bates", parameters={**diffusion, "lambda": 1.0, "mu_j": -0.15, "sigma_j": 0.1}, **common)
+        h, b = (np.array([[np.nan if v is None else v for v in row] for row in s["vols"]]) for s in (heston, bates))
+        assert np.isfinite(b[:, 3:18]).all()
+        # crash risk: a steeper short-dated skew than the diffusion alone
+        assert (b[0, 5] - b[0, 13]) > (h[0, 5] - h[0, 13]) + 0.02
+
 
 @pytest.mark.network
 class TestLiveData:

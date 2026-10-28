@@ -1,10 +1,16 @@
-"""Heston calibrated to an option chain, at a cost no request can inflate.
+"""Heston or Bates calibrated to an option chain, at a cost no request can inflate.
 
 Quotes: out-of-the-money mids (calls at or above the forward, puts below) with a
-positive bid, 7 days to 2 years out, at most ``QUOTE_BUCKET`` of the most
-liquid. Weights are 1 / vega^2, so the least-squares fit is approximately one in
+positive bid, 30 days (by default) to 2 years out, at most ``QUOTE_BUCKET`` of the
+most liquid. Shorter expiries carry scheduled events (an earnings release
+inside a week's options) that neither model has: fitted to them, Heston and
+Bates alike run to extreme mean reversion and vol of vol. Weights are 1 / vega^2, so the least-squares fit is approximately one in
 implied volatility. mjollnir's Levenberg-Marquardt fit runs in one compiled
-program with fixed buckets, warmed at startup, and stops by itself.
+program per model with fixed buckets, warmed at startup, and stops by itself.
+
+Bates is Heston with lognormal jumps: on a real chain, pure Heston bends the
+steep short-dated skew only with extreme mean reversion and vol of vol, and
+the jumps let the diffusion parameters stay plausible.
 """
 
 from __future__ import annotations
@@ -15,7 +21,7 @@ from datetime import date
 
 import numpy as np
 from mjollnir.calibration.marketdata import OptionChain
-from mjollnir.calibration.risk_neutral.gradient_heston import fit_heston_surface
+from mjollnir.calibration.risk_neutral.gradient_heston import fit_bates_surface, fit_heston_surface
 from mjollnir.jax import configure_runtime
 from mjollnir.pricer._jax_iv import implied_vol_batch_np
 from scipy.stats import norm
@@ -24,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 QUOTE_BUCKET = 256
 EXPIRY_BUCKET = 32
-MIN_DAYS = 7
+MIN_DAYS = 30  # the default shortest expiry; a request may choose another
 MAX_DAYS = 730
 MIN_QUOTES = 8
 DAYS_PER_YEAR = 365.0  # the chain's calendar convention
@@ -35,13 +41,14 @@ def _vega(S, K, T, r, q, sigma):
     return S * np.exp(-q * T) * norm.pdf(d1) * np.sqrt(T)
 
 
-def chain_quotes(chain: OptionChain) -> tuple[list[tuple[float, float, bool, float]], np.ndarray, dict]:
+def chain_quotes(chain: OptionChain, min_days: int = MIN_DAYS) -> tuple[list[tuple[float, float, bool, float]],
+                                                                      np.ndarray, dict]:
     """The quotes a fit uses, their weights, and a summary of what was kept."""
     S, r, q = chain.spot_price, chain.risk_free_rate, chain.dividend_yield
     rows = []
     for o in chain.options:
         days = (o.expiry - chain.reference_date).days
-        if not MIN_DAYS <= days <= MAX_DAYS or o.bid <= 0 or o.mid <= 0:
+        if not min_days <= days <= MAX_DAYS or o.bid <= 0 or o.mid <= 0:
             continue
         T = days / DAYS_PER_YEAR
         forward = S * np.exp((r - q) * T)
@@ -82,27 +89,38 @@ def chain_quotes(chain: OptionChain) -> tuple[list[tuple[float, float, bool, flo
     return quotes, 1.0 / vega**2, summary
 
 
-def fit_chain(chain: OptionChain) -> tuple[dict[str, float], dict]:
-    """Heston parameters (API names) and diagnostics for an option chain."""
+FITS = {"heston": fit_heston_surface, "bates": fit_bates_surface}
+# mjollnir's parameter names -> the API's
+API_NAMES = {"sigma_v": "xi", "lambda_j": "lambda"}
+
+
+def fit_chain(chain: OptionChain, model: str = "heston", min_days: int = MIN_DAYS) -> tuple[dict[str, float], dict]:
+    """Heston or Bates parameters (API names) and diagnostics for an option chain."""
+    if model not in FITS:
+        raise ValueError(f"no chain fit for {model!r}: {sorted(FITS)}")
     configure_runtime()
     started = time.perf_counter()
-    quotes, weights, summary = chain_quotes(chain)
-    result = fit_heston_surface(
+    quotes, weights, summary = chain_quotes(chain, min_days)
+    result = FITS[model](
         quotes, chain.spot_price, chain.risk_free_rate, chain.dividend_yield,
         weights=weights, asset=chain.underlying, buckets=(QUOTE_BUCKET, EXPIRY_BUCKET),
         source=f"Levenberg-Marquardt on exact COS gradients, {chain.underlying} chain of "
                f"{chain.reference_date.isoformat()}",
     )
     p = result.param_set.params
-    parameters = {"kappa": p["kappa"], "theta": p["theta"], "xi": p["sigma_v"], "rho": p["rho"], "v0": p["v0"]}
+    parameters = {API_NAMES.get(k, k): v for k, v in p.items()}
     # JSON has no infinity: a parameter the chain cannot pin down reports null
-    std = {("xi" if k == "sigma_v" else k): (v if np.isfinite(v) else None) for k, v in result.std_errors.items()}
+    std = {API_NAMES.get(k, k): (v if np.isfinite(v) else None) for k, v in result.std_errors.items()}
     feller = 2.0 * p["kappa"] * p["theta"]
     note = (f"Fitted {summary['n_quotes']} out-of-the-money quotes over {summary['n_expiries']} expiries "
             f"({summary['days_range'][0]} to {summary['days_range'][1]} days), weighted to fit implied vols.")
     if p["kappa"] > 20.0 or p["sigma_v"] > 2.0:
-        note += (" Pure Heston reproduces the steep short-dated skew only with extreme mean reversion and "
-                 "vol-of-vol, as here; a jump model fits it with calmer diffusion parameters.")
+        note += (" The fit reaches for extreme mean reversion and vol-of-vol: the shortest expiries' skew is steeper "
+                 "than the model can make, usually because a scheduled event such as earnings falls inside them. "
+                 "Leaving them out (a longer shortest expiry) gives calmer parameters.")
+    if model == "bates":
+        note += (f" Jumps: {p['lambda_j']:.2f} a year, a mean log size of {100 * p['mu_j']:+.1f}% "
+                 f"with a spread of {100 * p['sigma_j']:.1f}%.")
     diagnostics = {
         "note": note,
         "method": "Levenberg-Marquardt on exact COS gradients, 1/vega^2 weights (an implied-vol fit)",
@@ -137,5 +155,6 @@ def warm_up() -> None:
                                        ask=price * 1.02, mid=price, last=price, volume=10, open_interest=100))
     chain = OptionChain(underlying="WARMUP", spot_price=100.0, reference_date=today,
                         risk_free_rate=0.04, dividend_yield=0.0, options=options)
-    fit_chain(chain)
-    logger.info("Heston chain fit compiled in %.1f s", time.perf_counter() - started)
+    for model in FITS:
+        fit_chain(chain, model)
+    logger.info("Heston and Bates chain fits compiled in %.1f s", time.perf_counter() - started)
