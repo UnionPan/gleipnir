@@ -475,7 +475,8 @@
 /* ── Charts ── */
 .lab-multiples {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* three or four panels (the learned band adds one) share a row when there is room */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 0.75rem;
 }
 
@@ -547,8 +548,15 @@
 }
 
 @media (max-width: 900px) {
-  .lab-controls-grid,
-  .lab-multiples { grid-template-columns: minmax(0, 1fr); }
+  .lab-controls-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Phones: the parameter table's factual and counterfactual columns must fit beside the names */
+@media (max-width: 600px) {
+  .lab-params th[scope='row'] { min-width: 7rem; }
+  .lab-params th,
+  .lab-params td { padding: 0.375rem 0.25rem; }
+  .lab-params td { white-space: normal; }
 }
 
 /* ── A fit's own note (estimator caveats, regime legend) ── */

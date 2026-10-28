@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 LabModelName = Literal["heston", "gbm", "merton_jump", "regime_switching_gbm", "garch", "rough_bergomi"]
 ScenarioName = Literal["vol_spike", "correlation_breakdown", "regime_shift", "jump_cascade"]
 MaturityDays = Literal[5, 21, 63]
-HedgerRole = Literal["none", "bs", "model"]
+HedgerRole = Literal["none", "bs", "model", "learned"]
 
 
 class ScenarioSpec(BaseModel):
@@ -71,6 +71,10 @@ class HedgeRequest(BaseModel):
     scenario: ScenarioSpec | None = Field(None, description="Counterfactual world; null runs only the factual one")
     option: OptionSpec = OptionSpec()
     cost_bps: float = Field(5.0, ge=0.0, le=50.0, description="Proportional trading cost")
+    risk_aversion: float = Field(
+        5.0, ge=0.5, le=20.0,
+        description="The learned hedger's risk aversion: high stays close to delta, low trades less to save costs",
+    )
     seed: int = Field(7, ge=0, le=2**31 - 1)
 
     @model_validator(mode="after")
@@ -94,7 +98,7 @@ class HedgerStats(BaseModel):
 
 class HedgerInfo(BaseModel):
     name: str
-    role: HedgerRole = Field(..., description="none, bs (Black-Scholes at the premium's vol) or model")
+    role: HedgerRole = Field(..., description="none, bs (Black-Scholes at the premium's vol), model, or learned")
     label: str
     note: str = Field(..., description="What the hedger knows and does")
     same_as: str | None = Field(None, description="Another hedger this one equals, trade for trade")
@@ -147,7 +151,8 @@ class Book(BaseModel):
 
 class HedgeResponse(BaseModel):
     book: Book
-    hedgers: list[HedgerInfo] = Field(..., description="In display order: no hedge, Black-Scholes, the model's own")
+    hedgers: list[HedgerInfo] = Field(
+        ..., description="In display order: no hedge, Black-Scholes, the model's own, and the learned band where trained")
     bin_edges: dict[str, list[float]] = Field(..., description="Per hedger, shared by both worlds")
     factual: WorldResult
     counterfactual: WorldResult | None

@@ -6,7 +6,7 @@ export type LabModelName = 'heston' | 'gbm' | 'merton_jump' | 'regime_switching_
 export type ScenarioName = 'vol_spike' | 'correlation_breakdown' | 'regime_shift' | 'jump_cascade';
 /** Hedger names vary with the model (heston_delta, merton_delta, ...); roles do not. */
 export type HedgerName = string;
-export type HedgerRole = 'none' | 'bs' | 'model';
+export type HedgerRole = 'none' | 'bs' | 'model' | 'learned';
 
 export interface ScenarioInfo {
   name: ScenarioName;
@@ -93,6 +93,8 @@ export interface HedgeRequest {
   scenario: { name: ScenarioName; severity: number } | null;
   option: { is_call: boolean; moneyness: number; maturity_days: number };
   cost_bps: number;
+  /** The learned hedger's risk aversion: high stays close to delta, low trades less to save costs. */
+  risk_aversion: number;
   seed: number;
 }
 

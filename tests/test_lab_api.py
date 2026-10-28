@@ -4,6 +4,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.main import app
+from backend.services import learned_hedger
+from backend.services.lab_models import LAB_MODELS
 
 # No `with` block: the lifespan warm-up stays off, tests compile on demand.
 client = TestClient(app)
@@ -36,7 +38,8 @@ def test_catalog_lists_every_model_for_every_shipped_asset():
 def test_every_model_runs_and_hedging_reduces_risk(model):
     result = _hedge(model=model)
     roles = {h["role"]: h["name"] for h in result["hedgers"]}
-    assert set(roles) == {"none", "bs", "model"} and roles["none"] == "no_hedge"
+    learned = learned_hedger.available(LAB_MODELS[model].world)
+    assert set(roles) == {"none", "bs", "model"} | ({"learned"} if learned else set()) and roles["none"] == "no_hedge"
     hedgers = result["factual"]["hedgers"]
     assert set(hedgers) == set(roles.values())
     for stats in hedgers.values():
@@ -102,3 +105,18 @@ def test_jump_cascade_hurts_a_merton_book():
 ])
 def test_rejects_bad_requests(body, status):
     assert client.post("/api/v1/lab/hedge", json=body).status_code == status
+
+
+@pytest.mark.parametrize("model", [m for m in MODELS if learned_hedger.available(LAB_MODELS[m].world)])
+def test_the_learned_band_trades_less_when_trading_costs_more(model):
+    """Every trained band hedges (it removes most of the unhedged risk) and, at a high
+    cost and a low risk aversion, spends less on trading than the model's own delta."""
+    result = _hedge(model=model, cost_bps=30.0, risk_aversion=1.0)
+    roles = {h["role"]: h["name"] for h in result["hedgers"]}
+    hedgers = result["factual"]["hedgers"]
+    band, delta = hedgers[roles["learned"]], hedgers[roles["model"]]
+    assert band["std"] < 0.6 * hedgers["no_hedge"]["std"]
+    assert band["mean_cost"] < delta["mean_cost"]
+    note = next(h["note"] for h in result["hedgers"] if h["role"] == "learned")
+    assert "30 bp" in note and "risk aversion 1" in note
+

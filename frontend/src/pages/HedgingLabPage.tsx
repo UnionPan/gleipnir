@@ -25,6 +25,7 @@ function initialConfig(catalog: LabCatalog, bundles: StoredBundle[], arrival: st
     moneyness: 1.0,
     maturityDays: 21,
     costBps: 5,
+    riskAversion: 5,
     seed: 7,
   };
 }
@@ -39,6 +40,7 @@ function toRequest(config: LabConfig, catalog: LabCatalog, bundles: StoredBundle
     scenario: config.scenario ? { name: config.scenario, severity: config.severity[config.scenario] } : null,
     option: { is_call: config.isCall, moneyness: config.moneyness, maturity_days: config.maturityDays },
     cost_bps: config.costBps,
+    risk_aversion: config.riskAversion,
     seed: config.seed,
   };
 }
@@ -178,6 +180,10 @@ const HedgingLabPage: React.FC = () => {
                   Black-Scholes delta uses one volatility for the whole life of the option. The model's own hedger
                   uses what its model watches ({hedgerByRole(result, 'model').label}): it adapts when that moves, as
                   long as its model is right.
+                  {result.hedgers.some((h) => h.role === 'learned') && (
+                    <> The learned band follows that delta but skips trades not worth their cost: a network trained
+                      offline through this model&apos;s simulated world decides how far the position may drift.</>
+                  )}
                 </p>
               </div>
               <div>

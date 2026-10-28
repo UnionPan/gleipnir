@@ -109,6 +109,7 @@ const SamplePathPanels: React.FC<Props> = ({ result, theme }) => {
             })}
           </div>
         )}
+        <div className="lab-table-scroll">
         <table className="lab-results lab-path-pnl">
           <caption>P&L at expiry on this path</caption>
           <thead>
@@ -126,6 +127,7 @@ const SamplePathPanels: React.FC<Props> = ({ result, theme }) => {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </section>
   );

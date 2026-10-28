@@ -46,6 +46,21 @@ export interface Insight {
   detail: string;
 }
 
+/** What the learned band did against the model's own delta, when the result has one. */
+export function learnedSentence(result: HedgeResponse, modelName: string): string {
+  const learned = result.hedgers.find((h) => h.role === 'learned');
+  if (!learned) return '';
+  const f = result.factual.hedgers;
+  const band = f[learned.name];
+  const delta = f[modelName];
+  if (delta.mean_cost <= 0) return '';
+  const saving = 1 - band.mean_cost / delta.mean_cost;
+  const spread = band.std / delta.std - 1;
+  return ` The learned band spends ${fmt(band.mean_cost, 3)} on trading against ${fmt(delta.mean_cost, 3)} ` +
+    `(${fmt(Math.abs(saving) * 100, 0)}% ${saving >= 0 ? 'less' : 'more'}), for an error ` +
+    `${fmt(Math.abs(spread) * 100, 0)}% ${spread >= 0 ? 'wider' : 'narrower'} than the model's delta.`;
+}
+
 export function readResult(result: HedgeResponse, scenario: ScenarioName | null): Insight {
   const bs = hedgerByRole(result, 'bs');
   const model = hedgerByRole(result, 'model');
@@ -64,7 +79,7 @@ export function readResult(result: HedgeResponse, scenario: ScenarioName | null)
           ? `Black-Scholes delta brings it to ${fmt(f[bs.name].std)}; here the model's own delta is the same hedge. `
           : `${bs.label} brings it to ${fmt(f[bs.name].std)} and ${model.label} to ${fmt(f[model.name].std)}. `) +
         'What remains comes from rebalancing once a day and from what the model lets move besides the price, ' +
-        'which no delta hedge removes.',
+        'which no delta hedge removes.' + learnedSentence(result, model.name),
     };
   }
 

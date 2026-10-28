@@ -79,3 +79,13 @@ test('near-equal errors read as a tie', () => {
   const insight = readResult(response(world('Volatility spike', [14, 3, 3.05], 0)), 'vol_spike');
   expect(insight.detail).toContain('the two hedges end up with about the same error (3.00)');
 });
+
+test('the learned band reports its cost saving and its error against the model delta', () => {
+  const r = response(null);
+  r.hedgers.push({ name: 'learned_band', role: 'learned', label: 'Learned band', note: '' });
+  r.factual.hedgers.learned_band = { ...stats(1.1), mean_cost: 0.06 };
+  r.factual.hedgers.heston_delta = { ...stats(1), mean_cost: 0.1 };
+  expect(readResult(r, null).detail).toContain(
+    'The learned band spends 0.060 on trading against 0.100 (40% less), for an error 10% wider than the model\'s delta.');
+  expect(readResult(response(null), null).detail).not.toContain('learned band');
+});

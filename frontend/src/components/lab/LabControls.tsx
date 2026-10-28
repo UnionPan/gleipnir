@@ -2,6 +2,13 @@ import React from 'react';
 import type { LabCatalog, LabModelName, ScenarioName } from '../../services/labApi';
 import type { StoredBundle } from '../../services/labBundles';
 
+// The learned band's risk aversion: it was trained across 0.5 to 20.
+const RISK_AVERSIONS = [
+  { value: 20, label: 'Cautious: close to delta' },
+  { value: 5, label: 'Balanced' },
+  { value: 1, label: 'Cost-conscious: trades less' },
+];
+
 export interface LabConfig {
   asset: string;
   /** A saved calibration (labBundles key) in place of a shipped asset. */
@@ -14,6 +21,7 @@ export interface LabConfig {
   moneyness: number;
   maturityDays: number;
   costBps: number;
+  riskAversion: number;
   seed: number;
 }
 
@@ -171,6 +179,12 @@ const LabControls: React.FC<Props> = ({ catalog, bundles, config, onChange, onRu
             <span>Trading cost (bps)</span>
             <input type="number" min={0} max={50} step={1} value={config.costBps}
               onChange={(e) => set('costBps', Math.min(50, Math.max(0, Number(e.target.value))))} />
+          </label>
+          <label className="lab-field" title="How the learned hedger weighs risk against trading costs">
+            <span>Learned hedger</span>
+            <select value={config.riskAversion} onChange={(e) => set('riskAversion', Number(e.target.value))}>
+              {RISK_AVERSIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+            </select>
           </label>
         </fieldset>
       </div>

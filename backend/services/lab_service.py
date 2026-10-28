@@ -51,6 +51,7 @@ from backend.schemas.lab import (
     ScenarioInfo,
     WorldResult,
 )
+from backend.services import learned_hedger
 from backend.services.lab_bundle import bundle_hash, validated_world_params
 from backend.services.lab_models import LAB_MODELS
 
@@ -267,16 +268,24 @@ def _world(label: str, description: str, params: ParamSet, results: dict[str, Ba
     )
 
 
-def _hedger_infos(model: str, book: ParamSet, sigma: float) -> list[HedgerInfo]:
+def _hedger_infos(model: str, book: ParamSet, sigma: float, learned: bool, cost_bps: float,
+                  risk_aversion: float) -> list[HedgerInfo]:
     name, note = MODEL_HEDGERS[LAB_MODELS[model].world]
     # A GBM book priced by its own model has implied vol = sigma: its delta is Black-Scholes delta.
     same = "bs_delta" if model == "gbm" and abs(book.params["sigma"] - sigma) < 1e-6 else None
-    return [
+    infos = [
         HedgerInfo(name="no_hedge", role="none", label="No hedge", note="Keeps the premium and pays the payoff."),
         HedgerInfo(name="bs_delta", role="bs", label="Black-Scholes delta",
                    note=f"Delta at the premium's implied vol ({100 * sigma:.1f}%), fixed for the life of the option."),
         HedgerInfo(name=name, role="model", label=HEDGER_LABELS[name], note=note + ".", same_as=same),
     ]
+    if learned:
+        infos.append(HedgerInfo(
+            name=learned_hedger.NAME, role="learned", label="Learned band",
+            note=(f"Follows the {HEDGER_LABELS[name]} but trades only when its position leaves a band a network "
+                  f"learned offline for this model, at {cost_bps:g} bp and risk aversion {risk_aversion:g}."),
+        ))
+    return infos
 
 
 def run_hedge(request: HedgeRequest) -> HedgeResponse:
@@ -289,6 +298,10 @@ def run_hedge(request: HedgeRequest) -> HedgeResponse:
     premium = model_price(option, book, SPOT0, rate=rate, dividend=dividend, dt=DT, seed=request.seed)
     sigma = implied_vol(option, premium, SPOT0, rate, dividend)
     hedgers = standard_hedgers(option, book, dt=DT, spot0=SPOT0, rate=rate, dividend=dividend, premium=premium)
+    band = learned_hedger.strategy(option, book, dt=DT, rate=rate, dividend=dividend, cost_bps=request.cost_bps,
+                                   risk_aversion=request.risk_aversion)
+    if band is not None:
+        hedgers[learned_hedger.NAME] = band
     common = {"hedgers": hedgers, "n_paths": N_PATHS, "dt": DT, "spot0": SPOT0, "rate": rate,
               "dividend": dividend, "premium": premium, "cost_bps": request.cost_bps, "seed": request.seed}
 
@@ -328,7 +341,7 @@ def run_hedge(request: HedgeRequest) -> HedgeResponse:
             maturity_days=request.option.maturity_days, is_call=option.is_call, premium=premium,
             implied_vol=sigma, rate=rate, dividend_yield=dividend,
         ),
-        hedgers=_hedger_infos(request.model, book, sigma),
+        hedgers=_hedger_infos(request.model, book, sigma, band is not None, request.cost_bps, request.risk_aversion),
         bin_edges={name: e.tolist() for name, e in edges.items()},
         factual=factual, counterfactual=counterfactual,
         n_paths=N_PATHS, seed=request.seed, cost_bps=request.cost_bps,
