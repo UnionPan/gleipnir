@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { LabCatalog, LabModelName, ScenarioName } from '../../services/labApi';
 import type { StoredBundle } from '../../services/labBundles';
 
@@ -25,7 +25,7 @@ export interface LabConfig {
   seed: number;
 }
 
-const MATURITY_LABELS: Record<number, string> = { 5: '1 week', 21: '1 month', 63: '3 months' };
+const MATURITY_LABELS: Record<number, string> = { 5: '1 wk', 21: '1 mo', 63: '3 mo' };
 const BUNDLE_PREFIX = 'bundle:';
 
 interface Props {
@@ -38,7 +38,24 @@ interface Props {
   stale: boolean;
 }
 
+/** A row of mutually exclusive buttons. */
+function Segmented<T extends string | number | boolean>({ label, value, options, onPick }: {
+  label: string; value: T; options: { value: T; label: string }[]; onPick: (v: T) => void;
+}) {
+  return (
+    <div className="lab-segmented" role="radiogroup" aria-label={label}>
+      {options.map((o) => (
+        <button key={String(o.value)} type="button" role="radio" aria-checked={o.value === value}
+          className={o.value === value ? 'active' : ''} onClick={() => onPick(o.value)}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const LabControls: React.FC<Props> = ({ catalog, bundles, config, onChange, onRun, running, stale }) => {
+  const [more, setMore] = useState(false);
   const set = <K extends keyof LabConfig>(key: K, value: LabConfig[K]) => onChange({ ...config, [key]: value });
   const asset = catalog.assets.find((a) => a.ticker === config.asset);
   const saved = bundles.find((b) => b.key === config.bundleKey);
@@ -64,119 +81,77 @@ const LabControls: React.FC<Props> = ({ catalog, bundles, config, onChange, onRu
 
   return (
     <section className="lab-panel lab-controls" aria-label="Experiment setup">
-      <div className="lab-titlebar">Setup</div>
-      <div className="lab-controls-grid">
-        <fieldset className="lab-field-group">
-          <legend>Market</legend>
-          <label className="lab-field">
-            <span>Asset</span>
-            <select value={saved ? `${BUNDLE_PREFIX}${saved.key}` : config.asset} onChange={(e) => setSource(e.target.value)}>
-              {bundles.length > 0 && (
-                <optgroup label="Your calibrations">
-                  {bundles.map((b) => (
-                    <option key={b.key} value={`${BUNDLE_PREFIX}${b.key}`}>
-                      {b.bundle.asset} · {catalog.models.find((m) => m.name === b.bundle.model)?.label ?? b.bundle.model}
-                      {' · '}{b.bundle.as_of}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              <optgroup label="Shipped calibrations">
-                {catalog.assets.map((a) => (
-                  <option key={a.ticker} value={a.ticker}>
-                    {a.ticker} · {a.sector}
+      <div className="lab-titlebar">Sell an option and hedge it</div>
+      <div className="lab-bar">
+        <label className="lab-field">
+          <span>Stock</span>
+          <select value={saved ? `${BUNDLE_PREFIX}${saved.key}` : config.asset} onChange={(e) => setSource(e.target.value)}>
+            {bundles.length > 0 && (
+              <optgroup label="Your calibrations">
+                {bundles.map((b) => (
+                  <option key={b.key} value={`${BUNDLE_PREFIX}${b.key}`}>
+                    {b.bundle.asset} · {catalog.models.find((m) => m.name === b.bundle.model)?.label ?? b.bundle.model}
+                    {' · '}{b.bundle.as_of}
                   </option>
                 ))}
               </optgroup>
-            </select>
-            {saved && (
-              <small className="lab-hint">
-                Your fit from the Calibration tab, fingerprint <code>{saved.bundle.hash.slice(0, 8)}</code>.
-              </small>
             )}
+            <optgroup label="Calibrated to real prices">
+              {catalog.assets.map((a) => <option key={a.ticker} value={a.ticker}>{a.ticker} · {a.sector}</option>)}
+            </optgroup>
+          </select>
+        </label>
+        <label className="lab-field" title={model?.summary}>
+          <span>Market model</span>
+          <select value={config.model} disabled={!!saved}
+            onChange={(e) => onChange(withModel(e.target.value as LabModelName))}>
+            {catalog.models.map((m) => <option key={m.name} value={m.name}>{m.label}</option>)}
+          </select>
+        </label>
+        <div className="lab-field">
+          <span>Option sold</span>
+          <Segmented label="Option type" value={config.isCall} onPick={(v) => set('isCall', v)}
+            options={[{ value: true, label: 'Call' }, { value: false, label: 'Put' }]} />
+        </div>
+        <label className="lab-field">
+          <span>Strike <strong>{Math.round(config.moneyness * 100)}%</strong> of today's price</span>
+          <input type="range" min={0.8} max={1.2} step={0.05} value={config.moneyness}
+            onChange={(e) => set('moneyness', Number(e.target.value))} />
+        </label>
+        <div className="lab-field">
+          <span>Expires in</span>
+          <Segmented label="Expiry" value={config.maturityDays} onPick={(v) => set('maturityDays', v)}
+            options={catalog.maturities_days.map((d) => ({ value: d, label: MATURITY_LABELS[d] ?? `${d} days` }))} />
+        </div>
+        <label className="lab-field">
+          <span>What if…</span>
+          <select value={config.scenario ?? ''} onChange={(e) => set('scenario', (e.target.value || null) as ScenarioName | null)}>
+            <option value="">Nothing changes</option>
+            {scenarios.map((s) => <option key={s.name} value={s.name}>{s.label}</option>)}
+          </select>
+        </label>
+        {scenario && (
+          <label className="lab-field" title={scenario.summary}>
+            <span>Severity <strong>{config.severity[scenario.name].toFixed(2)}</strong></span>
+            <input type="range" min={scenario.severity_min} max={scenario.severity_max} step={0.05}
+              value={config.severity[scenario.name]}
+              onChange={(e) => set('severity', { ...config.severity, [scenario.name]: Number(e.target.value) })} />
           </label>
+        )}
+        <div className="lab-bar-actions">
+          <button type="button" className={`lab-run ${stale ? 'lab-run-stale' : ''}`} onClick={onRun} disabled={running}>
+            {running ? 'Simulating…' : stale ? 'Run with new settings' : 'Run again'}
+          </button>
+          <button type="button" className="lab-link" aria-expanded={more} onClick={() => setMore(!more)}>
+            {more ? 'Fewer settings' : 'More settings'}
+          </button>
+        </div>
+      </div>
+      {scenario && <p className="lab-bar-hint">{scenario.label}: {scenario.summary}</p>}
+      {more && (
+        <div className="lab-more">
           <label className="lab-field">
-            <span>Model</span>
-            <select value={config.model} disabled={!!saved}
-              onChange={(e) => onChange(withModel(e.target.value as LabModelName))}>
-              {catalog.models.map((m) => <option key={m.name} value={m.name}>{m.label}</option>)}
-            </select>
-            {model && <small className="lab-hint">{saved ? 'The model you calibrated. ' : ''}{model.summary}</small>}
-          </label>
-          {model?.has_rho && (
-            <div className="lab-field">
-              <span>Spot-vol correlation ρ</span>
-              <div className="lab-segmented" role="radiogroup" aria-label="Correlation assumption">
-                <button type="button" role="radio" aria-checked={!config.rhoAssumed}
-                  className={!config.rhoAssumed ? 'active' : ''} onClick={() => set('rhoAssumed', false)}>
-                  Estimated {estimatedRho !== undefined ? estimatedRho.toFixed(2) : ''}
-                </button>
-                <button type="button" role="radio" aria-checked={config.rhoAssumed}
-                  className={config.rhoAssumed ? 'active' : ''} onClick={() => set('rhoAssumed', true)}>
-                  Assumed {catalog.rho_assumption.toFixed(2)}
-                </button>
-              </div>
-            </div>
-          )}
-        </fieldset>
-
-        <fieldset className="lab-field-group">
-          <legend>World</legend>
-          <div className="lab-world-options" role="radiogroup" aria-label="Counterfactual world">
-            <label className={`lab-radio ${config.scenario === null ? 'active' : ''}`}>
-              <input type="radio" name="world" checked={config.scenario === null}
-                onChange={() => set('scenario', null)} />
-              Factual only
-            </label>
-            {scenarios.map((s) => (
-              <label key={s.name} className={`lab-radio ${config.scenario === s.name ? 'active' : ''}`}>
-                <input type="radio" name="world" checked={config.scenario === s.name}
-                  onChange={() => set('scenario', s.name)} />
-                {s.label}
-              </label>
-            ))}
-          </div>
-          {scenario && (
-            <label className="lab-field">
-              <span>
-                Severity <strong>{config.severity[scenario.name].toFixed(2)}</strong>
-              </span>
-              <input type="range" min={scenario.severity_min} max={scenario.severity_max} step={0.05}
-                value={config.severity[scenario.name]}
-                onChange={(e) => set('severity', { ...config.severity, [scenario.name]: Number(e.target.value) })} />
-              <small className="lab-hint">{scenario.summary}</small>
-            </label>
-          )}
-        </fieldset>
-
-        <fieldset className="lab-field-group">
-          <legend>Option sold</legend>
-          <div className="lab-field">
-            <span>Type</span>
-            <div className="lab-segmented" role="radiogroup" aria-label="Option type">
-              <button type="button" role="radio" aria-checked={config.isCall}
-                className={config.isCall ? 'active' : ''} onClick={() => set('isCall', true)}>Call</button>
-              <button type="button" role="radio" aria-checked={!config.isCall}
-                className={!config.isCall ? 'active' : ''} onClick={() => set('isCall', false)}>Put</button>
-            </div>
-          </div>
-          <label className="lab-field">
-            <span>
-              Strike <strong>{Math.round(config.moneyness * 100)}%</strong> of spot
-            </span>
-            <input type="range" min={0.8} max={1.2} step={0.05} value={config.moneyness}
-              onChange={(e) => set('moneyness', Number(e.target.value))} />
-          </label>
-          <label className="lab-field">
-            <span>Expiry</span>
-            <select value={config.maturityDays} onChange={(e) => set('maturityDays', Number(e.target.value))}>
-              {catalog.maturities_days.map((d) => (
-                <option key={d} value={d}>{MATURITY_LABELS[d] ?? `${d} days`}</option>
-              ))}
-            </select>
-          </label>
-          <label className="lab-field">
-            <span>Trading cost (bps)</span>
+            <span>Trading cost (bps of each trade)</span>
             <input type="number" min={0} max={50} step={1} value={config.costBps}
               onChange={(e) => set('costBps', Math.min(50, Math.max(0, Number(e.target.value))))} />
           </label>
@@ -186,21 +161,29 @@ const LabControls: React.FC<Props> = ({ catalog, bundles, config, onChange, onRu
               {RISK_AVERSIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
           </label>
-        </fieldset>
-      </div>
-      <div className="lab-run-row">
-        <button type="button" className="lab-run" onClick={onRun} disabled={running}>
-          {running ? 'Simulating…' : 'Run experiment'}
-        </button>
-        <button type="button" className="lab-secondary" disabled={running}
-          onClick={() => onChange({ ...config, seed: config.seed + 1 })}
-          title="Same experiment on a fresh set of random paths">
-          New random paths
-        </button>
-        <span className="lab-run-note" aria-live="polite">
-          {stale && !running ? 'Settings changed since the last run.' : `${catalog.n_paths.toLocaleString()} paths per world · seed ${config.seed}`}
-        </span>
-      </div>
+          {model?.has_rho && (
+            <div className="lab-field">
+              <span>Spot-vol correlation ρ</span>
+              <Segmented label="Correlation assumption" value={config.rhoAssumed} onPick={(v) => set('rhoAssumed', v)}
+                options={[
+                  { value: false, label: `Estimated ${estimatedRho !== undefined ? estimatedRho.toFixed(2) : ''}` },
+                  { value: true, label: `Assumed ${catalog.rho_assumption.toFixed(2)}` },
+                ]} />
+            </div>
+          )}
+          <div className="lab-field">
+            <span>Random paths (seed {config.seed})</span>
+            <button type="button" className="lab-secondary" disabled={running}
+              onClick={() => onChange({ ...config, seed: config.seed + 1 })}>Draw new paths</button>
+          </div>
+          {model && <p className="lab-hint lab-more-note">{model.label}: {model.summary}</p>}
+          {saved && (
+            <p className="lab-hint lab-more-note">
+              Your fit from the Calibration tab, fingerprint <code>{saved.bundle.hash.slice(0, 8)}</code>.
+            </p>
+          )}
+        </div>
+      )}
     </section>
   );
 };

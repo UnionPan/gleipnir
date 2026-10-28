@@ -200,3 +200,99 @@
     display: block;
   }
 }
+
+/* ── Tabs, replay and bars ── */
+.learn-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.5rem;
+}
+
+.learn-tab-button {
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  color: var(--text-secondary);
+  background: var(--panel-bg);
+  border: 2px solid;
+  border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark) var(--bevel-light);
+  cursor: pointer;
+}
+
+.learn-tab-button strong {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.learn-tab-button span {
+  font-size: 0.75rem;
+}
+
+.learn-tab-button.active {
+  border-color: var(--accent);
+  background: var(--well-bg);
+}
+
+.learn-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.learn-replay {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.learn-replay-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.learn-replay-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 0.75rem;
+}
+
+.learn-replay-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.learn-replay-controls input[type='range'] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.learn-replay .lab-chip .learn-chip,
+.learn-tab .lab-chip .learn-chip {
+  margin-right: 0.375rem;
+}
+
+.learn-bars-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 1rem;
+}
+
+.learn-bars {
+  margin: 0;
+  min-width: 0;
+}
+
+.learn-bars-stack .learn-bars + .learn-bars {
+  margin-top: 0.75rem;
+}
+
+.learn-bars svg {
+  display: block;
+  overflow: visible;
+}

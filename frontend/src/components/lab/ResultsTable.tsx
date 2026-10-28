@@ -1,10 +1,8 @@
 import React from 'react';
 import type { HedgeResponse, WorldResult } from '../../services/labApi';
-import type { Insight } from './insights';
 
 interface Props {
   result: HedgeResponse;
-  insight: Insight;
 }
 
 const METRICS = [
@@ -14,18 +12,15 @@ const METRICS = [
   { key: 'mean_cost', label: 'Trading cost' },
 ] as const;
 
-const ResultsTable: React.FC<Props> = ({ result, insight }) => {
+/** Every hedger's statistics in every world, over all simulated paths. */
+const ResultsTable: React.FC<Props> = ({ result }) => {
   const worlds: { key: string; world: WorldResult }[] = [
     { key: 'factual', world: result.factual },
     ...(result.counterfactual ? [{ key: 'counterfactual', world: result.counterfactual }] : []),
   ];
   const showWorld = worlds.length > 1;
   return (
-    <section className="lab-panel" aria-label="Results">
-      <div className="lab-titlebar">Results</div>
-      <div className="lab-panel-body">
-        <p className="lab-headline">{insight.headline}</p>
-        <p className="lab-detail">{insight.detail}</p>
+    <div>
         <div className="lab-table-scroll">
           <table className="lab-results">
             <thead>
@@ -63,8 +58,7 @@ const ResultsTable: React.FC<Props> = ({ result, insight }) => {
           across {result.n_paths.toLocaleString()} paths; worst 5% is the average over the worst 5% of paths.
           Every hedger sees the same paths.
         </p>
-      </div>
-    </section>
+    </div>
   );
 };
 

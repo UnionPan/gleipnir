@@ -76,7 +76,8 @@ interface Props {
   result: HedgeResponse;
 }
 
-/** The book that ran, described from the result alone (shipped or visitor calibration). */
+/** The book that ran, described from the result alone (shipped or visitor calibration): the
+ * model's parameters in each world, the premium, rates and provenance. */
 const MarketCard: React.FC<Props> = ({ catalog, result }) => {
   const { book } = result;
   const { origin } = book;
@@ -86,13 +87,9 @@ const MarketCard: React.FC<Props> = ({ catalog, result }) => {
   const drift = book.rate - book.dividend_yield;
   const whose = origin.kind === 'visitor' ? 'your calibration of' : '';
   return (
-    <section className="lab-panel" aria-label="Market and book">
-      <div className="lab-titlebar">
-        Market · {book.asset}
-        {origin.kind === 'visitor' && <span className="lab-origin-badge">Your calibration</span>}
-      </div>
-      <div className="lab-panel-body">
+    <div className="lab-market">
         <p className="lab-caption">
+          {origin.kind === 'visitor' && <span className="lab-origin-badge">Your calibration</span>}{' '}
           {info?.label}, {whose} {book.asset}'s daily closes over {origin.window.replace('..', ' to ')}.
           Prices are normalized so today's spot is 100.
         </p>
@@ -164,8 +161,7 @@ const MarketCard: React.FC<Props> = ({ catalog, result }) => {
           {book.parent_hash && <> → book <code>{short(book.params_hash)}</code></>}
           {result.counterfactual && <> → world <code>{short(result.counterfactual.params_hash)}</code></>}
         </p>
-      </div>
-    </section>
+    </div>
   );
 };
 

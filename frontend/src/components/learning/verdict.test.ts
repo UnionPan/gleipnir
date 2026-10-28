@@ -1,4 +1,4 @@
-import { verdict } from './verdict';
+import { headline, verdict } from './verdict';
 import type { DeepHedgingDemo, HedgerKey } from '../../services/rlApi';
 
 const stat = (mean: number, sd = 0.05) => ({ mean, sd, values: [mean] });
@@ -32,4 +32,10 @@ test('the verdict says no learned hedger wins when the best classical hedge is c
 test('the verdict credits the learned hedger only when it is clearly better', () => {
   expect(verdict(demo(1.2, 1.5), label).join(' ')).toContain('That beats every classical hedge here');
   expect(verdict(demo(1.65, 2.7), label).join(' ')).toContain("within the seeds' spread");
+});
+
+test('the headline names the best classical hedge and whether the learner beats it', () => {
+  expect(headline(demo(1.9, 2.7), label)).toBe('No learned hedger beats the best classical hedge, Delta-gamma.');
+  expect(headline(demo(1.2, 2.7), label)).toBe('With listed options, the learned hedger beats every classical hedge.');
+  expect(headline(demo(1.65, 2.7), label)).toContain('matches the best classical hedge, Delta-gamma');
 });

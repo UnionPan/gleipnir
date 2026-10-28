@@ -2,6 +2,16 @@ import type { DeepHedgingDemo, HedgerKey } from '../../services/rlApi';
 
 const CLASSICAL = ['bs_delta', 'delta_gamma', 'delta_gamma_vega'] as const;
 
+/** The one-line verdict: how the learned hedger with options compares with the best classical hedge. */
+export function headline(demo: DeepHedgingDemo, label: Record<HedgerKey, string>): string {
+  const r = demo.results;
+  const best = CLASSICAL.reduce((a, k) => (r[k].std_error < r[a].std_error ? k : a), CLASSICAL[0]);
+  const options = r.lstm_options.std_error;
+  if (options.mean + 2 * options.sd < r[best].std_error) return 'With listed options, the learned hedger beats every classical hedge.';
+  if (options.mean - 2 * options.sd > r[best].std_error) return `No learned hedger beats the best classical hedge, ${label[best]}.`;
+  return `With listed options, the learned hedger matches the best classical hedge, ${label[best]}, within its seeds' spread.`;
+}
+
 /** What these results say, in sentences computed from them (they stay true for any run). */
 export function verdict(demo: DeepHedgingDemo, label: Record<HedgerKey, string>): string[] {
   const r = demo.results;

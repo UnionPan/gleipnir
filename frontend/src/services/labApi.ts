@@ -128,6 +128,17 @@ export interface WorldResult {
     positions: Record<HedgerName, number[]>;
     pnl: Record<HedgerName, number>;
   };
+  /** The first simulated paths whole, for the animation (absent from older servers). */
+  paths?: SimulatedPaths;
+}
+
+/** Whole simulated paths: the same index is the same random draw in every world. */
+export interface SimulatedPaths {
+  spots: number[][];
+  positions: Record<HedgerName, number[][]>;
+  pnl: Record<HedgerName, number[]>;
+  /** The path closest to the median outcome. */
+  highlight: number;
 }
 
 export interface BookOrigin {
