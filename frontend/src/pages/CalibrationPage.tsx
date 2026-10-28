@@ -52,6 +52,7 @@ const INITIAL: CalibrationSetup = {
   startDate: '',
   endDate: '',
   riskFreeRate: 0.05,
+  minDays: 30,
 };
 
 /** What a run fitted: everything the results area shows comes from here, never from the live setup. */
@@ -153,7 +154,7 @@ const CalibrationPage: React.FC<Props> = ({ onOpenLab }) => {
         setPhase(`Fitting ${model} to ${ticker} option prices`);
         const result = await calibrationApi.calibrateQMeasure({
           ticker, model: setup.model, riskFreeRate: setup.riskFreeRate, calibrationMethod: setup.method,
-          maxiter: Q_MAXITER, filterParams: Q_FILTER,
+          maxiter: Q_MAXITER, filterParams: Q_FILTER, minDays: setup.minDays,
         }, signal);
         setPhase('Drawing the volatility surface');
         let surface: VolSurfaceResponse | null = null;

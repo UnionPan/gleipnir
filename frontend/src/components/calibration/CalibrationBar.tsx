@@ -16,6 +16,8 @@ export interface CalibrationSetup {
   startDate: string;
   endDate: string;
   riskFreeRate: number;
+  /** Option-price fits: the shortest expiry used, in days. */
+  minDays: number;
 }
 
 interface Choice {
@@ -36,6 +38,7 @@ export const P_MODELS: Choice[] = [
 
 export const Q_MODELS: Choice[] = [
   { value: 'heston', label: 'Heston', summary: 'Stochastic volatility fitted to today\'s option prices.' },
+  { value: 'bates', label: 'Bates (Heston with jumps)', summary: 'Stochastic volatility plus sudden jumps: what a steep short-dated skew needs.' },
   { value: 'sabr', label: 'SABR', summary: 'Hagan\'s smile for each expiry, with β fixed at 0.5.' },
   { value: 'dupire', label: 'Dupire local volatility', summary: 'A local-volatility surface read straight off the option prices.' },
 ];
@@ -57,6 +60,7 @@ export const METHODS: Record<Measure, Record<string, { value: string; label: str
   },
   Q: {
     heston: [{ value: 'levenberg_marquardt', label: 'Levenberg-Marquardt (exact COS gradients)' }],
+    bates: [{ value: 'levenberg_marquardt', label: 'Levenberg-Marquardt (exact COS gradients)' }],
     sabr: [{ value: 'L-BFGS-B', label: 'L-BFGS-B' }, { value: 'differential_evolution', label: 'Differential evolution (global)' }],
     dupire: [{ value: 'extraction', label: 'Direct extraction' }],
   },
@@ -197,11 +201,26 @@ const CalibrationBar: React.FC<Props> = ({ setup, onChange, onRun, running, stal
             </>
           )}
           {setup.measure === 'Q' && (
-            <label className="lab-field">
-              <span>Risk-free rate</span>
-              <input type="number" aria-label="Risk-free rate" step={0.005} min={-0.05} max={0.25} value={setup.riskFreeRate}
-                onChange={(e) => set('riskFreeRate', Number(e.target.value))} />
-            </label>
+            <>
+              <label className="lab-field">
+                <span>Risk-free rate</span>
+                <input type="number" aria-label="Risk-free rate" step={0.005} min={-0.05} max={0.25}
+                  value={setup.riskFreeRate} onChange={(e) => set('riskFreeRate', Number(e.target.value))} />
+              </label>
+              {(setup.model === 'heston' || setup.model === 'bates') && (
+                <label className="lab-field">
+                  <span>Shortest expiry</span>
+                  <select aria-label="Shortest expiry" value={setup.minDays}
+                    onChange={(e) => set('minDays', Number(e.target.value))}>
+                    {[7, 14, 30, 60].map((d) => <option key={d} value={d}>{d} days</option>)}
+                  </select>
+                </label>
+              )}
+              <p className="lab-hint lab-more-note">
+                Options expiring within a few weeks carry scheduled events such as earnings, which neither Heston nor
+                Bates has: fitted to them, both run to extreme mean reversion and vol of vol.
+              </p>
+            </>
           )}
         </div>
       )}

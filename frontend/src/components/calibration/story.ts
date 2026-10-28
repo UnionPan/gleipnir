@@ -10,6 +10,7 @@ const MODEL_LABELS: Record<string, string> = {
   regime_switching_gbm: 'Regime-switching GBM',
   merton_jump: 'Merton jump-diffusion',
   garch: 'GARCH(1,1)',
+  bates: 'Bates',
   sabr: 'SABR',
   dupire: 'Dupire local volatility',
 };

@@ -1,7 +1,7 @@
 import React from 'react';
 import type { CalibrationResponse } from '../../services/calibrationApi';
 import { chrome, ThemeName } from '../lab/chartTheme';
-import { extent, linear, useWidth } from '../lab/viz';
+import { linear, useWidth } from '../lab/viz';
 import { driftSentence, formatSig, identificationLabel, parameterDisplay } from './receiptFormat';
 
 interface Props {
@@ -47,7 +47,10 @@ const EstimateStrips: React.FC<{ rows: Estimate[]; theme: ThemeName }> = ({ rows
       <svg width={width} height={rows.length * ROW} role="img" aria-label="Each parameter's estimate and its 90% interval">
         {rows.map((r, i) => {
           const y = i * ROW + 16;
-          const x = linear(extent([r.value, r.low ?? r.value, r.high ?? r.value], 0.25), [label + 12, width - 16]);
+          // centred on the estimate and as wide as the estimate itself, so a tight interval looks tight
+          const reach = Math.max(Math.abs(r.value), r.low === null || r.high === null ? 0 : 0.6 * (r.high - r.low),
+            1e-12);
+          const x = linear([r.value - reach, r.value + reach], [label + 12, width - 16]);
           return (
             <g key={r.key}>
               <text x={label} y={y + 4} textAnchor="end" fill={c.ink} fontSize={12}>{r.label}</text>
@@ -117,8 +120,9 @@ const FitDetails: React.FC<Props> = ({ result, theme }) => {
         <EstimateStrips rows={rows} theme={theme} />
         <p className="lab-hero-note">
           The dot is the {posterior ? 'posterior mean' : 'estimate'}; the band spans its 90%{' '}
-          {posterior ? 'credible interval' : 'confidence interval'}. Each row has its own scale.{' '}
-          {d.method_label}.
+          {posterior ? 'credible interval' : 'confidence interval'}. Each row runs from zero to twice the estimate (wider
+          when the interval is), so a narrow band is a parameter the data pin down.
+          {d.method_label && <> {d.method_label}.</>}
         </p>
       </figure>
       {narrowed && (

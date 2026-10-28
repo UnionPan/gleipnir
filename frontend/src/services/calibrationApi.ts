@@ -207,6 +207,8 @@ export interface QMeasureCalibrationRequest {
   };
   calibrationMethod: string;
   maxiter: number;
+  /** Shortest expiry a Heston or Bates fit uses, in days (the server's default: 30). */
+  minDays?: number;
 }
 
 export interface QMeasureCalibrationResponse {
@@ -318,6 +320,7 @@ class CalibrationApi {
         filter_params: request.filterParams,
         calibration_method: request.calibrationMethod,
         maxiter: request.maxiter,
+        min_days: request.minDays,
       }, { signal });
       return response.data;
     } catch (error) {
