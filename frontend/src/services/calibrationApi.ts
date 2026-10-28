@@ -139,6 +139,7 @@ export type QuantileName = 'p5' | 'p25' | 'p50' | 'p75' | 'p95';
 
 /** A drift other than the policy's, drawn as the median path it would give. */
 export interface DriftScenario {
+  kind: 'positive' | 'negative' | 'historical';
   label: string;
   excess_drift: number;
   median: number[];
@@ -246,14 +247,15 @@ class CalibrationApi {
   async fetchOHLCV(
     tickers: string[],
     startDate: string,
-    endDate: string
+    endDate: string,
+    signal?: AbortSignal,
   ): Promise<OHLCVData[]> {
     try {
       const response = await axios.post(`${API_BASE_URL}/calibration/fetch-data`, {
         tickers,
         start_date: startDate,
         end_date: endDate,
-      });
+      }, { signal });
       return response.data;
     } catch (error) {
       throw new Error(describeApiError(error, 'Failed to fetch OHLCV data'));
@@ -263,7 +265,7 @@ class CalibrationApi {
   /**
    * Run P-measure calibration
    */
-  async calibrate(request: CalibrationRequest): Promise<CalibrationResponse[]> {
+  async calibrate(request: CalibrationRequest, signal?: AbortSignal): Promise<CalibrationResponse[]> {
     try {
       const response = await axios.post(`${API_BASE_URL}/calibration/calibrate`, {
         tickers: request.tickers,
@@ -273,7 +275,7 @@ class CalibrationApi {
         method: request.method,
         include_drift: request.includeDrift,
         prior: request.prior,
-      });
+      }, { signal });
       return response.data;
     } catch (error) {
       throw new Error(describeApiError(error, 'Calibration failed'));
@@ -287,7 +289,8 @@ class CalibrationApi {
     ticker: string,
     referenceDate?: string,
     riskFreeRate: number = 0.05,
-    expiry?: string
+    expiry?: string,
+    signal?: AbortSignal,
   ): Promise<OptionChainData> {
     try {
       const response = await axios.post(`${API_BASE_URL}/calibration/fetch-option-chain`, {
@@ -295,7 +298,7 @@ class CalibrationApi {
         reference_date: referenceDate,
         risk_free_rate: riskFreeRate,
         expiry,
-      });
+      }, { signal });
       return response.data;
     } catch (error) {
       throw new Error(describeApiError(error, 'Failed to fetch option chain'));
@@ -305,7 +308,7 @@ class CalibrationApi {
   /**
    * Run Q-measure calibration
    */
-  async calibrateQMeasure(request: QMeasureCalibrationRequest): Promise<QMeasureCalibrationResponse> {
+  async calibrateQMeasure(request: QMeasureCalibrationRequest, signal?: AbortSignal): Promise<QMeasureCalibrationResponse> {
     try {
       const response = await axios.post(`${API_BASE_URL}/calibration/calibrate-qmeasure`, {
         ticker: request.ticker,
@@ -315,7 +318,7 @@ class CalibrationApi {
         filter_params: request.filterParams,
         calibration_method: request.calibrationMethod,
         maxiter: request.maxiter,
-      });
+      }, { signal });
       return response.data;
     } catch (error) {
       throw new Error(describeApiError(error, 'Q-measure calibration failed'));
@@ -325,7 +328,7 @@ class CalibrationApi {
   /**
    * Run counterfactual simulation from calibrated parameters
    */
-  async simulate(request: SimulationRequest): Promise<SimulationResponse> {
+  async simulate(request: SimulationRequest, signal?: AbortSignal): Promise<SimulationResponse> {
     try {
       const response = await axios.post(`${API_BASE_URL}/calibration/simulate`, {
         model: request.model,
@@ -338,7 +341,7 @@ class CalibrationApi {
         random_seed: request.randomSeed,
         risk_free_rate: request.riskFreeRate,
         dividend_yield: request.dividendYield,
-      });
+      }, { signal });
       return response.data;
     } catch (error) {
       throw new Error(describeApiError(error, 'Simulation failed'));
@@ -348,7 +351,7 @@ class CalibrationApi {
   /**
    * Generate 3D volatility surface from calibrated Q-measure model
    */
-  async generateVolSurface(request: VolSurfaceRequest): Promise<VolSurfaceResponse> {
+  async generateVolSurface(request: VolSurfaceRequest, signal?: AbortSignal): Promise<VolSurfaceResponse> {
     try {
       const response = await axios.post(`${API_BASE_URL}/calibration/vol-surface`, {
         ticker: request.ticker,
@@ -361,7 +364,7 @@ class CalibrationApi {
         n_maturities: request.nMaturities,
         strike_range: request.strikeRange,
         maturity_range: request.maturityRange,
-      });
+      }, { signal });
       return response.data;
     } catch (error) {
       throw new Error(describeApiError(error, 'Volatility surface generation failed'));

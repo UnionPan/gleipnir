@@ -75,6 +75,7 @@ export function baseLayout(theme: ThemeName, overrides: Partial<Layout> = {}): P
     ...overrides,
     xaxis: axis(overrides.xaxis),
     yaxis: axis(overrides.yaxis),
+    ...(overrides.yaxis2 ? { yaxis2: axis(overrides.yaxis2) } : {}),
   };
 }
 

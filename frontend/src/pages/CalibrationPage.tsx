@@ -1,697 +1,411 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import './HedgingLabPage.css';
 import './CalibrationPage.css';
-import AssetSelector from '../components/calibration/AssetSelector';
-import ModelConfiguration from '../components/calibration/ModelConfiguration';
-import OHLCVChart from '../components/calibration/OHLCVChart';
-import CalibrationResults from '../components/calibration/CalibrationResults';
-import SimulationResults from '../components/calibration/SimulationResults';
-import VolatilitySurface3D from '../components/calibration/VolatilitySurface3D';
-import { calibrationApi, CalibrationResponse, OptionChainData, PriorChoice, QMeasureCalibrationResponse, SimulationResponse, VolSurfaceResponse } from '../services/calibrationApi';
+import { useTheme } from '../contexts/ThemeContext';
+import {
+  calibrationApi,
+  CalibrationResponse,
+  OHLCVData,
+  OptionChainData,
+  SimulationResponse,
+  VolSurfaceResponse,
+} from '../services/calibrationApi';
 import type { CalibrationBundle } from '../services/labApi';
 import { saveBundle } from '../services/labBundles';
+import CalibrationBar, { CalibrationSetup, parseTickers } from '../components/calibration/CalibrationBar';
+import FutureFan from '../components/calibration/FutureFan';
+import ReproductionCheck from '../components/calibration/ReproductionCheck';
+import FitDetails from '../components/calibration/FitDetails';
+import OHLCVChart from '../components/calibration/OHLCVChart';
 import SavedToLab from '../components/calibration/SavedToLab';
+import VolatilitySurface3D from '../components/calibration/VolatilitySurface3D';
+import Disclosure from '../components/common/Disclosure';
+import { headline, keyNumbers, missedFeatures, modelLabel } from '../components/calibration/story';
 
-export interface Asset {
-  ticker: string;
-  name: string;
+// Simulated futures drift at r - q; with no option chain at hand, q is 0.
+const RISK_FREE_RATE = 0.04;
+const SIM_PATHS = 1000;
+const SIM_PATHS_SHOWN = 50;
+const SIM_SEED = 7;
+const DEFAULT_HORIZON = 252;
+// What Q fits keep from the chain: liquid quotes near the money.
+const Q_FILTER = { min_volume: 10, min_open_interest: 50, max_spread_pct: 0.5, moneyness_range: [0.8, 1.2] as [number, number] };
+const Q_MAXITER = 200;
+
+const isoDate = (d: Date) => d.toISOString().slice(0, 10);
+
+function windowDates(setup: CalibrationSetup, today: Date = new Date()): { start: string; end: string } {
+  if (setup.windowYears === null) return { start: setup.startDate, end: setup.endDate };
+  const start = new Date(today);
+  start.setFullYear(start.getFullYear() - setup.windowYears);
+  return { start: isoDate(start), end: isoDate(today) };
 }
 
-export interface CalibrationConfig {
-  model: string;
-  startDate: string;
-  endDate: string;
-  calibrationMethod: string;
-  includeDrift: boolean;
-  prior: PriorChoice;
-  riskFreeRate?: number;
+const INITIAL: CalibrationSetup = {
+  measure: 'P',
+  tickers: 'SPY',
+  model: 'heston',
+  method: 'bayesian',
+  prior: 'sector',
+  includeDrift: true,
+  windowYears: 5,
+  startDate: '',
+  endDate: '',
+  riskFreeRate: 0.05,
+};
+
+/** What a run fitted: everything the results area shows comes from here, never from the live setup. */
+interface Fitted {
+  measure: CalibrationSetup['measure'];
+  results: CalibrationResponse[];
+  histories: Record<string, OHLCVData>;
+  chain: OptionChainData | null;
+  surface: VolSurfaceResponse | null;
+  surfaceError: string | null;
+  bundles: CalibrationBundle[];
+  storageFailed: boolean;
 }
 
-export type CalibrationResult = CalibrationResponse;
+const simKey = (ticker: string, horizon: number) => `${ticker}:${horizon}`;
 
-type MeasureType = 'P' | 'Q';
+const shortDate = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00Z`)
+  .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 
-// Daily steps; the API caps the horizon at 2 years (beyond it the drift policy
-// needs an equilibrium model the site does not have yet).
-const HORIZONS = [
-  { days: 21, label: '1 month' },
-  { days: 63, label: '3 months' },
-  { days: 126, label: '6 months' },
-  { days: 252, label: '1 year' },
-  { days: 504, label: '2 years' },
-];
-const DEFAULT_RISK_FREE_RATE = 0.04;
+function message(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
 
-const CalibrationPage: React.FC = () => {
-  const [measureType, setMeasureType] = useState<MeasureType>('P');
-  const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
-  const [config, setConfig] = useState<CalibrationConfig>({
-    model: 'heston',
-    startDate: '',
-    endDate: '',
-    calibrationMethod: 'bayesian',
-    includeDrift: true,
-    prior: 'sector',
-    riskFreeRate: 0.05,
-  });
-  const [ohlcvData, setOhlcvData] = useState<any[]>([]);
-  const [optionChainData, setOptionChainData] = useState<OptionChainData | null>(null);
-  const [calibrationResults, setCalibrationResults] = useState<CalibrationResult[]>([]);
-  const [qMeasureResult, setQMeasureResult] = useState<QMeasureCalibrationResponse | null>(null);
-  const [savedBundles, setSavedBundles] = useState<CalibrationBundle[]>([]);
-  const [labStorageFailed, setLabStorageFailed] = useState(false);
-  const [isLoadingData, setIsLoadingData] = useState(false);
-  const [isCalibrating, setIsCalibrating] = useState(false);
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [simulationError, setSimulationError] = useState<string | null>(null);
-  const [simulationResult, setSimulationResult] = useState<SimulationResponse | null>(null);
-  const [simulationTicker, setSimulationTicker] = useState<string>('');
-  const [simulationConfig, setSimulationConfig] = useState({
-    nPaths: 1000,
-    nSteps: 252,
+function simulate(result: CalibrationResponse, history: OHLCVData, horizon: number, signal: AbortSignal) {
+  return calibrationApi.simulate({
+    model: result.model,
+    parameters: result.parameters,
+    s0: history.close[history.close.length - 1],
+    nSteps: horizon,
+    nPaths: SIM_PATHS,
     dt: 1 / 252,
-    s0: 100,
-  });
-  const [volSurfaceData, setVolSurfaceData] = useState<VolSurfaceResponse | null>(null);
-  const [isGeneratingSurface, setIsGeneratingSurface] = useState(false);
-  const [surfaceError, setSurfaceError] = useState<string | null>(null);
+    riskFreeRate: RISK_FREE_RATE,
+    dividendYield: 0,
+    maxPathsReturn: SIM_PATHS_SHOWN,
+    randomSeed: SIM_SEED,
+  }, signal);
+}
 
-  React.useEffect(() => {
-    if (measureType !== 'P' || !simulationTicker) {
-      return;
-    }
-    const match = ohlcvData.find((d) => d.ticker === simulationTicker);
-    if (match && match.close.length > 0) {
-      setSimulationConfig((prev) => ({
-        ...prev,
-        s0: match.close[match.close.length - 1],
-      }));
-    }
-  }, [measureType, simulationTicker, ohlcvData]);
+interface Props {
+  onOpenLab?: () => void;
+}
 
-  const handleAssetChange = (assets: Asset[]) => {
-    setSelectedAssets(assets);
-    // Clear previous data when assets change
-    setOhlcvData([]);
-    setOptionChainData(null);
-    setCalibrationResults([]);
-    setQMeasureResult(null);
-    setSimulationResult(null);
-    setSimulationError(null);
-    setVolSurfaceData(null);
-    setSurfaceError(null);
+const CalibrationPage: React.FC<Props> = ({ onOpenLab }) => {
+  const { theme } = useTheme();
+  const [setup, setSetup] = useState<CalibrationSetup>(INITIAL);
+  const [fitted, setFitted] = useState<Fitted | null>(null);
+  const [lastRun, setLastRun] = useState('');
+  const [active, setActive] = useState('');
+  const [horizon, setHorizon] = useState(DEFAULT_HORIZON);
+  const [sims, setSims] = useState<Record<string, SimulationResponse>>({});
+  const [simulating, setSimulating] = useState(false);
+  const [simError, setSimError] = useState<string | null>(null);
+  const [phase, setPhase] = useState<string | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const inFlight = useRef<AbortController | null>(null);
+  const simFlight = useRef<AbortController | null>(null);
+
+  useEffect(() => () => {
+    inFlight.current?.abort();
+    simFlight.current?.abort();
+  }, []);
+
+  const run = useCallback(async () => {
+    inFlight.current?.abort();
+    simFlight.current?.abort();
+    const controller = new AbortController();
+    inFlight.current = controller;
+    const { signal } = controller;
+    const tickers = parseTickers(setup.tickers);
+    const model = modelLabel(setup.model);
+    const started = performance.now();
+    const timer = window.setInterval(() => setElapsed((performance.now() - started) / 1000), 100);
     setError(null);
-  };
-
-  const handleMeasureTypeChange = (type: MeasureType) => {
-    setMeasureType(type);
-    // Clear data when switching measure types
-    setOhlcvData([]);
-    setOptionChainData(null);
-    setCalibrationResults([]);
-    setQMeasureResult(null);
-    setSimulationResult(null);
-    setSimulationError(null);
-    setVolSurfaceData(null);
-    setSurfaceError(null);
-    setError(null);
-
-    // Set appropriate defaults for Q-measure
-    if (type === 'Q') {
-      setConfig({
-        ...config,
-        model: 'heston',
-        calibrationMethod: 'levenberg_marquardt',
-        riskFreeRate: 0.05,
-      });
-    }
-  };
-
-  const handleConfigChange = (newConfig: Partial<CalibrationConfig>) => {
-    const fitChanged = (newConfig.model !== undefined && newConfig.model !== config.model)
-      || (newConfig.calibrationMethod !== undefined && newConfig.calibrationMethod !== config.calibrationMethod)
-      || (newConfig.prior !== undefined && newConfig.prior !== config.prior);
-    if (fitChanged) {
-      // A result on screen must belong to the model shown in the picker.
-      setCalibrationResults([]);
-      setSavedBundles([]);
-      setLabStorageFailed(false);
-      setQMeasureResult(null);
-      setSimulationResult(null);
-      setSimulationError(null);
-      setVolSurfaceData(null);
-      setSurfaceError(null);
-    }
-    setConfig({ ...config, ...newConfig });
-  };
-
-  const handleFetchData = async () => {
-    if (selectedAssets.length === 0) {
-      setError('Please select at least one asset');
-      return;
-    }
-
-    setIsLoadingData(true);
-    setError(null);
-
+    setElapsed(0);
     try {
-      if (measureType === 'P') {
-        // Fetch OHLCV data for P-measure
-        if (!config.startDate || !config.endDate) {
-          setError('Please select start and end dates');
-          setIsLoadingData(false);
-          return;
-        }
-
-        const tickers = selectedAssets.map(a => a.ticker);
-        const data = await calibrationApi.fetchOHLCV(
-          tickers,
-          config.startDate,
-          config.endDate
-        );
-        setOhlcvData(data);
+      if (setup.measure === 'P') {
+        const { start, end } = windowDates(setup);
+        setPhase(`Downloading ${tickers.join(', ')} daily prices`);
+        const data = await calibrationApi.fetchOHLCV(tickers, start, end, signal);
+        const histories = Object.fromEntries(data.map((d) => [d.ticker, d]));
+        setPhase(`Fitting ${model} to ${data[0]?.dates.length.toLocaleString('en-US') ?? 'the'} trading days`);
+        const results = await calibrationApi.calibrate({
+          tickers, model: setup.model, startDate: start, endDate: end, method: setup.method,
+          includeDrift: setup.includeDrift, prior: setup.prior,
+        }, signal);
+        const bundles = results.map((r) => r.lab_bundle).filter((b): b is CalibrationBundle => !!b);
+        const storageFailed = !bundles.every((b) => saveBundle(b));
+        const first = results[0];
+        setPhase(`Simulating ${SIM_PATHS.toLocaleString('en-US')} futures of ${first.ticker}`);
+        const sim = await simulate(first, histories[first.ticker], horizon, signal);
+        setFitted({ measure: 'P', results, histories, chain: null, surface: null, surfaceError: null, bundles, storageFailed });
+        setSims({ [simKey(first.ticker, horizon)]: sim });
+        setActive(first.ticker);
       } else {
-        // Fetch option chain for Q-measure (single asset only)
-        if (selectedAssets.length > 1) {
-          setError('Q-measure calibration supports single asset only');
-          setIsLoadingData(false);
-          return;
-        }
-
-        const ticker = selectedAssets[0].ticker;
-        const chainData = await calibrationApi.fetchOptionChain(
-          ticker,
-          undefined, // Use today's date
-          config.riskFreeRate || 0.05
-        );
-        setOptionChainData(chainData);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch data');
-    } finally {
-      setIsLoadingData(false);
-    }
-  };
-
-  const handleCalibrate = async () => {
-    setIsCalibrating(true);
-    setError(null);
-
-    try {
-      if (measureType === 'P') {
-        if (ohlcvData.length === 0) {
-          setError('Please fetch data first');
-          setIsCalibrating(false);
-          return;
-        }
-
-        const tickers = selectedAssets.map(a => a.ticker);
-      const results = await calibrationApi.calibrate({
-        tickers,
-        model: config.model,
-        startDate: config.startDate,
-        endDate: config.endDate,
-        method: config.calibrationMethod,
-        includeDrift: config.includeDrift,
-        prior: config.prior,
-      });
-      setCalibrationResults(results);
-      const bundles = results.map((r) => r.lab_bundle).filter((b): b is CalibrationBundle => !!b);
-      setLabStorageFailed(!bundles.every((b) => saveBundle(b)));
-      setSavedBundles(bundles);
-        if (results.length > 0) {
-          setSimulationTicker(results[0].ticker);
-          const match = ohlcvData.find((d) => d.ticker === results[0].ticker);
-          if (match && match.close.length > 0) {
-            setSimulationConfig((prev) => ({
-              ...prev,
-              s0: match.close[match.close.length - 1],
-            }));
-          }
-        }
-      } else {
-        if (!optionChainData) {
-          setError('Please fetch option chain first');
-          setIsCalibrating(false);
-          return;
-        }
-
+        const ticker = tickers[0];
+        setPhase(`Downloading ${ticker} option chain`);
+        const chain = await calibrationApi.fetchOptionChain(ticker, undefined, setup.riskFreeRate, undefined, signal);
+        setPhase(`Fitting ${model} to ${ticker} option prices`);
         const result = await calibrationApi.calibrateQMeasure({
-          ticker: selectedAssets[0].ticker,
-          model: config.model,
-          riskFreeRate: config.riskFreeRate || 0.05,
-          calibrationMethod: config.calibrationMethod === 'mle' ? 'differential_evolution' : config.calibrationMethod,
-          maxiter: 200,
-          filterParams: {
-            min_volume: 10,
-            min_open_interest: 50,
-            max_spread_pct: 0.5,
-            moneyness_range: [0.8, 1.2],
-          },
-        });
-        setQMeasureResult(result);
-        if (optionChainData) {
-          setSimulationConfig((prev) => ({
-            ...prev,
-            s0: optionChainData.spot_price,
-          }));
+          ticker, model: setup.model, riskFreeRate: setup.riskFreeRate, calibrationMethod: setup.method,
+          maxiter: Q_MAXITER, filterParams: Q_FILTER,
+        }, signal);
+        setPhase('Drawing the volatility surface');
+        let surface: VolSurfaceResponse | null = null;
+        let surfaceError: string | null = null;
+        try {
+          surface = await calibrationApi.generateVolSurface({
+            ticker, model: result.model, parameters: result.parameters, spotPrice: chain.spot_price,
+            riskFreeRate: setup.riskFreeRate, dividendYield: chain.dividend_yield || 0, nStrikes: 30, nMaturities: 20,
+            strikeRange: [0.7, 1.3], maturityRange: [0.05, 2.0],
+          }, signal);
+        } catch (e) {
+          // the fit stands without its surface; a cancelled run is handled below
+          if (signal.aborted) throw e;
+          surfaceError = message(e);
         }
+        setFitted({
+          measure: 'Q', results: [{ ...result, measure: 'Q-measure', method: setup.method }], histories: {}, chain,
+          surface, surfaceError, bundles: [], storageFailed: false,
+        });
+        setSims({});
+        setActive(ticker);
       }
-    } catch (err: any) {
-      setError(err.message || 'Calibration failed');
+      setLastRun(JSON.stringify(setup));
+      setSimError(null);
+    } catch (e) {
+      if (message(e) !== 'cancelled') setError(message(e));
     } finally {
-      setIsCalibrating(false);
+      window.clearInterval(timer);
+      if (inFlight.current === controller) setPhase(null);
     }
-  };
+  }, [setup, horizon]);
 
-  const handleDownloadResults = () => {
-    const dataToDownload = measureType === 'P' ? calibrationResults : qMeasureResult;
-    if (!dataToDownload || (Array.isArray(dataToDownload) && dataToDownload.length === 0)) return;
-
-    const dataStr = JSON.stringify(dataToDownload, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-
-    const measureLabel = measureType === 'P' ? 'pmeasure' : 'qmeasure';
-    const exportFileDefaultName = `calibration_${measureLabel}_${new Date().toISOString().split('T')[0]}.json`;
-
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-  };
-
-  const hasResults = measureType === 'P' ? calibrationResults.length > 0 : qMeasureResult !== null;
-  const hasData = measureType === 'P' ? ohlcvData.length > 0 : optionChainData !== null;
-
-  const selectedResult = measureType === 'P'
-    ? calibrationResults.find((r) => r.ticker === simulationTicker) || calibrationResults[0]
-    : qMeasureResult;
-
-  const handleRunSimulation = async () => {
-    if (!selectedResult) {
-      setSimulationError('No calibration results available');
-      return;
-    }
-
-    setIsSimulating(true);
-    setSimulationError(null);
-
+  // A horizon or a ticker not simulated yet: simulate it, keeping the last fan on screen meanwhile.
+  const showFutures = useCallback(async (ticker: string, days: number) => {
+    setActive(ticker);
+    setHorizon(days);
+    if (!fitted || fitted.measure !== 'P' || sims[simKey(ticker, days)]) return;
+    const result = fitted.results.find((r) => r.ticker === ticker);
+    if (!result) return;
+    simFlight.current?.abort();
+    const controller = new AbortController();
+    simFlight.current = controller;
+    setSimulating(true);
+    setSimError(null);
     try {
-      const result = await calibrationApi.simulate({
-        model: selectedResult.model,
-        parameters: selectedResult.parameters,
-        s0: simulationConfig.s0,
-        nSteps: simulationConfig.nSteps,
-        nPaths: simulationConfig.nPaths,
-        dt: simulationConfig.dt,
-        riskFreeRate: optionChainData?.risk_free_rate ?? DEFAULT_RISK_FREE_RATE,
-        dividendYield: optionChainData?.dividend_yield ?? 0,
-        maxPathsReturn: 20,
-      });
-      setSimulationResult(result);
-    } catch (err: any) {
-      setSimulationError(err.message || 'Simulation failed');
+      const sim = await simulate(result, fitted.histories[ticker], days, controller.signal);
+      setSims((prev) => ({ ...prev, [simKey(ticker, days)]: sim }));
+    } catch (e) {
+      if (message(e) !== 'cancelled') setSimError(message(e));
     } finally {
-      setIsSimulating(false);
+      if (simFlight.current === controller) setSimulating(false);
     }
+  }, [fitted, sims]);
+
+  const download = () => {
+    if (!fitted) return;
+    const data = fitted.measure === 'P' ? fitted.results : fitted.results[0];
+    const link = document.createElement('a');
+    link.href = `data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
+    link.download = `calibration_${fitted.measure === 'P' ? 'pmeasure' : 'qmeasure'}_${isoDate(new Date())}.json`;
+    link.click();
   };
 
-  const handleGenerateVolSurface = async () => {
-    if (!qMeasureResult || !optionChainData) {
-      setSurfaceError('Q-measure calibration required');
-      return;
-    }
-
-    setIsGeneratingSurface(true);
-    setSurfaceError(null);
-
-    try {
-      const surfaceData = await calibrationApi.generateVolSurface({
-        ticker: qMeasureResult.ticker,
-        model: qMeasureResult.model,
-        parameters: qMeasureResult.parameters,
-        spotPrice: optionChainData.spot_price,
-        riskFreeRate: config.riskFreeRate || 0.05,
-        dividendYield: optionChainData.dividend_yield || 0.0,
-        nStrikes: 30,
-        nMaturities: 20,
-        strikeRange: [0.7, 1.3],
-        maturityRange: [0.05, 2.0],
-      });
-      setVolSurfaceData(surfaceData);
-    } catch (err: any) {
-      setSurfaceError(err.message || 'Volatility surface generation failed');
-    } finally {
-      setIsGeneratingSurface(false);
-    }
-  };
+  const running = phase !== null;
+  const stale = !!lastRun && JSON.stringify(setup) !== lastRun;
+  const result = fitted?.results.find((r) => r.ticker === active) ?? fitted?.results[0];
+  const history = result ? fitted?.histories[result.ticker] : undefined;
+  // the fan on screen: this ticker at this horizon, or while that one loads, the last one simulated for it
+  const sim = result ? (sims[simKey(result.ticker, horizon)]
+    ?? Object.entries(sims).find(([k]) => k.startsWith(`${result.ticker}:`))?.[1]) : undefined;
 
   return (
-    <div className="calibration-page">
-      <div className="page-header">
+    <div className="lab-page calib-page">
+      <header className="page-header">
         <h1>Model Calibration</h1>
         <p className="page-subtitle">
-          Calibrate {measureType}-measure models to market data
+          Fit a model of how a stock moves to its real prices, check what the fit gets right, and watch the futures it
+          implies.
         </p>
-      </div>
-
-      {/* Measure Type Selector */}
-      <div className="measure-selector">
-        <button
-          className={`measure-btn ${measureType === 'P' ? 'active' : ''}`}
-          onClick={() => handleMeasureTypeChange('P')}
-        >
-          <strong>P-measure</strong>
-          <span>Historical Data (Real-world)</span>
-        </button>
-        <button
-          className={`measure-btn ${measureType === 'Q' ? 'active' : ''}`}
-          onClick={() => handleMeasureTypeChange('Q')}
-        >
-          <strong>Q-measure</strong>
-          <span>Option Prices (Risk-neutral)</span>
-        </button>
-      </div>
+      </header>
 
       {error && (
-        <div className="error-banner">
-          <span className="error-icon">⚠️</span>
+        <div className="lab-error" role="alert">
           <span>{error}</span>
-          <button className="error-close" onClick={() => setError(null)}>×</button>
+          <button type="button" className="error-close" onClick={() => setError(null)} aria-label="Dismiss">×</button>
         </div>
       )}
 
-      <div className="calibration-layout">
-        <div className="configuration-card">
-          <div className="configuration-top">
-            <div className="configuration-left">
-              <AssetSelector
-                selectedAssets={selectedAssets}
-                onAssetChange={handleAssetChange}
-              />
-            </div>
+      <CalibrationBar setup={setup} onChange={setSetup} onRun={() => void run()} running={running} stale={stale} />
 
-            <div className="configuration-right">
-              <ModelConfiguration
-                config={config}
-                onConfigChange={handleConfigChange}
-                measureType={measureType}
-                showDateRange={false}
-              />
-
-              {measureType === 'P' && (
-                <div className="date-range-panel">
-                  <div className="date-range-row">
-                    <div className="config-group">
-                      <label htmlFor="start-date">Start Date:</label>
-                      <input
-                        id="start-date"
-                        type="date"
-                        value={config.startDate}
-                        onChange={(e) => handleConfigChange({ startDate: e.target.value })}
-                        className="config-input"
-                      />
-                    </div>
-
-                    <div className="config-group">
-                      <label htmlFor="end-date">End Date:</label>
-                      <input
-                        id="end-date"
-                        type="date"
-                        value={config.endDate}
-                        onChange={(e) => handleConfigChange({ endDate: e.target.value })}
-                        className="config-input"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="date-presets">
-                    <label>Quick Presets:</label>
-                    <div className="preset-buttons">
-                      {[
-                        { label: '1M', months: 1 },
-                        { label: '3M', months: 3 },
-                        { label: '6M', months: 6 },
-                        { label: '1Y', months: 12 },
-                        { label: '2Y', months: 24 },
-                        { label: '5Y', months: 60 },
-                      ].map(preset => (
-                        <button
-                          key={preset.label}
-                          className="preset-btn"
-                          onClick={() => {
-                            const end = new Date();
-                            const start = new Date();
-                            start.setMonth(start.getMonth() - preset.months);
-                            handleConfigChange({
-                              startDate: start.toISOString().split('T')[0],
-                              endDate: end.toISOString().split('T')[0],
-                            });
-                          }}
-                        >
-                          {preset.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="action-buttons">
-            <button
-              className="btn btn-primary"
-              onClick={handleFetchData}
-              disabled={isLoadingData || selectedAssets.length === 0}
-            >
-              {isLoadingData ? (
-                <>
-                  <span className="spinner"></span>
-                  Fetching Data...
-                </>
-              ) : (
-                measureType === 'P' ? 'Fetch Historical Data' : 'Fetch Option Chain'
-              )}
-            </button>
-
-            <button
-              className="btn btn-secondary"
-              onClick={handleCalibrate}
-              disabled={isCalibrating || !hasData}
-            >
-              {isCalibrating ? (
-                <>
-                  <span className="spinner"></span>
-                  Calibrating...
-                </>
-              ) : (
-                'Calibrate Model'
-              )}
-            </button>
-          </div>
+      {running && (
+        <div className="lab-progress" role="status">
+          <span className="lab-progress-bar" aria-hidden />
+          {phase}
+          <span className="lab-progress-time">{elapsed.toFixed(1)} s</span>
         </div>
+      )}
 
-        <div className="results-panel">
-          {measureType === 'P' && ohlcvData.length > 0 && (
-            <div className="chart-section">
-              <h2>Historical OHLCV Data</h2>
-              <OHLCVChart data={ohlcvData} assets={selectedAssets} />
-            </div>
-          )}
-
-          {measureType === 'Q' && optionChainData && (
-            <div className="chart-section">
-              <h2>Option Chain Data</h2>
-              <div className="option-chain-summary">
-                <div className="summary-item">
-                  <span className="label">Spot Price:</span>
-                  <span className="value">${optionChainData.spot_price.toFixed(2)}</span>
-                </div>
-                <div className="summary-item">
-                  <span className="label">Total Options:</span>
-                  <span className="value">{optionChainData.n_options}</span>
-                </div>
-                <div className="summary-item">
-                  <span className="label">Expiries:</span>
-                  <span className="value">{optionChainData.expiries.length}</span>
-                </div>
-                <div className="summary-item">
-                  <span className="label">Risk-free Rate:</span>
-                  <span className="value">{(optionChainData.risk_free_rate * 100).toFixed(2)}%</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {hasResults && (
-            <div className="results-section">
-              <div className="results-header">
-                <h2>Calibration Results</h2>
-                <button
-                  className="btn btn-download"
-                  onClick={handleDownloadResults}
-                >
-                  📥 Download JSON
-                </button>
-              </div>
-              {measureType === 'P' && <SavedToLab bundles={savedBundles} storageFailed={labStorageFailed} />}
-              {measureType === 'P' && <CalibrationResults results={calibrationResults} />}
-              {measureType === 'Q' && qMeasureResult && (
-                <CalibrationResults results={[{
-                  model: qMeasureResult.model,
-                  parameters: qMeasureResult.parameters,
-                  diagnostics: qMeasureResult.diagnostics,
-                  timestamp: qMeasureResult.timestamp,
-                  ticker: qMeasureResult.ticker,
-                  method: config.calibrationMethod,
-                  measure: 'Q-measure',
-                }]} />
-              )}
-            </div>
-          )}
-
-          {measureType === 'Q' && qMeasureResult && optionChainData && (
-            <div className="vol-surface-section">
-              <div className="vol-surface-header">
-                <h2>Volatility Surface</h2>
-                <button
-                  className="btn btn-primary"
-                  onClick={handleGenerateVolSurface}
-                  disabled={isGeneratingSurface}
-                >
-                  {isGeneratingSurface ? (
-                    <>
-                      <span className="spinner"></span>
-                      Generating Surface...
-                    </>
-                  ) : (
-                    'Generate 3D Surface'
-                  )}
-                </button>
-              </div>
-
-              {surfaceError && (
-                <div className="error-banner">
-                  <span className="error-icon">⚠️</span>
-                  <span>{surfaceError}</span>
-                  <button className="error-close" onClick={() => setSurfaceError(null)}>×</button>
-                </div>
-              )}
-
-              <VolatilitySurface3D
-                surfaceData={volSurfaceData}
-                isLoading={isGeneratingSurface}
-                optionChainData={optionChainData}
-                spotPrice={optionChainData?.spot_price}
-              />
-            </div>
-          )}
-
-          {measureType === 'P' && hasResults && selectedResult && (
-            <div className="simulation-section">
-              <div className="simulation-header">
-                <h2>Counterfactual Simulation</h2>
-              </div>
-
-              <div className="simulation-controls">
-                {calibrationResults.length > 1 && (
-                  <div className="control-field">
-                    <label>Ticker</label>
-                    <select
-                      value={simulationTicker}
-                      onChange={(e) => setSimulationTicker(e.target.value)}
-                    >
-                      {calibrationResults.map((res) => (
-                        <option key={res.ticker} value={res.ticker}>
-                          {res.ticker}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="control-field">
-                  <label htmlFor="simulation-s0">Initial Spot (S0)</label>
-                  <input
-                    id="simulation-s0"
-                    type="number"
-                    value={simulationConfig.s0}
-                    onChange={(e) => setSimulationConfig({
-                      ...simulationConfig,
-                      s0: Number(e.target.value),
-                    })}
-                  />
-                </div>
-
-                <div className="control-field">
-                  <label htmlFor="simulation-paths">Paths</label>
-                  <input
-                    id="simulation-paths"
-                    type="number"
-                    min={10}
-                    max={2000}
-                    value={simulationConfig.nPaths}
-                    onChange={(e) => setSimulationConfig({
-                      ...simulationConfig,
-                      nPaths: Number(e.target.value),
-                    })}
-                  />
-                </div>
-
-                <div className="control-field">
-                  <label htmlFor="simulation-horizon">Horizon</label>
-                  <select
-                    id="simulation-horizon"
-                    value={simulationConfig.nSteps}
-                    onChange={(e) => setSimulationConfig({
-                      ...simulationConfig,
-                      nSteps: Number(e.target.value),
-                      dt: 1 / 252,
-                    })}
-                  >
-                    {HORIZONS.map((h) => (
-                      <option key={h.days} value={h.days}>{h.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <button
-                  className="btn btn-primary"
-                  onClick={handleRunSimulation}
-                  disabled={isSimulating}
-                >
-                  {isSimulating ? 'Simulating...' : 'Run Simulation'}
-                </button>
-              </div>
-
-              {simulationError && (
-                <div className="error-banner">
-                  <span className="error-icon">⚠️</span>
-                  <span>{simulationError}</span>
-                  <button className="error-close" onClick={() => setSimulationError(null)}>×</button>
-                </div>
-              )}
-
-              {simulationResult && (
-                <SimulationResults data={simulationResult} />
-              )}
-            </div>
-          )}
-
-          {!hasData && !hasResults && (
-            <div className="empty-state">
-              <div className="empty-icon">📈</div>
-              <h3>No Data Yet</h3>
-              <p>
-                {measureType === 'P'
-                  ? 'Select assets and fetch historical data to begin calibration'
-                  : 'Select an asset and fetch option chain to begin calibration'}
-              </p>
-            </div>
-          )}
+      {!fitted && !running && (
+        <div className="calib-start">
+          <p>
+            Pick a stock and a model, then <strong>Calibrate</strong>: the model is fitted to the stock&apos;s daily prices,
+            checked against histories simulated from the fit, and run forward from today&apos;s price.
+          </p>
+          <button type="button" className="lab-run" onClick={() => void run()}>
+            Calibrate {modelLabel(setup.model)} to {parseTickers(setup.tickers).join(', ') || 'a stock'}
+          </button>
         </div>
-      </div>
+      )}
+
+      {fitted && result && (
+        <div className={`lab-results-area ${running ? 'lab-refetching' : ''}`} aria-busy={running}>
+          <section className="lab-panel" aria-label="Calibration result">
+            <div className="lab-titlebar">
+              {result.ticker} · {modelLabel(result.model)} ·{' '}
+              {fitted.measure === 'P' && history
+                ? `${history.dates.length.toLocaleString('en-US')} trading days to ${shortDate(history.dates[history.dates.length - 1])}`
+                : `option chain of ${shortDate(fitted.chain?.reference_date ?? result.timestamp)}`}
+            </div>
+            <div className="lab-panel-body">
+              {fitted.results.length > 1 && (
+                <div className="lab-view" role="radiogroup" aria-label="Stock shown">
+                  {fitted.results.map((r) => (
+                    <button key={r.ticker} type="button" role="radio" aria-checked={r.ticker === result.ticker}
+                      className={`lab-view-option ${r.ticker === result.ticker ? 'active' : ''}`}
+                      onClick={() => void showFutures(r.ticker, horizon)}>{r.ticker}</button>
+                  ))}
+                </div>
+              )}
+              <div className="lab-verdict">
+                <p className="lab-headline">{headline(result)}</p>
+              </div>
+              <dl className="calib-numbers">
+                {keyNumbers(result).map((k) => (
+                  <div key={k.key} title={k.hint}>
+                    <dt>{k.label}</dt>
+                    <dd>{k.value}</dd>
+                  </div>
+                ))}
+              </dl>
+
+              {fitted.measure === 'P' && history && (sim
+                ? (
+                  <FutureFan ticker={result.ticker} model={modelLabel(result.model)} dates={history.dates}
+                    closes={history.close} simulation={sim} theme={theme} horizon={horizon} simulating={simulating}
+                    onHorizon={(days) => void showFutures(result.ticker, days)} />
+                )
+                : <p className="lab-empty">{simError ?? 'Simulating futures…'}</p>)}
+              {simError && sim && <p className="lab-error-inline" role="alert">{simError}</p>}
+
+              {fitted.measure === 'Q' && fitted.chain && (fitted.surface
+                ? <VolatilitySurface3D surface={fitted.surface} chain={fitted.chain} theme={theme} />
+                : <p className="lab-empty">The volatility surface could not be drawn: {fitted.surfaceError}</p>)}
+
+              {fitted.measure === 'P' && (
+                <SavedToLab bundles={fitted.bundles} storageFailed={fitted.storageFailed} onOpenLab={onOpenLab} />
+              )}
+            </div>
+          </section>
+
+          {result.diagnostics.predictive_check && (
+            <Disclosure title={`Does ${modelLabel(result.model)} reproduce ${result.ticker}'s history?`}
+              hint={(() => {
+                const n = result.diagnostics.predictive_check.aspects.length;
+                const missed = missedFeatures(result).length;
+                return `${n - missed} of ${n} features, against ${result.diagnostics.predictive_check.n_replicates} simulated histories`;
+              })()}>
+              <ReproductionCheck check={result.diagnostics.predictive_check} ticker={result.ticker} theme={theme} />
+            </Disclosure>
+          )}
+          <Disclosure title="How sure is the fit?"
+            hint={result.diagnostics.posterior ? 'the posterior, its 90% intervals, what the data pin down' : 'estimates and their errors'}>
+            <FitDetails result={result} theme={theme} />
+          </Disclosure>
+          {fitted.measure === 'P' && history && (
+            <Disclosure title="Price history"
+              hint={`daily candles and volume, ${shortDate(history.dates[0])} to ${shortDate(history.dates[history.dates.length - 1])}`}>
+              <OHLCVChart data={history} theme={theme} />
+            </Disclosure>
+          )}
+          <Disclosure title="How this works">
+            {fitted.measure === 'P' ? (
+              <div className="lab-explainer">
+                <div>
+                  <h3>The fit</h3>
+                  <p>
+                    The model&apos;s parameters are read off the stock&apos;s daily returns. A Bayesian fit uses a
+                    network trained offline on millions of simulated histories: it returns the whole posterior in one
+                    pass, and its intervals were checked for coverage on fresh simulations.
+                  </p>
+                </div>
+                <div>
+                  <h3>The prior</h3>
+                  <p>
+                    Before its own history is read, a stock is taken to look like its S&amp;P 500 sector. Stocks outside
+                    the S&amp;P 500 start from the network&apos;s broad training range.
+                  </p>
+                </div>
+                <div>
+                  <h3>The check</h3>
+                  <p>
+                    Histories simulated from the fit are compared with the real one, feature by feature. What the model
+                    cannot produce shows up there, however tightly its parameters are estimated.
+                  </p>
+                </div>
+                <div>
+                  <h3>The futures</h3>
+                  <p>
+                    Futures start at today&apos;s price and drift at the risk-free rate less dividends, r − q: a
+                    stock&apos;s past return is far too uncertain to forecast with. Each fit is also saved for the
+                    Hedging Lab.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="lab-explainer">
+                <div>
+                  <h3>The fit</h3>
+                  <p>
+                    Option prices say how the market prices risk today, not how the stock will move: a fit to them is
+                    risk-neutral. {result.diagnostics.method_label ?? ''}
+                  </p>
+                </div>
+                <div>
+                  <h3>The quotes</h3>
+                  <p>
+                    Only liquid quotes near the money are kept: at least {Q_FILTER.min_volume} contracts traded,{' '}
+                    {Q_FILTER.min_open_interest} open, a spread under {100 * Q_FILTER.max_spread_pct}% of the price, and
+                    strikes within {100 * (1 - Q_FILTER.moneyness_range[0])}% of the spot.
+                  </p>
+                </div>
+                <div>
+                  <h3>The surface</h3>
+                  <p>
+                    The volatility the fitted model implies for each strike and expiry, with the market&apos;s own quotes
+                    as dots: where they leave the surface, the model misprices.
+                  </p>
+                </div>
+              </div>
+            )}
+          </Disclosure>
+          <footer className="lab-footer">
+            <button type="button" className="lab-link" onClick={download}>Download the fit as JSON</button>
+            {result.diagnostics.posterior?.network && (
+              <span title={`Network weights SHA-256 ${result.diagnostics.posterior.network.sha256}`}>
+                {' '}· network {result.diagnostics.posterior.network.sha256.slice(0, 8)}
+              </span>
+            )}
+            {' '}· {fitted.measure === 'P' ? 'real-world (P) measure' : 'risk-neutral (Q) measure'}
+          </footer>
+        </div>
+      )}
     </div>
   );
 };

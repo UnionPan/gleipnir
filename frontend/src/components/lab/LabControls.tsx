@@ -85,7 +85,7 @@ const LabControls: React.FC<Props> = ({ catalog, bundles, config, onChange, onRu
       <div className="lab-bar">
         <label className="lab-field">
           <span>Stock</span>
-          <select value={saved ? `${BUNDLE_PREFIX}${saved.key}` : config.asset} onChange={(e) => setSource(e.target.value)}>
+          <select aria-label="Stock" value={saved ? `${BUNDLE_PREFIX}${saved.key}` : config.asset} onChange={(e) => setSource(e.target.value)}>
             {bundles.length > 0 && (
               <optgroup label="Your calibrations">
                 {bundles.map((b) => (
@@ -103,7 +103,7 @@ const LabControls: React.FC<Props> = ({ catalog, bundles, config, onChange, onRu
         </label>
         <label className="lab-field" title={model?.summary}>
           <span>Market model</span>
-          <select value={config.model} disabled={!!saved}
+          <select aria-label="Market model" value={config.model} disabled={!!saved}
             onChange={(e) => onChange(withModel(e.target.value as LabModelName))}>
             {catalog.models.map((m) => <option key={m.name} value={m.name}>{m.label}</option>)}
           </select>
@@ -115,7 +115,7 @@ const LabControls: React.FC<Props> = ({ catalog, bundles, config, onChange, onRu
         </div>
         <label className="lab-field">
           <span>Strike <strong>{Math.round(config.moneyness * 100)}%</strong> of today's price</span>
-          <input type="range" min={0.8} max={1.2} step={0.05} value={config.moneyness}
+          <input type="range" aria-label="Strike, % of today's price" min={0.8} max={1.2} step={0.05} value={config.moneyness}
             onChange={(e) => set('moneyness', Number(e.target.value))} />
         </label>
         <div className="lab-field">
@@ -125,7 +125,7 @@ const LabControls: React.FC<Props> = ({ catalog, bundles, config, onChange, onRu
         </div>
         <label className="lab-field">
           <span>What if…</span>
-          <select value={config.scenario ?? ''} onChange={(e) => set('scenario', (e.target.value || null) as ScenarioName | null)}>
+          <select aria-label="What if" value={config.scenario ?? ''} onChange={(e) => set('scenario', (e.target.value || null) as ScenarioName | null)}>
             <option value="">Nothing changes</option>
             {scenarios.map((s) => <option key={s.name} value={s.name}>{s.label}</option>)}
           </select>
@@ -133,7 +133,7 @@ const LabControls: React.FC<Props> = ({ catalog, bundles, config, onChange, onRu
         {scenario && (
           <label className="lab-field" title={scenario.summary}>
             <span>Severity <strong>{config.severity[scenario.name].toFixed(2)}</strong></span>
-            <input type="range" min={scenario.severity_min} max={scenario.severity_max} step={0.05}
+            <input type="range" aria-label="Severity" min={scenario.severity_min} max={scenario.severity_max} step={0.05}
               value={config.severity[scenario.name]}
               onChange={(e) => set('severity', { ...config.severity, [scenario.name]: Number(e.target.value) })} />
           </label>
@@ -152,12 +152,12 @@ const LabControls: React.FC<Props> = ({ catalog, bundles, config, onChange, onRu
         <div className="lab-more">
           <label className="lab-field">
             <span>Trading cost (bps of each trade)</span>
-            <input type="number" min={0} max={50} step={1} value={config.costBps}
+            <input type="number" aria-label="Trading cost, bps" min={0} max={50} step={1} value={config.costBps}
               onChange={(e) => set('costBps', Math.min(50, Math.max(0, Number(e.target.value))))} />
           </label>
           <label className="lab-field" title="How the learned hedger weighs risk against trading costs">
             <span>Learned hedger</span>
-            <select value={config.riskAversion} onChange={(e) => set('riskAversion', Number(e.target.value))}>
+            <select aria-label="Learned hedger" value={config.riskAversion} onChange={(e) => set('riskAversion', Number(e.target.value))}>
               {RISK_AVERSIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
           </label>

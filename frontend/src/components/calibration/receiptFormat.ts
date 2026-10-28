@@ -117,7 +117,13 @@ const DERIVED: Record<string, Derived> = {
   calm_duration_days: { label: 'Calm spells last', format: (v) => `${formatSig(v, 3)} trading days`, hint: 'Expected length of a calm regime' },
   turbulent_duration_days: { label: 'Turbulent spells last', format: (v) => `${formatSig(v, 3)} trading days`, hint: 'Expected length of a turbulent regime' },
   window_vol: { label: 'Volatility level', format: (v) => percent(v), hint: "The window's average, annualized" },
+  atm_local_vol: { label: 'At-the-money local vol', format: (v) => percent(v), hint: 'Local volatility at the spot' },
+  mean_local_vol: { label: 'Average local vol', format: (v) => percent(v), hint: 'Over the fitted surface' },
+  min_local_vol: { label: 'Lowest local vol', format: (v) => percent(v), hint: 'Over the fitted surface' },
+  max_local_vol: { label: 'Highest local vol', format: (v) => percent(v), hint: 'Over the fitted surface' },
 };
+
+export const hasDerived = (key: string) => key in DERIVED;
 
 export function derivedRow(key: string, value: number): { label: string; value: string; hint: string } {
   const spec = DERIVED[key];

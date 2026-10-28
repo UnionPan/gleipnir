@@ -8,7 +8,7 @@ import { endLabels, LabeledSeries } from './endLabels';
 import { headline, verdict } from './verdict';
 import { useNarrow } from './useNarrow';
 import Bars from './Bars';
-import Disclosure from './Disclosure';
+import Disclosure from '../common/Disclosure';
 import YearReplay from './YearReplay';
 
 interface Props {

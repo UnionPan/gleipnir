@@ -5,36 +5,32 @@ import './SavedToLab.css';
 interface Props {
   bundles: CalibrationBundle[];
   storageFailed: boolean;
+  onOpenLab?: () => void;
 }
 
-const MODEL_LABELS: Record<string, string> = {
-  heston: 'Heston', gbm: 'Black-Scholes (GBM)', merton_jump: 'Merton jump-diffusion',
-  regime_switching_gbm: 'Regime-switching GBM', garch: 'GARCH(1,1)', rough_bergomi: 'Rough Bergomi',
-};
-
-/** Confirms that a fit now waits in the Hedging Lab: nothing to download or click. */
-const SavedToLab: React.FC<Props> = ({ bundles, storageFailed }) => {
+/** Confirms that a fit now waits in the Hedging Lab: nothing to download. */
+const SavedToLab: React.FC<Props> = ({ bundles, storageFailed, onOpenLab }) => {
   if (storageFailed) {
     return (
-      <div className="saved-to-lab saved-to-lab-failed" role="status">
-        <strong>Not saved for the Hedging Lab.</strong> This browser blocks site storage (a private window or
-        blocked site data), so the lab cannot see this fit.
-      </div>
+      <p className="saved-to-lab saved-to-lab-failed" role="status">
+        <strong>Not saved for the Hedging Lab:</strong> this browser blocks site storage (a private window or blocked site
+        data), so the lab cannot see this fit.
+      </p>
     );
   }
   if (bundles.length === 0) return null;
   return (
-    <div className="saved-to-lab" role="status">
-      <strong>Saved to the Hedging Lab.</strong>{' '}
-      {bundles.map((b, i) => (
-        <span key={`${b.asset}:${b.model}`}>
-          {i > 0 && ', '}
-          {b.asset} · {MODEL_LABELS[b.model] ?? b.model} <code>{b.hash.slice(0, 8)}</code>
-        </span>
-      ))}
-      . Open the Hedging Lab tab to sell an option on {bundles.length > 1 ? 'these calibrations' : 'this calibration'},
-      hedge it, and stress it.
-    </div>
+    <p className="saved-to-lab" role="status">
+      <span>
+        Saved for the Hedging Lab{bundles.length > 1 ? `: ${bundles.map((b) => b.asset).join(', ')}` : ''}
+        {' '}<code title="The fit's fingerprint">{bundles.map((b) => b.hash.slice(0, 8)).join(' ')}</code>
+      </span>
+      {onOpenLab && (
+        <button type="button" className="lab-link" onClick={onOpenLab}>
+          Sell and hedge an option on {bundles.length > 1 ? 'these fits' : 'this fit'} →
+        </button>
+      )}
+    </p>
   );
 };
 

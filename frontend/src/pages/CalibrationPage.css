@@ -1,546 +1,223 @@
-.calibration-page {
-  padding: 0;
-  max-width: 100%;
-  margin: 0 auto;
-}
+/* Model Calibration. Builds on the Hedging Lab's panels, bars, toggles and chart
+   chrome (HedgingLabPage.css); the model's color is the lab's factual blue. */
 
-/* ── Page Header ── */
-.page-header {
-  margin-bottom: 0.75rem;
-  border-bottom: 2px solid;
-  border-bottom-color: var(--bevel-dark);
-  box-shadow: inset 0 -1px 0 var(--bevel-light);
-  padding-bottom: 0.625rem;
-}
-
-.page-header h1 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 0.25rem;
-  letter-spacing: -0.02em;
-}
-
-.page-subtitle {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin: 0;
-  font-family: 'IBM Plex Mono', 'Lucida Console', monospace;
-}
-
-/* ── Measure Type Selector — raised radio buttons ── */
-.measure-selector {
+/* ── Before the first fit ── */
+.calib-start {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.measure-btn {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.75rem;
+  gap: 0.75rem 1.25rem;
+  padding: 1.25rem;
   background: var(--panel-bg);
   border: 2px solid;
   border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark) var(--bevel-light);
-  cursor: pointer;
 }
 
-.measure-btn::before {
-  display: none;
+.calib-start p {
+  flex: 1 1 22rem;
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
 }
 
-.measure-btn strong {
-  font-size: 0.9375rem;
-  color: var(--text-primary);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+.calib-start .lab-run {
+  padding-left: 1rem;
+  padding-right: 1rem;
 }
 
-.measure-btn span {
+/* ── The few numbers worth reading ── */
+.calib-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.75rem;
+  margin: 0;
+}
+
+.calib-numbers div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.calib-numbers dt {
   font-size: 0.6875rem;
   color: var(--text-muted);
 }
 
-.measure-btn:hover {
-  background: var(--panel-bg-alt);
+.calib-numbers dd {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
-.measure-btn.active {
-  border-color: var(--bevel-dark) var(--bevel-light) var(--bevel-light) var(--bevel-dark);
-  background: var(--well-bg);
-  box-shadow: none;
+/* ── Past and futures ── */
+.calib-fan {
+  min-width: 0;
 }
 
-.measure-btn.active strong {
-  color: var(--accent);
+.calib-fan svg {
+  display: block;
+  overflow: visible;
+  touch-action: pan-y;
 }
 
-.measure-btn.active span {
+.calib-fan-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.calib-fan-label {
+  font-size: 0.75rem;
   color: var(--text-secondary);
 }
 
-/* ── Error Banner ── */
-.error-banner {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--panel-bg);
-  border: 2px solid;
-  border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark) var(--bevel-light);
-  margin-bottom: 0.75rem;
-  color: var(--negative-color);
-  font-size: 0.8125rem;
-}
-
-.error-icon {
-  font-size: 1rem;
-}
-
-.error-close {
+.calib-fan-count {
   margin-left: auto;
-  background: var(--panel-bg);
-  border: 2px solid;
-  border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark) var(--bevel-light);
-  font-size: 0.875rem;
-  color: var(--text-primary);
-  cursor: pointer;
-  padding: 0 0.25rem;
-  line-height: 1;
 }
 
-.error-close:active {
-  border-color: var(--bevel-dark) var(--bevel-light) var(--bevel-light) var(--bevel-dark);
+.calib-fan .lab-segmented button {
+  white-space: nowrap;
 }
 
-/* ── Layout ── */
-.calibration-layout {
+.calib-fan .lab-readout {
+  min-height: 1.1rem;
+  margin-top: 0.25rem;
+}
+
+.calib-fan .lab-hero-controls {
+  margin-top: 0.5rem;
+}
+
+/* ── Does the model reproduce the history? ── */
+.calib-check-legend {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-/* ── Configuration Card — window chrome ── */
-.configuration-card {
-  background: var(--panel-bg);
-  border: 2px solid;
-  border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark) var(--bevel-light);
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  box-shadow: none;
-  border-radius: 0;
-}
-
-.configuration-top {
-  display: grid;
-  grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
-  gap: 0.5rem;
-  padding: 0.5rem;
-  margin: 0.375rem;
-  background: var(--well-bg);
-  border: 2px solid;
-  border-color: var(--well-border-top) var(--well-border-right) var(--well-border-bottom) var(--well-border-left);
-  align-items: stretch;
-}
-
-.configuration-top > * {
-  height: 100%;
-}
-
-.configuration-left,
-.configuration-right {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-/* Flatten nested components inside config card */
-.configuration-card .asset-selector,
-.configuration-card .model-configuration {
-  margin: 0;
-  height: 100%;
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  border: none !important;
-  border-radius: 0 !important;
-}
-
-/* ── Date Range Panel ── */
-.date-range-panel {
-  background: var(--panel-bg-alt);
-  padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-}
-
-.date-range-panel h3 {
-  margin: 0 0 0.625rem 0;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.date-range-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(120px, 1fr));
-  gap: 0.5rem;
-}
-
-/* ── Action Buttons — raised bevel ── */
-.action-buttons {
-  display: flex;
-  flex-direction: row;
   flex-wrap: wrap;
-  gap: 0.375rem;
-  justify-content: flex-end;
-  padding: 0.5rem 0.375rem;
+  gap: 0.25rem 1.25rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
 }
 
-.btn {
-  padding: 0.375rem 1.25rem;
-  border: 2px solid;
-  border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark) var(--bevel-light);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  cursor: pointer;
+.calib-check-legend span {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 0.375rem;
-  letter-spacing: 0.02em;
-  background: var(--panel-bg);
-  color: var(--text-primary);
-  box-shadow: none;
-  border-radius: 0;
-  overflow: visible;
-  position: relative;
 }
 
-.btn::before {
-  display: none;
-}
-
-.btn:hover {
-  background: var(--panel-bg-alt);
-}
-
-.btn:active:not(:disabled) {
-  border-color: var(--bevel-dark) var(--bevel-light) var(--bevel-light) var(--bevel-dark);
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: var(--accent);
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  filter: brightness(1.1);
-  transform: none;
-  box-shadow: none;
-}
-
-.btn-primary:active:not(:disabled) {
-  border-color: var(--bevel-dark) var(--bevel-light) var(--bevel-light) var(--bevel-dark);
-  filter: brightness(0.95);
-  transform: none;
-  box-shadow: none;
-}
-
-.btn-secondary {
-  background: var(--accent-secondary);
-  color: white;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  filter: brightness(1.1);
-  transform: none;
-  box-shadow: none;
-}
-
-.btn-secondary:active:not(:disabled) {
-  border-color: var(--bevel-dark) var(--bevel-light) var(--bevel-light) var(--bevel-dark);
-  filter: brightness(0.95);
-  transform: none;
-  box-shadow: none;
-}
-
-.btn-download {
-  background: var(--accent);
-  color: white;
-  padding: 0.3125rem 0.875rem;
-  font-size: 0.75rem;
-}
-
-.btn-download:hover:not(:disabled) {
-  filter: brightness(1.1);
-  transform: none;
-}
-
-.spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* ── Results Sections — window chrome cards ── */
-.results-panel {
-  min-height: 300px;
-}
-
-.chart-section,
-.results-section {
-  background: var(--panel-bg);
-  border: 2px solid;
-  border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark) var(--bevel-light);
-  padding: 0;
-  margin-bottom: 0.75rem;
-  box-shadow: none;
-  border-radius: 0;
-}
-
-.chart-section h2,
-.results-section h2 {
-  margin: 0;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 0.375rem 0.625rem;
-  color: var(--titlebar-text);
-  background: var(--titlebar-bg);
-  border-bottom: 1px solid var(--bevel-dark);
-}
-
-.simulation-section,
-.vol-surface-section {
-  background: var(--panel-bg);
-  border: 2px solid;
-  border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark) var(--bevel-light);
-  padding: 0;
-  margin-bottom: 0.75rem;
-  box-shadow: none;
-  border-radius: 0;
-}
-
-.simulation-header,
-.vol-surface-header {
-  margin: 0;
-  padding: 0;
-}
-
-.simulation-header h2,
-.vol-surface-header h2 {
-  margin: 0;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 0.375rem 0.625rem;
-  color: var(--titlebar-text);
-  background: linear-gradient(90deg, #2d4a1d, #4a7a2d);
-  border-bottom: 1px solid var(--bevel-dark);
-}
-
-.vol-surface-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: linear-gradient(90deg, #4a1d4a, #7a2d7a);
-  padding: 0.375rem 0.625rem;
-  border-bottom: 1px solid var(--bevel-dark);
-}
-
-.vol-surface-header h2 {
-  background: none;
-  border-bottom: none;
-  padding: 0;
-}
-
-/* ── Simulation Controls — inset toolbar ── */
-.simulation-controls {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 0.5rem;
-  align-items: end;
-  padding: 0.5rem;
-  margin: 0.375rem;
-  background: var(--well-bg);
-  border: 2px solid;
-  border-color: var(--well-border-top) var(--well-border-right) var(--well-border-bottom) var(--well-border-left);
-}
-
-.simulation-controls .btn {
-  height: 34px;
-}
-
-.control-field {
+.calib-check-rows {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
 }
 
-.control-field label {
-  font-size: 0.625rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
+.calib-check-row {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 180px;
+  align-items: center;
+  gap: 0 0.75rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.control-field input,
-.control-field select {
-  border: 2px solid;
-  border-color: var(--bevel-dark) var(--bevel-light) var(--bevel-light) var(--bevel-dark);
-  padding: 0.3125rem 0.5rem;
+.calib-check-row:last-child {
+  border-bottom: none;
+}
+
+.calib-check-row.narrow {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 0.375rem 0;
+}
+
+.calib-check-row.narrow svg {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.calib-check-name {
+  display: flex;
+  flex-direction: column;
   font-size: 0.8125rem;
-  background: var(--well-bg);
-  color: var(--text-primary);
-  font-family: 'IBM Plex Mono', 'Lucida Console', monospace;
 }
 
-.control-field input:focus,
-.control-field select:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-/* ── Results Header ── */
-.results-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.375rem 0.625rem;
-  background: var(--titlebar-bg);
-  border-bottom: 1px solid var(--bevel-dark);
-}
-
-.results-header h2 {
-  margin: 0;
-  background: none;
-  border-bottom: none;
-  padding: 0;
-}
-
-/* ── Option Chain Summary ── */
-.option-chain-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 0.375rem;
-  padding: 0.5rem;
-  margin: 0.375rem;
-  background: var(--well-bg);
-  border: 2px solid;
-  border-color: var(--well-border-top) var(--well-border-right) var(--well-border-bottom) var(--well-border-left);
-}
-
-.summary-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  padding: 0.375rem;
-  background: var(--panel-bg-alt);
-  border: 1px solid var(--border-color);
-}
-
-.summary-item .label {
-  font-size: 0.625rem;
+.calib-check-name span {
+  font-size: 0.6875rem;
   color: var(--text-muted);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 
-.summary-item .value {
-  font-size: 1rem;
-  color: var(--text-primary);
-  font-weight: 700;
-  font-family: 'IBM Plex Mono', 'Lucida Console', monospace;
-  letter-spacing: -0.02em;
-}
-
-/* ── Empty State ── */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 2rem;
-  background: var(--well-bg);
-  text-align: center;
-  border: 2px solid;
-  border-color: var(--well-border-top) var(--well-border-right) var(--well-border-bottom) var(--well-border-left);
-  margin: 0.375rem;
-}
-
-.empty-icon {
-  font-size: 2.5rem;
-  margin-bottom: 0.75rem;
-  opacity: 0.25;
-}
-
-.empty-state h3 {
-  font-size: 1rem;
+.calib-verdict {
+  font-size: 0.75rem;
   color: var(--text-secondary);
-  margin: 0 0 0.25rem 0;
-  font-weight: 600;
 }
 
-.empty-state p {
-  color: var(--text-muted);
+.calib-verdict.misfit {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.calib-verdict.misfit span {
+  color: var(--negative-color);
+}
+
+/* ── How sure is the fit? ── */
+.calib-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.calib-details svg {
+  display: block;
+  overflow: visible;
+}
+
+.calib-surface {
   margin: 0;
+}
+
+/* ── Setup bar extras ── */
+.calib-measure .lab-segmented button {
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .calib-measure {
+    grid-column: 1 / -1;
+  }
+}
+
+.lab-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lab-bar input[type='text'],
+.lab-more input[type='date'] {
+  font: inherit;
   font-size: 0.8125rem;
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 2px solid;
+  border-color: var(--well-border-top) var(--well-border-right) var(--well-border-bottom) var(--well-border-left);
+  padding: 0.3125rem 0.375rem;
+  min-width: 0;
 }
 
-/* ── Responsive ── */
-@media (max-width: 1024px) {
-  .configuration-top {
-    grid-template-columns: 1fr;
-  }
+.lab-bar input[type='text'] {
+  text-transform: uppercase;
 }
 
-@media (max-width: 768px) {
-  .page-header h1 {
-    font-size: 1rem;
-  }
+.lab-bar input[type='text']::placeholder {
+  text-transform: none;
+  color: var(--text-muted);
+}
 
-  .configuration-top {
-    padding: 0.375rem;
-  }
-
-  .date-range-row {
-    grid-template-columns: 1fr;
-  }
-
-  .action-buttons {
-    justify-content: stretch;
-  }
-
-  .action-buttons .btn {
-    flex: 1 1 180px;
-  }
-
-  .measure-selector {
-    flex-direction: column;
-  }
+.lab-error-inline {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--negative-color);
 }

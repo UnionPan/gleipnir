@@ -1,187 +1,90 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import Plot from 'react-plotly.js';
-import './VolatilitySurface3D.css';
-import { OptionChainData } from '../../services/calibrationApi';
-import { useTheme } from '../../contexts/ThemeContext';
+import type { Data } from 'plotly.js';
+import type { OptionChainData, VolSurfaceResponse } from '../../services/calibrationApi';
+import { chrome, ThemeName } from '../lab/chartTheme';
 
-interface VolSurfaceData {
-  strikes: number[];
-  maturities: number[];
-  vols: (number | null)[][];  // maturities x strikes; null where the model vol is undefined
-  surface_type: 'implied_vol' | 'local_vol';
-  ticker: string;
-  model: string;
+interface Props {
+  surface: VolSurfaceResponse;
+  chain: OptionChainData;
+  theme: ThemeName;
 }
 
-interface VolatilitySurface3DProps {
-  surfaceData: VolSurfaceData | null;
-  isLoading: boolean;
-  optionChainData?: OptionChainData | null;
-  spotPrice?: number;
+// One hue, light to dark (dark to bright on the dark surface): the height is a magnitude.
+const RAMP: Record<ThemeName, [number, string][]> = {
+  light: [[0, '#dbe9fa'], [0.5, '#5b9be6'], [1, '#0d3a73']],
+  dark: [[0, '#1b2b4a'], [0.5, '#3987e5'], [1, '#bcd9fb']],
+};
+
+const YEAR_MS = 365 * 24 * 3600 * 1000;
+
+/** The quotes a fit would keep: liquid, out of the money, near the money, with a sane implied vol. */
+export function fittedQuotes(chain: OptionChainData, maxYears: number) {
+  const today = new Date(`${chain.reference_date}T00:00:00Z`).getTime();
+  return chain.options
+    .map((o) => ({ ...o, years: (new Date(`${o.expiry}T00:00:00Z`).getTime() - today) / YEAR_MS }))
+    .filter((o) => typeof o.implied_volatility === 'number' && o.implied_volatility > 0.01 && o.implied_volatility < 3
+      && o.volume >= 10 && o.open_interest >= 50 && o.mid > 0 && (o.ask - o.bid) <= 0.5 * o.mid
+      && o.moneyness >= 0.8 && o.moneyness <= 1.2 && o.years > 0 && o.years <= maxYears
+      && (o.option_type === 'call' ? o.moneyness >= 1 : o.moneyness <= 1));
 }
 
-const VolatilitySurface3D: React.FC<VolatilitySurface3DProps> = ({
-  surfaceData,
-  isLoading,
-  optionChainData,
-  spotPrice,
-}) => {
-  const { theme } = useTheme();
-
-  const plotBgColor = theme === 'dark' ? 'rgba(15, 23, 42, 0.9)' : 'rgba(248, 250, 252, 0.9)';
-  const plotTextColor = theme === 'dark' ? '#e5e7eb' : '#0f172a';
-  const gridColor =
-    theme === 'dark' ? 'rgba(148, 163, 184, 0.2)' : 'rgba(100, 116, 139, 0.2)';
-
-  if (isLoading) {
-    return (
-      <div className="vol-surface-container">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Generating volatility surface...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!surfaceData) {
-    return (
-      <div className="vol-surface-container">
-        <div className="vol-surface-placeholder">
-          <p>📊 Volatility surface will appear here after calibration</p>
-          <p className="helper-text">
-            The surface shows how volatility varies across strikes and maturities
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const { strikes, maturities, vols, surface_type, ticker, model } = surfaceData;
-
-  // Convert strikes to moneyness for better visualization
-  const spot = spotPrice || optionChainData?.spot_price || 100;
-  const moneyness = strikes.map(k => k / spot);
-
-  // Create mesh grid for 3D surface
-  const data: any = [
+/** The fitted model's volatility over strike and expiry, with the market's own quotes as dots. */
+const VolatilitySurface3D: React.FC<Props> = ({ surface, chain, theme }) => {
+  const c = chrome(theme);
+  const implied = surface.surface_type === 'implied_vol';
+  const maxYears = Math.max(...surface.maturities);
+  const quotes = useMemo(() => fittedQuotes(chain, maxYears), [chain, maxYears]);
+  const axis = (title: string, extra: object = {}) => ({
+    title: { text: title, font: { color: c.inkSecondary, size: 11 } },
+    gridcolor: c.grid, zerolinecolor: c.baseline, tickfont: { color: c.muted, size: 10 }, backgroundcolor: c.surface,
+    ...extra,
+  });
+  const data: Data[] = [
     {
-      type: 'surface',
-      x: moneyness,  // Moneyness (K/S)
-      y: maturities,  // Time to maturity
-      z: vols,  // Volatility values
-      colorscale: [
-        [0, '#0d0887'],      // Deep purple (low vol)
-        [0.25, '#5302a3'],   // Purple
-        [0.5, '#8b0aa5'],    // Magenta
-        [0.75, '#db3a07'],   // Red-orange
-        [1, '#f98e09'],      // Orange (high vol)
-      ],
-      colorbar: {
-        title: {
-          text: surface_type === 'implied_vol' ? 'Implied Vol' : 'Local Vol',
-          side: 'right',
-          font: { color: plotTextColor },
-        },
-        tickfont: { color: plotTextColor },
-        tickformat: '.1%',
-        len: 0.7,
-      },
-      hovertemplate:
-        '<b>Moneyness:</b> %{x:.3f}<br>' +
-        '<b>Maturity:</b> %{y:.2f} years<br>' +
-        '<b>Vol:</b> %{z:.2%}<extra></extra>',
-    },
+      type: 'surface', x: surface.strikes.map((k) => k / chain.spot_price), y: surface.maturities, z: surface.vols,
+      colorscale: RAMP[theme], opacity: 0.92, showscale: false,
+      hovertemplate: 'strike %{x:.0%} of spot<br>%{y:.2f} years<br>model vol %{z:.1%}<extra></extra>',
+    } as Data,
+    ...(implied && quotes.length > 0 ? [{
+      type: 'scatter3d', mode: 'markers', x: quotes.map((o) => o.moneyness), y: quotes.map((o) => o.years),
+      z: quotes.map((o) => o.implied_volatility as number), marker: { size: 2.5, color: c.ink },
+      hovertemplate: 'market quote<br>strike %{x:.0%} of spot<br>%{y:.2f} years<br>implied vol %{z:.1%}<extra></extra>',
+    } as Data] : []),
   ];
-
-  const layout: any = {
-    title: {
-      text: `${ticker} - ${model.toUpperCase()} ${
-        surface_type === 'implied_vol' ? 'Implied' : 'Local'
-      } Volatility Surface`,
-      font: { size: 16 },
-    },
-    scene: {
-      xaxis: {
-        title: 'Moneyness (K/S)',
-        gridcolor: gridColor,
-        tickfont: { color: plotTextColor },
-      },
-      yaxis: {
-        title: 'Time to Maturity (years)',
-        gridcolor: gridColor,
-        tickfont: { color: plotTextColor },
-      },
-      zaxis: {
-        title: surface_type === 'implied_vol' ? 'Implied Volatility' : 'Local Volatility',
-        tickformat: '.1%',
-        gridcolor: gridColor,
-        tickfont: { color: plotTextColor },
-      },
-      camera: {
-        eye: { x: 1.5, y: 1.5, z: 1.3 },
-      },
-      bgcolor: plotBgColor,
-    },
-    autosize: true,
-    margin: { l: 0, r: 0, t: 40, b: 0 },
-    paper_bgcolor: 'transparent',
-    font: { color: plotTextColor },
-  };
-
-  const config: any = {
-    responsive: true,
-    displayModeBar: true,
-    modeBarButtonsToRemove: ['select2d', 'lasso2d'],
-    displaylogo: false,
-  };
-
   return (
-    <div className="vol-surface-container">
-      <div className="surface-info">
-        <div className="info-item">
-          <span className="label">Model:</span>
-          <span className="value">{model.toUpperCase()}</span>
-        </div>
-        <div className="info-item">
-          <span className="label">Surface Type:</span>
-          <span className="value">
-            {surface_type === 'implied_vol' ? 'Implied Volatility' : 'Local Volatility'}
-          </span>
-        </div>
-        <div className="info-item">
-          <span className="label">Grid:</span>
-          <span className="value">
-            {strikes.length} strikes × {maturities.length} maturities
-          </span>
-        </div>
-      </div>
-
-      <div className="vol-surface-plot">
-        <Plot
-          data={data}
-          layout={layout}
-          config={config}
-          style={{ width: '100%', height: '600px' }}
-        />
-      </div>
-
-      <div className="surface-description">
-        {surface_type === 'implied_vol' ? (
-          <p>
-            <strong>Implied Volatility Surface:</strong> Shows the market-implied volatility
-            extracted from option prices across moneyness and time to maturity. The smile/skew
-            pattern indicates how volatility varies across strikes and expiration dates.
-          </p>
-        ) : (
-          <p>
-            <strong>Local Volatility Surface:</strong> Shows the instantaneous volatility
-            σ_LV(K,T) at each strike and maturity. This is the input to the local volatility
-            model and is calibrated to match market option prices exactly.
-          </p>
-        )}
-      </div>
-    </div>
+    <figure className="lab-chart calib-surface">
+      <figcaption>
+        <span className="lab-chart-title">{implied ? 'Implied volatility' : 'Local volatility'} by strike and expiry</span>
+        <span className="lab-hero-count">drag to turn</span>
+      </figcaption>
+      <Plot
+        data={data}
+        layout={{
+          height: 460, margin: { l: 0, r: 0, t: 0, b: 0 }, paper_bgcolor: c.surface, showlegend: false,
+          font: { family: 'Inter, system-ui, sans-serif', color: c.ink, size: 11 },
+          hoverlabel: { bgcolor: c.surface, bordercolor: c.baseline, font: { color: c.ink, size: 12 } },
+          scene: {
+            xaxis: axis('Strike / spot', { tickformat: '.0%' }),
+            yaxis: axis('Years to expiry'),
+            zaxis: axis(implied ? 'Implied vol' : 'Local vol', { tickformat: '.0%' }),
+            camera: { eye: { x: 1.25, y: -1.3, z: 0.62 } },
+            bgcolor: c.surface,
+          },
+        }}
+        config={{ displayModeBar: false, responsive: true }}
+        useResizeHandler
+        style={{ width: '100%' }}
+      />
+      <p className="lab-hero-note">
+        {implied
+          ? <>The surface is the volatility the fitted model implies for each strike and expiry; the dots are{' '}
+            {quotes.length.toLocaleString('en-US')} liquid out-of-the-money market quotes. Where the dots leave the
+            surface, the model misprices.</>
+          : <>The local volatility the option prices imply at each strike and time: the one volatility function under
+            which a diffusion reprices every quote.</>}
+      </p>
+    </figure>
   );
 };
 

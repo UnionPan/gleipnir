@@ -4,7 +4,7 @@ import { chrome, ThemeName } from '../lab/chartTheme';
 import { extent, linear, linePath, ticks, useAnimationClock, useWidth } from '../lab/viz';
 import { slotColor } from './learningTheme';
 import Bars from './Bars';
-import Disclosure from './Disclosure';
+import Disclosure from '../common/Disclosure';
 
 interface Props {
   demo: CliquetDemo;

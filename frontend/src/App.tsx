@@ -64,7 +64,7 @@ function App() {
       case 'market':
         return <HomePage />;
       case 'calibration':
-        return <CalibrationPage />;
+        return <CalibrationPage onOpenLab={() => handlePageChange('lab')} />;
       case 'lab':
         return <HedgingLabPage />;
       case 'learning':
