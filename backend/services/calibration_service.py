@@ -75,6 +75,11 @@ class CalibrationService:
                 # Flatten multi-index columns if necessary
                 if isinstance(data.columns, pd.MultiIndex):
                     data.columns = data.columns.droplevel(1)
+                # A session still trading (an end date after its open) comes back with no close yet:
+                # it is not a daily close, and a fit refuses a series with a gap in it.
+                data = data.dropna(subset=["Close"])
+                if data.empty:
+                    raise ValueError(f"No data available for {ticker}")
 
                 # Convert to dict format
                 ohlcv = {

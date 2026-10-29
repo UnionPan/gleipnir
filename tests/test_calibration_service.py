@@ -7,8 +7,10 @@ are deselected unless requested with ``-m network``.
 from datetime import datetime, timedelta
 
 import numpy as np
+import pandas as pd
 import pytest
 
+from backend.services import calibration_service
 from backend.services.calibration_service import CalibrationService
 from backend.services.market_data import dividend_yield
 
@@ -117,6 +119,19 @@ class TestVolSurfaceOffline:
         assert np.isfinite(b[:, 3:18]).all()
         # crash risk: a steeper short-dated skew than the diffusion alone
         assert (b[0, 5] - b[0, 13]) > (h[0, 5] - h[0, 13]) + 0.02
+
+
+class TestPriceHistory:
+    def test_a_session_still_trading_is_not_a_close(self, monkeypatch):
+        # yfinance returns today's session with no close yet when the end date is after its open
+        index = pd.to_datetime(["2026-10-26", "2026-10-27", "2026-10-28"])
+        frame = pd.DataFrame({"Open": [181.9, 183.6, 180.6], "High": [185.0, 184.0, 182.0],
+                              "Low": [181.0, 179.0, 179.5], "Close": [184.54, 179.91, np.nan],
+                              "Adj Close": [184.54, 179.91, np.nan], "Volume": [10.9e6, 14.2e6, 12.7e6]},
+                             index=index)
+        monkeypatch.setattr(calibration_service.yf, "download", lambda *a, **k: frame)
+        data = CalibrationService.fetch_ohlcv_data(["XOM"], "2026-10-26", "2026-10-29")[0]
+        assert data["dates"] == ["2026-10-26", "2026-10-27"] and data["close"] == [184.54, 179.91]
 
 
 @pytest.mark.network

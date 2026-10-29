@@ -61,6 +61,7 @@ def _treasury_bill_rate(day: str) -> float:
     on = date.fromisoformat(day)
     history = yf.Ticker("^IRX").history(start=(on - timedelta(days=10)).isoformat(),
                                         end=(on + timedelta(days=1)).isoformat())
+    history = history.dropna(subset=["Close"])  # a session still trading has no close yet
     if history.empty:
         raise ValueError(f"no ^IRX quote near {day}")
     return math.log1p(float(history["Close"].iloc[-1]) / 100.0)
